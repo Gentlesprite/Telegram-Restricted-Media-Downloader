@@ -47,6 +47,7 @@ class KeyWorld(Enum):
     file = 5
     error_size = 6
     actual_size = 7
+
     @property
     def text(self):
         return {
@@ -59,3 +60,57 @@ class KeyWorld(Enum):
             KeyWorld.error_size: '错误大小',
             KeyWorld.actual_size: '实际大小'
         }[self]
+
+
+class LogLevel(Enum):
+    debug = 0
+    info = 1
+    success = 2
+    warning = 3
+    error = 4
+
+    @property
+    def text(self):
+        return {
+            LogLevel.debug: 'debug',
+            LogLevel.info: 'info',
+            LogLevel.success: 'success',
+            LogLevel.warning: 'warning',
+            LogLevel.error: 'error'
+        }[self]
+
+    @property
+    def color(self):
+        color_mapping = {
+            LogLevel.debug: PrintColor.blue,
+            LogLevel.info: PrintColor.white,
+            LogLevel.success: PrintColor.green,
+            LogLevel.warning: PrintColor.yellow,
+            LogLevel.error: PrintColor.red
+        }
+        return color_mapping.get(self, PrintColor.white)
+
+
+class PrintColor(Enum):
+    blue = 0
+    white = 1
+    green = 2
+    yellow = 3
+    red = 4
+
+
+
+    @property
+    def text(self):
+        return {
+            PrintColor.blue: 'blue',
+            PrintColor.white: 'white',
+            PrintColor.green: 'green',
+            PrintColor.yellow: 'yellow',
+            PrintColor.red: 'red',
+            PrintColor.violet: 'violet'
+        }[self]
+
+    @classmethod
+    def violet(cls):
+        return cls(6)
