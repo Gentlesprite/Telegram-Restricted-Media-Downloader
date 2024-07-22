@@ -6,6 +6,7 @@
 import os
 import sys
 import yaml
+import datetime
 from pyrogram import Client
 from module.enum_define import LogLevel
 from module.logger_config import setup_no_console_loger_config, print_with_log
@@ -43,9 +44,10 @@ def load_config(config_path):
                 print_with_log(msg='检测到空的配置文件。已生成新的模板文件...', level=LogLevel.warning)
                 return CONFIG_TEMPLATE.copy()
         return config
-    except:
-        print_with_log(msg='检测到无效或损坏的配置文件。已生成新的模板文件...', level=LogLevel.warning)
-        # todo 不是删除文件而是更名文件v1.0.3实现
+    except Exception as e:
+        print_with_log(msg=f'检测到无效或损坏的配置文件。已生成新的模板文件...原因:"{e}"', level=LogLevel.warning)
+        os.rename(config_path,
+                  os.path.join(DIR_NAME, f'history_{datetime.datetime.now().strftime("%H-%M-%S")}_config.yaml'))
         config = CONFIG_TEMPLATE.copy()
         return config
 
