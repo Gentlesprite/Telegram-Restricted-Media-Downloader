@@ -47,15 +47,6 @@ def save_config(config, filename):
         yaml.dump(config, f)
 
 
-def is_config_valid(config):
-    # Check if all required keys exist in the config dictionary
-    required_keys = ['api_hash', 'api_id', 'proxy', 'links', 'save_path', 'max_download_task']
-    for key in required_keys:
-        if key not in config:
-            return False
-    return True
-
-
 def prompt_for_proxy_config(config):
     proxy_config = config['proxy']
     proxy_config['scheme'] = input('请输入代理类型 (http/socks5): ')
