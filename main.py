@@ -7,9 +7,9 @@ import os
 import sys
 import yaml
 from pyrogram import Client
-from limited_media_downloader import (download_media_from_links, _move_to_download_path)
-from module.logger_config import (setup_no_console_loger_config, print_with_log)
 from module.enum_define import LogLevel
+from module.logger_config import setup_no_console_loger_config, print_with_log
+from limited_media_downloader import download_media_from_links, _move_to_download_path
 
 DIR_NAME = os.path.dirname(os.path.abspath(sys.argv[0]))  # 获取软件工作绝对目录
 CONFIG_NAME = 'config.yaml'  # 配置文件名
@@ -31,15 +31,20 @@ CONFIG_TEMPLATE = {
 }
 
 
-def load_config(filename):
+def load_config(config_path):
     try:
-        if not os.path.exists(filename):
-            return None
-        with open(filename, 'r') as f:
+        if not os.path.exists(config_path):
+            with open(file=config_path, mode='w') as f:
+                yaml.safe_dump(CONFIG_TEMPLATE, f)
+            print_with_log(msg='未找到配置文件，已生成新的模板文件...', level=LogLevel.info)
+        with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
+            if config is None:
+                print_with_log(msg='检测到空的配置文件。已生成新的模板文件...', level=LogLevel.warning)
+                return CONFIG_TEMPLATE.copy()
         return config
     except:
-        print_with_log(msg='检测到无效或损坏的配置文件。正在生成新的模板文件...', level=LogLevel.warning.text)
+        print_with_log(msg='检测到无效或损坏的配置文件。已生成新的模板文件...', level=LogLevel.warning)
         # todo 不是删除文件而是更名文件
         config = CONFIG_TEMPLATE.copy()
         return config
@@ -50,44 +55,9 @@ def save_config(config, filename):
         yaml.dump(config, f)
 
 
-def prompt_for_proxy_config(config):
-    proxy_config = config['proxy']
-
-    # 输入代理类型
-    while True:
-        scheme = input('请输入代理类型[http|socks5]:').strip().lower()
-        if scheme in ['http', 'socks5']:
-            proxy_config['scheme'] = scheme
-            break
-        else:
-            print_with_log(msg='请输入有效的代理类型!', level=LogLevel.warning)
-
-    # 输入代理IP地址
-    proxy_config['hostname'] = input('请输入代理IP地址:').strip()
-
-    # 输入代理端口
-    while True:
-        port = None
-        try:
-            port = int(input('请输入代理端口:').strip())
-            if port > 0 and port <= 65535:
-                proxy_config['port'] = port
-                break
-            else:
-                print_with_log(msg=f'"{port}"端口号必须在1到65535之间!', level=LogLevel.warning)
-        except ValueError:
-            print_with_log(msg=f'"{port}"请输入一个有效的整数作为端口号!', level=LogLevel.warning)
-
-    # 是否需要认证
-    if input('代理是否需要认证?[y|n]').strip().lower() == 'y':
-        proxy_config['username'] = input('请输入用户名:').strip()
-        proxy_config['password'] = input('请输入密码:').strip()
-
-
 def config_leader():
     # Load the existing config file or use default config
     config = load_config(CONFIG_PATH)
-
     # Prompt user to input necessary configurations
     if not config['api_hash']:
         config['api_hash'] = input('请输入api_hash:')
@@ -137,11 +107,41 @@ def config_leader():
             except ValueError:
                 print_with_log(msg=f'意外的参数:"{max_tasks}"请输入一个有效的整数作为最大下载任务数!',
                                level=LogLevel.error)
-    if not config['proxy']:
+    proxy_main_info: list = ['scheme', 'hostname', 'port']  # 代理的主要信息来判断是否需要使用代理
+    is_none = []
+    for i in proxy_main_info:
+        is_none.append(config.get('proxy')[i])
+    if not all(is_none):
         # Prompt for proxy configuration if needed
-        if input('是否需要使用代理? [y/n]').lower() == 'y':
+        if input('是否需要使用代理? [y|n]').lower() == 'y':
             config['proxy'] = {}
-            prompt_for_proxy_config(config)
+            proxy_config = config['proxy']
+            # 输入代理类型
+            while True:
+                scheme = input('请输入代理类型[http|socks5]:').strip().lower()
+                if scheme in ['http', 'socks5']:
+                    proxy_config['scheme'] = scheme
+                    break
+                else:
+                    print_with_log(msg='请输入有效的代理类型!', level=LogLevel.warning)
+            # 输入代理IP地址
+            proxy_config['hostname'] = input('请输入代理IP地址:').strip()
+            # 输入代理端口
+            while True:
+                port = None
+                try:
+                    port = int(input('请输入代理端口:').strip())
+                    if port > 0 and port <= 65535:
+                        proxy_config['port'] = port
+                        break
+                    else:
+                        print_with_log(msg=f'"{port}"端口号必须在1到65535之间!', level=LogLevel.warning)
+                except ValueError:
+                    print_with_log(msg=f'"{port}"请输入一个有效的整数作为端口号!', level=LogLevel.warning)
+            # 是否需要认证
+            if input('代理是否需要认证?[y|n]').strip().lower() == 'y':
+                proxy_config['username'] = input('请输入用户名:').strip()
+                proxy_config['password'] = input('请输入密码:').strip()
 
     # Save the updated config
     save_config(config, CONFIG_PATH)
