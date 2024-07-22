@@ -6,14 +6,14 @@
 import os
 import shutil
 import asyncio
-from loguru import logger
 import pyrogram
 from typing import List, Any
 from module.pyrogram_extension import get_extension
 from module.process_path import split_path, is_folder_empty, is_exist, validate_title, truncate_filename
-from module.enum_define import LinkType, DownloadStatus, KeyWorld
+from module.enum_define import LinkType, DownloadStatus, KeyWorld, LogLevel
 from module.unit import suitable_units_display
 from module.meta import print_meta
+from module.logger_config import print_with_log
 
 downloading = DownloadStatus.downloading.text
 success_download = DownloadStatus.success.text
@@ -35,7 +35,7 @@ def _move_to_download_path(temp_save_path: str, save_path: str):
     if os.path.isdir(save_path):
         shutil.move(temp_save_path, save_path)
     else:
-        logger.error(f'"{save_path}"不是一个目录,已将文件下载到默认目录。')
+        print_with_log(msg=f'"{save_path}"不是一个目录,已将文件下载到默认目录。', level=LogLevel.error)
         if is_folder_empty(save_path):
             os.rmdir(save_path)
         save_path = os.path.join(os.getcwd(), 'downloads')
@@ -78,12 +78,13 @@ def _check_download_finish(sever_size: Any, download_path: Any, save_directory):
             save_path = os.path.join(save_directory, split_path(temp_save_path)[1])
             if local_size == sever_size:
                 _move_to_download_path(temp_save_path=temp_save_path, save_path=save_directory)
-                logger.success(
-                    f'{keyword_file}:"{save_path}",{keyword_size}:{format_local_size},{keyword_link_status}:{DownloadStatus.success.text}。')
+                print_with_log(
+                    msg=f'{keyword_file}:"{save_path}",{keyword_size}:{format_local_size},{keyword_link_status}:{DownloadStatus.success.text}。',
+                    level=LogLevel.success)
             else:
-                logger.warning(
-                    f'{keyword_file}:"{save_path}",{keyword_error_size}:{format_local_size},{keyword_actual_size}:{format_sever_size},{keyword_link_status}:{failure_download}'
-                )
+                print_with_log(msg=
+                               f'{keyword_file}:"{save_path}",{keyword_error_size}:{format_local_size},{keyword_actual_size}:{format_sever_size},{keyword_link_status}:{failure_download}'
+                               , level=LogLevel.warning)
                 for _ in download_path:
                     os.remove(_)
                 raise pyrogram.errors.exceptions.bad_request_400.BadRequest()
@@ -95,12 +96,13 @@ def _check_download_finish(sever_size: Any, download_path: Any, save_directory):
         if sever_size == local_size:
             # TODO: 根据下载的文件判断其类型对其精准分类计数:视频个数,图片个数
             _move_to_download_path(temp_save_path=download_path, save_path=save_directory)
-            logger.success(
-                f'{keyword_file}:"{save_path}",{keyword_size}:{format_local_size},{keyword_link_status}:{DownloadStatus.success.text}。')
+            print_with_log(
+                msg=f'{keyword_file}:"{save_path}",{keyword_size}:{format_local_size},{keyword_link_status}:{DownloadStatus.success.text}。',
+                level=LogLevel.success)
         else:
-            logger.warning(
-                f'{keyword_file}:"{save_path}",{keyword_error_size}:{format_local_size},{keyword_actual_size}:{format_sever_size},{keyword_link_status}:{failure_download}'
-            )
+            print_with_log(msg=
+                           f'{keyword_file}:"{save_path}",{keyword_error_size}:{format_local_size},{keyword_actual_size}:{format_sever_size},{keyword_link_status}:{failure_download}'
+                           , level=LogLevel.warning)
             os.remove(download_path)
             raise pyrogram.errors.exceptions.bad_request_400.BadRequest()
 
@@ -150,7 +152,7 @@ async def download_media_from_link(client: pyrogram.client.Client,
         if res or is_download_comment:
             group.extend(is_download_comment) if is_download_comment else 0
             link_type = LinkType.include_comment.text if is_download_comment else LinkType.group.text
-            logger.info(f'正在读取频道"{chat_name}",中"{msg_link}"{link_type}中的内容。')
+            print_with_log(msg=f'正在读取频道"{chat_name}",中"{msg_link}"{link_type}中的内容。', level=LogLevel.info)
             tasks = []  # 存储下载任务的列表
             temp_path_list = []
             file_id_list = []  # 存储已下载的文件ID集合
@@ -163,14 +165,15 @@ async def download_media_from_link(client: pyrogram.client.Client,
                     if is_exist(actual_save_path):  # 检测是否存在
                         local_size = os.path.getsize(actual_save_path)
                         if local_size == sever_size:
-                            logger.info(
-                                f'{keyword_link}:"{msg_link}中的"{split_path(temp_save_path)[1]}"文件已在"{actual_save_path}"中存在,{keyword_link_status}:{skip_download}。"')
-
+                            print_with_log(msg=
+                                           f'{keyword_link}:"{msg_link}中的"{split_path(temp_save_path)[1]}"文件已在"{actual_save_path}"中存在,{keyword_link_status}:{skip_download}。"',
+                                           level=LogLevel.info)
                     else:
                         file_id, msg_id = msg_group.video.file_id, msg_group.id
                         format_size = suitable_units_display(sever_size)
-                        logger.info(
-                            f'{keyword_link}:"{msg_link}",{keyword_link_type}:{link_type},{keyword_id}:{msg_id},{keyword_size}:{format_size},{keyword_link_status}:{downloading}。')
+                        print_with_log(msg=
+                                       f'{keyword_link}:"{msg_link}",{keyword_link_type}:{link_type},{keyword_id}:{msg_id},{keyword_size}:{format_size},{keyword_link_status}:{downloading}。',
+                                       level=LogLevel.info)
                         if file_id not in file_id_list:
                             temp_path_list.append(temp_save_path)
                             sever_size_dict[temp_save_path] = sever_size
@@ -188,13 +191,15 @@ async def download_media_from_link(client: pyrogram.client.Client,
                     if is_exist(actual_save_path):
                         local_size = os.path.getsize(actual_save_path)
                         if local_size == sever_size:
-                            logger.info(
-                                f'{keyword_link}:"{msg_link}中的"{split_path(temp_save_path)[1]}"文件已在"{actual_save_path}"中存在,{keyword_link_status}:{skip_download}。"')
+                            print_with_log(msg=
+                                           f'{keyword_link}:"{msg_link}中的"{split_path(temp_save_path)[1]}"文件已在"{actual_save_path}"中存在,{keyword_link_status}:{skip_download}。"',
+                                           level=LogLevel.info)
                     else:
                         file_id, msg_id = msg_group.photo.file_id, msg_group.id
                         format_size = suitable_units_display(sever_size)
-                        logger.info(
-                            f'{keyword_link}:"{msg_link}",{keyword_link_type}:{link_type},{keyword_id}:{msg_id},{keyword_size}:{format_size},{keyword_link_status}:{downloading}。')
+                        print_with_log(msg=
+                                       f'{keyword_link}:"{msg_link}",{keyword_link_type}:{link_type},{keyword_id}:{msg_id},{keyword_size}:{format_size},{keyword_link_status}:{downloading}。',
+                                       level=LogLevel.info)
                         if file_id not in file_id_list:  # 判断文件ID是否已被下载
                             temp_path_list.append(temp_save_path)
                             sever_size_dict[temp_save_path] = sever_size
@@ -217,24 +222,26 @@ async def download_media_from_link(client: pyrogram.client.Client,
                 for content in temp_path_list:
                     count += 1
                     if count == len(temp_path_list):
-                        logger.info(
-                            f'{keyword_link}:"{msg_link}"{link_type}中包含的{split_path(content)[1]},共{len(temp_path_list)}个,{keyword_link_status}:{all_complete}。')
+                        print_with_log(msg=
+                                       f'{keyword_link}:"{msg_link}"{link_type}中包含的{split_path(content)[1]},共{len(temp_path_list)}个,{keyword_link_status}:{all_complete}。',
+                                       level=LogLevel.info)
                     else:
-                        logger.info(
-                            f'{keyword_link}:"{msg_link}"{link_type}中包含的{split_path(content)[1]},第{count}个内容,{keyword_link_status}:{success_download}。')
-
+                        print_with_log(msg=
+                                       f'{keyword_link}:"{msg_link}"{link_type}中包含的{split_path(content)[1]},第{count}个内容,{keyword_link_status}:{success_download}。',
+                                       level=LogLevel.info)
             elif temp_path_list and isinstance(temp_path_list, list) and sever_size_dict and isinstance(
                     sever_size_dict,
                     dict):
                 _check_download_finish(sever_size=sever_size_dict, download_path=temp_path_list,
                                        save_directory=save_path)
                 for content in temp_path_list:
-                    logger.info(
-                        f'{keyword_link}:"{msg_link}"组中残缺内容"{split_path(content)[1]}",状态{success_download}。')
-
+                    print_with_log(msg=
+                                   f'{keyword_link}:"{msg_link}"组中残缺内容"{split_path(content)[1]}",状态{success_download}。',
+                                   level=LogLevel.info)
         elif res is False and group is None:
             link_type = LinkType.single.text
-            logger.info(f'正在读取频道"{chat_name}",中"{msg_link}"{link_type}中的内容。')
+            print_with_log(msg=f'正在读取频道"{chat_name}",中"{msg_link}"{link_type}中的内容。',
+                           level=LogLevel.info)
             if msg.video:
                 temp_save_path = _get_temp_path(message=msg, media_obj='video', temp_folder=temp_folder)
                 actual_save_path = os.path.join(save_path, split_path(temp_save_path)[1])
@@ -242,13 +249,16 @@ async def download_media_from_link(client: pyrogram.client.Client,
                 if is_exist(actual_save_path):
                     local_size = os.path.getsize(actual_save_path)
                     if local_size == sever_size:
-                        logger.info(
-                            f'{keyword_link}:"{msg_link}中的"{split_path(temp_save_path)[1]}"文件已在"{actual_save_path}"中存在,{keyword_link_status}:{skip_download}。"')
+                        print_with_log(msg=
+                                       f'{keyword_link}:"{msg_link}中的"{split_path(temp_save_path)[1]}"文件已在"{actual_save_path}"中存在,{keyword_link_status}:{skip_download}。"',
+                                       level=LogLevel.info)
                 else:
                     file_id, msg_id = msg.video.file_id, msg.id
                     format_size = suitable_units_display(sever_size)
-                    logger.info(
-                        f'{keyword_link}:"{msg_link}",{keyword_link_type}:{link_type},{keyword_id}:{msg_id},{keyword_size}:{format_size},{keyword_link_status}:{downloading}。')
+                    print_with_log(
+                        msg=f'{keyword_link}:"{msg_link}",{keyword_link_type}:{link_type},{keyword_id}:{msg_id},{keyword_size}:{format_size},{keyword_link_status}:{downloading}。',
+                        level=LogLevel.info)
+
                     await client.download_media(message=msg,
                                                 progress_args=(msg_link,),
                                                 progress=_download_bar,
@@ -263,13 +273,15 @@ async def download_media_from_link(client: pyrogram.client.Client,
                 if is_exist(actual_save_path):
                     local_size = os.path.getsize(actual_save_path)
                     if local_size == sever_size:
-                        logger.info(
-                            f'{keyword_link_status}:"{msg_link}中的"{split_path(temp_save_path)[1]}"文件已在"{actual_save_path}"中存在,{keyword_link_status}:{skip_download}。')
+                        print_with_log(msg=
+                                       f'{keyword_link_status}:"{msg_link}中的"{split_path(temp_save_path)[1]}"文件已在"{actual_save_path}"中存在,{keyword_link_status}:{skip_download}。',
+                                       level=LogLevel.info)
                 else:
                     file_id, msg_id = msg.photo.file_id, msg.id,
                     format_size = suitable_units_display(sever_size)
-                    logger.info(
-                        f'{keyword_link_status}:"{msg_link}",{keyword_link_status}:{link_type},{keyword_id}:{msg_id},{keyword_size}:{format_size},{keyword_link_status}:{downloading}。')
+                    print_with_log(msg=
+                                   f'{keyword_link_status}:"{msg_link}",{keyword_link_status}:{link_type},{keyword_id}:{msg_id},{keyword_size}:{format_size},{keyword_link_status}:{downloading}。',
+                                   level=LogLevel.info)
                     await client.download_media(message=msg,
                                                 progress_args=(msg_link,),
                                                 progress=_download_bar,
@@ -278,12 +290,15 @@ async def download_media_from_link(client: pyrogram.client.Client,
                         _check_download_finish(sever_size=sever_size, download_path=temp_save_path,
                                                save_directory=save_path)
         elif res is None and group is None:
-            logger.info(f'{keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{skip_download}。')
+            print_with_log(msg=f'{keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{skip_download}。',
+                           level=LogLevel.warning)
         elif res is None and group == 0:
-            logger.error(f'读取"{msg_link}"时出现未知错误,{skip_download}。')
+            print_with_log(msg=f'读取"{msg_link}"时出现未知错误,{skip_download}。', level=LogLevel.error)
+
 
     except Exception as e:
-        logger.error(f'{keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{skip_download}。原因:{e}')
+        print_with_log(msg=f'{keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{skip_download}。原因:{e}',
+                       level=LogLevel.error)
     finally:
         pass
         # todo
@@ -292,21 +307,8 @@ async def download_media_from_link(client: pyrogram.client.Client,
 
 async def _download_bar(current, total, msg_link):
     format_current_size, format_total_size = suitable_units_display(current), suitable_units_display(total)
+    # todo 加入颜色
     print(f"{msg_link}({format_current_size}/{format_total_size}[{current * 100 / total:.1f}%])")
-
-    # def _process_links(links: Any) -> List[str]:
-    #     msg_link_list: list = []
-    #     if isinstance(links, str):
-    #         if links.endswith('.txt') and os.path.isfile(links) and os.path.exists(links):
-    #             with open(file=links, mode='r', encoding='UTF-8') as _:
-    #                 msg_link_list = [link.strip() for link in _.readlines()]
-    #         elif links.startswith('https://t.me/'):
-    #             msg_link_list.append(links)
-    #     elif isinstance(links, list):
-    #         for link_single in links:
-    #             if link_single.startswith('https://t.me/') and link_single not in msg_link_list:
-    #                 msg_link_list.append(link_single)
-    #     return msg_link_list
 
 
 def _process_links(links: Any) -> List[str]:
@@ -319,17 +321,19 @@ def _process_links(links: Any) -> List[str]:
                     if link.startswith(start_content):
                         msg_link_list.append(link)
                     else:
-                        logger.warning(f'"{link}"是一个非法链接,{keyword_link_status}:{skip_download}。')
+                        print_with_log(msg=f'"{link}"是一个非法链接,{keyword_link_status}:{skip_download}。',
+                                       level=LogLevel.warning)
         elif not os.path.isfile(links):
             if os.path.exists(links):
-                logger.error(f'读取"{links}"路径时出现未知错误。')
+                print_with_log(msg=f'读取"{links}"路径时出现未知错误。', level=LogLevel.error)
             else:
-                logger.error(f'文件"{links}"不存在。')
+                print_with_log(msg=f'文件"{links}"不存在。', level=LogLevel.error)
         elif links.startswith(start_content):
             if 80 > len(links) - len(start_content) > 2:
                 msg_link_list.append(links)
             else:
-                logger.warning(f'"{links}"是一个非法链接,{keyword_link_status}:{skip_download}。')
+                print_with_log(msg=f'"{links}"是一个非法链接,{keyword_link_status}:{skip_download}。',
+                               level=LogLevel.warning)
     elif isinstance(links, list):
         for single_link in links:
             try:
@@ -337,15 +341,18 @@ def _process_links(links: Any) -> List[str]:
                         start_content) > 2 and single_link not in msg_link_list:
                     msg_link_list.append(single_link)
                 elif single_link in msg_link_list:
-                    logger.info(f'"{single_link}"已存在,{keyword_link_status}:{skip_download}。')
+                    print_with_log(msg=f'"{single_link}"已存在,{keyword_link_status}:{skip_download}。',
+                                   level=LogLevel.info)
                 else:
-                    logger.warning(f'"{single_link}"是一个非法链接,{keyword_link_status}:{skip_download}。')
+                    print_with_log(msg=f'"{single_link}"是一个非法链接,{keyword_link_status}:{skip_download}。',
+                                   level=LogLevel.warning)
             except AttributeError:
-                logger.warning(f'{single_link}是一个非法链接,{keyword_link_status}:{skip_download}。')
+                print_with_log(msg=f'{single_link}是一个非法链接,{keyword_link_status}:{skip_download}。',
+                               level=LogLevel.warning)
     if len(msg_link_list) > 0:
         return msg_link_list
     else:
-        logger.info('没有找到有效链接,程序已退出。')
+        print_with_log('没有找到有效链接,程序已退出。', level=LogLevel.info)
         exit(0)
 
 
@@ -355,7 +362,7 @@ async def download_media_from_links(client: pyrogram.client.Client,
                                     temp_folder=os.path.join(os.getcwd(), 'temp'),
                                     save_path: str = os.path.join(os.getcwd(), 'downloads')):
     await client.start()
-    print_meta(logger)
+    print_meta(print_with_log)
     tasks = []
     media_links = _process_links(links=links)  # 处理链接列表
     num_tasks = len(media_links)  # 获取任务数量
@@ -379,20 +386,3 @@ async def download_media_from_links(client: pyrogram.client.Client,
                                                                 save_path=save_path))
             tasks.append(task)
             await asyncio.gather(*tasks)
-
-    # if __name__ == "__main__":
-    #     proxy = {
-    #         "scheme": "socks5",
-    #         "hostname": "127.0.0.1",
-    #         "port": 10808
-    #     }
-    #     with open(r'D:\files\Documents\study\python\Program\telegram_media_downloader-2.2.1\config.yaml', 'r') as f:
-    #         config = yaml.safe_load(f)
-    #     client = Client("limited_downloader", api_id=config.get('api_id'), api_hash=config.get('api_hash'),
-    #                     workdir=r'D:\files\Documents\study\python\Program\telegram_media_downloader-2.2.1\sessions')
-    #
-    #     client.run(download_media_from_links(client=client,
-    #                                          links=r'F:\home\vid\platform\Telegram\2023\11\limited.txt',
-    #                                          max_download_task=3,
-    #                                          save_path=r'F:\home\vid\platform\Telegram\2023\11\limit'
-    #                                          ))

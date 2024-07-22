@@ -4,3 +4,5 @@ last_version/
 sessions/
 config.yaml
 temp/
+tests.py
+TESTS.py
