@@ -13,9 +13,9 @@ LOG_PATH = os.path.join(os.environ['APPDATA'], SOFTWARE_NAME, 'TRMD_LOG.log')
 
 
 def setup_no_console_loger_config() -> None:
-    # logger.remove(handler_id=None)
+    logger.remove(handler_id=None)  # 关闭终端日志显示
     # 配置日志输出到文件
-    logger.add(sink=LOG_PATH, level='INFO', rotation='00:00', retention='3 days', compression='zip', encoding='UTF-8',
+    logger.add(sink=LOG_PATH, level='INFO', rotation='10 MB', retention='10 days', compression='zip', encoding='UTF-8',
                enqueue=True)
 
 
