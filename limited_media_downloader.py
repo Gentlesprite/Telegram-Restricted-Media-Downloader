@@ -218,7 +218,7 @@ async def download_media_from_link(client: pyrogram.client.Client,
                     count += 1
                     if count == len(temp_path_list):
                         logger.info(
-                            f'{keyword_link}:""{msg_link}"{link_type}中包含的{split_path(content)[1]},共{len(temp_path_list)}个,{keyword_link_status}:{all_complete}。')
+                            f'{keyword_link}:"{msg_link}"{link_type}中包含的{split_path(content)[1]},共{len(temp_path_list)}个,{keyword_link_status}:{all_complete}。')
                     else:
                         logger.info(
                             f'{keyword_link}:"{msg_link}"{link_type}中包含的{split_path(content)[1]},第{count}个内容,{keyword_link_status}:{success_download}。')
