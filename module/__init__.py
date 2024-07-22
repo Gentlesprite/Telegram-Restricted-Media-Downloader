@@ -7,4 +7,4 @@ __all__ = ['enum_define', 'meta', 'panel_form', 'process_path', 'pyrogram_extens
 __version__ = '1.0.1'
 __license__ = "MIT License"
 __copyright__ = "Copyright (C) 2023 Gentlesprite <https://github.com/Gentlesprite>"
-__update_date__ = '2024/07/02 01:54:49'
+__update_date__ = '2024/07/22 15:58:42'
