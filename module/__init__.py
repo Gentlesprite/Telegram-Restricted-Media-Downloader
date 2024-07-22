@@ -11,3 +11,4 @@ __copyright__ = "Copyright (C) 2023 Gentlesprite <https://github.com/Gentlesprit
 __update_date__ = '2024/07/22 21:51:02'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_NAME = 'TRMD'
+author = 'Gentlesprite'

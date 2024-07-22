@@ -136,7 +136,8 @@ async def _is_group(message) -> Any:
     try:
         return True, await message.get_media_group()
     except ValueError as e:
-        return False, [] if str(e) == "The message doesn't belong to a media group" else 0
+        return False, None if str(e) == "The message doesn't belong to a media group" else 0
+        # v1.0.4 修改单文件无法下载问题return False, [] if str(e) == "The message doesn't belong to a media group" else 0
     except AttributeError:
         return None, None
 
@@ -238,6 +239,7 @@ async def download_media_from_link(client: pyrogram.client.Client,
                     print_with_log(msg=
                                    f'{keyword_link}:"{msg_link}"组中残缺内容"{split_path(content)[1]}",状态{success_download}。',
                                    level=LogLevel.info)
+
         elif res is False and group is None:
             link_type = LinkType.single.text
             print_with_log(msg=f'正在读取频道"{chat_name}",中"{msg_link}"{link_type}中的内容。',
