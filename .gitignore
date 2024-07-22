@@ -7,3 +7,4 @@ temp/
 tests.py
 TESTS.py
 config.yaml.template
+*.yaml
