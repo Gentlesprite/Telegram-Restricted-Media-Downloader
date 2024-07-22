@@ -45,8 +45,7 @@ def load_config(config_path):
         return config
     except:
         print_with_log(msg='检测到无效或损坏的配置文件。已生成新的模板文件...', level=LogLevel.warning)
-        # todo 不是删除文件而是更名文件
-        os.remove(config_path, config_path + 'old_backup')
+        # todo 不是删除文件而是更名文件v1.0.3实现
         config = CONFIG_TEMPLATE.copy()
         return config
 
