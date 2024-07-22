@@ -1,0 +1,11 @@
+api_hash: 4794817a4ee8e2a264632a5fbef7bd6d
+api_id: '27839505'
+links: F:\home\vid\platform\Telegram\2024\07\restricted.txt
+max_download_task: 3
+proxy:
+  scheme: socks5
+  hostname: 127.0.0.1
+  port: 10808
+  username: null
+  password: null
+save_path: F:\home\vid\platform\Telegram\2024\07\restricted
