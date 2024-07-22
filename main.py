@@ -204,3 +204,5 @@ if __name__ == '__main__':
                     print_with_log(
                         msg=f'移动下载完成的文件"{os.path.basename(temp_save_path)}"到保存目录失败,原因:"{e}"请前往"{temp_save_path}"手动移动!',
                         level=LogLevel.error)
+        os.system('pause')
+        # todo 下载统计
