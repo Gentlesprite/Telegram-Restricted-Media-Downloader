@@ -98,8 +98,6 @@ class PrintColor(Enum):
     yellow = 3
     red = 4
 
-
-
     @property
     def text(self):
         return {

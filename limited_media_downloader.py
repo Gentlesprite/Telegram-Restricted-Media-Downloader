@@ -294,10 +294,11 @@ async def download_media_from_link(client: pyrogram.client.Client,
                            level=LogLevel.warning)
         elif res is None and group == 0:
             print_with_log(msg=f'读取"{msg_link}"时出现未知错误,{skip_download}。', level=LogLevel.error)
-
-
+    except UnicodeEncodeError as e:
+        print_with_log(msg=f'{keyword_link}:"{msg_link}"频道标题存在特殊字符,请移步终端下载!。原因"{e}"',
+                       level=LogLevel.error)
     except Exception as e:
-        print_with_log(msg=f'{keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{skip_download}。原因:{e}',
+        print_with_log(msg=f'{keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{skip_download}。原因:"{e}"',
                        level=LogLevel.error)
     finally:
         pass
