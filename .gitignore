@@ -9,4 +9,4 @@ TESTS.py
 config.yaml.template
 *.yaml
 output/
-doc/
+img/
