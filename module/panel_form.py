@@ -3,8 +3,6 @@
 # Software:PyCharm
 # Time:2024/1/2 17:43:02
 # File:panel_form.py
-import os
-import sys
 from enum import Enum
 from prettytable import PrettyTable
 from ctypes import windll
@@ -73,7 +71,3 @@ class PanelTable:
 def check_run_env():  # 检测是控制台运行还是IDE运行
     return windll.kernel32.SetConsoleTextAttribute(windll.kernel32.GetStdHandle(-0xb), 0x7)
 
-
-pt = PanelTable('下载表', ['链接', '大小', '状态'],['⏭️','✅','⬇️'])
-pt.print_meta()
-os.system('pause')
