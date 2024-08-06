@@ -153,12 +153,14 @@ class Application:
 
         # Save the updated config
         self.save_config()
+        '''
         header = []
         data = []
         for i in self.config.items():
             header.append(i[0])
             data.append(i[1])
-
+        
         pt = PanelTable('配置信息', header, data)
         pt.print_meta()
+        '''
         return

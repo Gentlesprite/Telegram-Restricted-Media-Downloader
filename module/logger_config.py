@@ -8,6 +8,7 @@ import module.enum_define
 from loguru import logger
 from scprint import print as print_color
 from module.__init__ import SOFTWARE_NAME
+from datetime import datetime
 
 LOG_PATH = os.path.join(os.environ['APPDATA'], SOFTWARE_NAME, 'TRMD_LOG.log')
 
@@ -22,7 +23,10 @@ def setup_no_console_loger_config() -> None:
 def print_with_log(msg: str, level: module.enum_define.LogLevel) -> None:
     try:
         getattr(logger, level.text)(msg)
-        print_color(msg, color=level.color.text)
+
+        print_color(
+            f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} | {getattr(level,"translate_text")} | {msg}',
+            color=level.color.text)
     except UnicodeEncodeError as e:
         getattr(logger, level.text)(f'彩色打印发生错误！原因:{e}')
         print(msg)
