@@ -28,6 +28,9 @@ keyword_link_status = KeyWorld.status.text
 keyword_file = KeyWorld.file.text
 keyword_error_size = KeyWorld.error_size.text
 keyword_actual_size = KeyWorld.actual_size.text
+keyword_already_exist = KeyWorld.already_exist.text
+keyword_reading = KeyWorld.reading.text
+keyword_label = KeyWorld.label.text
 
 
 def _move_to_download_path(temp_save_path: str, save_path: str):
@@ -142,10 +145,43 @@ async def _is_group(message) -> Any:
         return None, None
 
 
+async def _create_download_task(client, message, media_obj, temp_save_path, save_path, msg_link, link_type):
+    sever_meta = getattr(message, media_obj)
+    sever_size = getattr(sever_meta, 'file_size')
+    actual_save_path = os.path.join(save_path, split_path(temp_save_path)[1])
+    if is_exist(actual_save_path) and os.path.getsize(actual_save_path) == sever_size:  # 检测是否存在
+        print_with_log(msg=
+                       f'{keyword_link}:"{msg_link},{keyword_file}:"{split_path(temp_save_path)[1]}",{keyword_already_exist}:"{actual_save_path}",{keyword_link_status}:{skip_download}。',
+                       level=LogLevel.info)
+    else:
+        file_meta = getattr(message, media_obj)
+        file_id, msg_id = getattr(file_meta, 'file_id'), getattr(message, 'id')
+        format_size = suitable_units_display(sever_size)
+        print_with_log(msg=
+                       f'{keyword_link}:"{msg_link}",{keyword_link_type}:{link_type},{keyword_id}:{msg_id},{keyword_size}:{format_size},{keyword_link_status}:{downloading}。',
+                       level=LogLevel.info)
+        task = asyncio.create_task(
+            client.download_media(message=message,
+                                  progress_args=(msg_link, os.path.basename(temp_save_path)),
+                                  progress=_download_bar,
+                                  file_name=temp_save_path))
+
+        def call(future):
+            if future.exception() is not None:
+                print_with_log(msg=f'任务出错:{future.exception()}', level=LogLevel.error)
+            else:
+                _check_download_finish(sever_size=sever_size, download_path=temp_save_path,
+                                       save_directory=save_path)
+
+        task.add_done_callback(lambda future: call(future))
+        return task
+
+
 async def download_media_from_link(client: pyrogram.client.Client,
                                    msg_link: str,
                                    temp_folder=os.path.join(os.getcwd(), 'temp'),
                                    save_path=os.path.join(os.getcwd(), 'downloads')):
+    tasks = set()
     try:
         chat_name, msg_id, is_download_comment = await _extract_link_content(client, msg_link)
         msg = await client.get_messages(chat_name, msg_id)  # 该消息的信息
@@ -153,147 +189,62 @@ async def download_media_from_link(client: pyrogram.client.Client,
         if res or is_download_comment:
             group.extend(is_download_comment) if is_download_comment else 0
             link_type = LinkType.include_comment.text if is_download_comment else LinkType.group.text
-            print_with_log(msg=f'正在读取频道"{chat_name}",中"{msg_link}"{link_type}中的内容。', level=LogLevel.info)
-            tasks = []  # 存储下载任务的列表
-            temp_path_list = []
-            file_id_list = []  # 存储已下载的文件ID集合
-            sever_size_dict = {}
+            print_with_log(
+                msg=f'{keyword_reading}:"{chat_name}",{keyword_link}"{msg_link}",{keyword_label}:{link_type}。',
+                level=LogLevel.info)
             for msg_group in group:
                 if msg_group.video:
                     temp_save_path = _get_temp_path(message=msg_group, media_obj='video', temp_folder=temp_folder)
-                    actual_save_path = os.path.join(save_path, split_path(temp_save_path)[1])
-                    sever_size = msg_group.video.file_size
-                    if is_exist(actual_save_path):  # 检测是否存在
-                        local_size = os.path.getsize(actual_save_path)
-                        if local_size == sever_size:
-                            print_with_log(msg=
-                                           f'{keyword_link}:"{msg_link}中的"{split_path(temp_save_path)[1]}"文件已在"{actual_save_path}"中存在,{keyword_link_status}:{skip_download}。"',
-                                           level=LogLevel.info)
-                    else:
-                        file_id, msg_id = msg_group.video.file_id, msg_group.id
-                        format_size = suitable_units_display(sever_size)
-                        print_with_log(msg=
-                                       f'{keyword_link}:"{msg_link}",{keyword_link_type}:{link_type},{keyword_id}:{msg_id},{keyword_size}:{format_size},{keyword_link_status}:{downloading}。',
-                                       level=LogLevel.info)
-                        if file_id not in file_id_list:
-                            temp_path_list.append(temp_save_path)
-                            sever_size_dict[temp_save_path] = sever_size
-                            task = asyncio.create_task(
-                                client.download_media(message=msg_group,
-                                                      progress_args=(msg_link,),
-                                                      progress=_download_bar,
-                                                      file_name=temp_save_path))
-                            tasks.append(task)
-                        file_id_list.append(file_id)
+                    task = await _create_download_task(client=client,
+                                                       message=msg_group,
+                                                       media_obj='video',
+                                                       temp_save_path=temp_save_path,
+                                                       save_path=save_path,
+                                                       msg_link=msg_link,
+                                                       link_type=link_type)
+                    if task:
+                        tasks.add(task)
                 elif msg_group.photo:
                     temp_save_path = _get_temp_path(message=msg_group, media_obj='photo', temp_folder=temp_folder)
-                    actual_save_path = os.path.join(save_path, split_path(temp_save_path)[1])
-                    sever_size = msg_group.photo.file_size
-                    if is_exist(actual_save_path):
-                        local_size = os.path.getsize(actual_save_path)
-                        if local_size == sever_size:
-                            print_with_log(msg=
-                                           f'{keyword_link}:"{msg_link}中的"{split_path(temp_save_path)[1]}"文件已在"{actual_save_path}"中存在,{keyword_link_status}:{skip_download}。"',
-                                           level=LogLevel.info)
-                    else:
-                        file_id, msg_id = msg_group.photo.file_id, msg_group.id
-                        format_size = suitable_units_display(sever_size)
-                        print_with_log(msg=
-                                       f'{keyword_link}:"{msg_link}",{keyword_link_type}:{link_type},{keyword_id}:{msg_id},{keyword_size}:{format_size},{keyword_link_status}:{downloading}。',
-                                       level=LogLevel.info)
-                        if file_id not in file_id_list:  # 判断文件ID是否已被下载
-                            temp_path_list.append(temp_save_path)
-                            sever_size_dict[temp_save_path] = sever_size
-                            task = asyncio.create_task(
-                                client.download_media(message=msg_group,
-                                                      progress_args=(msg_link,),
-                                                      progress=_download_bar,
-                                                      file_name=temp_save_path))
-                            tasks.append(task)
-                        file_id_list.append(file_id)  # 将文件ID添加到已下载的集合中
-                await asyncio.gather(*tasks)  # 同时等待所有下载任务完成
-
-            if temp_path_list and isinstance(temp_path_list, list) and sever_size_dict and isinstance(
-                    sever_size_dict,
-                    dict) and len(
-                group) == len(file_id_list):
-                _check_download_finish(sever_size=sever_size_dict, download_path=temp_path_list,
-                                       save_directory=save_path)
-                count = 0
-                for content in temp_path_list:
-                    count += 1
-                    if count == len(temp_path_list):
-                        print_with_log(msg=
-                                       f'{keyword_link}:"{msg_link}"{link_type}中包含的{split_path(content)[1]},共{len(temp_path_list)}个,{keyword_link_status}:{all_complete}。',
-                                       level=LogLevel.info)
-                    else:
-                        print_with_log(msg=
-                                       f'{keyword_link}:"{msg_link}"{link_type}中包含的{split_path(content)[1]},第{count}个内容,{keyword_link_status}:{success_download}。',
-                                       level=LogLevel.info)
-            elif temp_path_list and isinstance(temp_path_list, list) and sever_size_dict and isinstance(
-                    sever_size_dict,
-                    dict):
-                _check_download_finish(sever_size=sever_size_dict, download_path=temp_path_list,
-                                       save_directory=save_path)
-                for content in temp_path_list:
-                    print_with_log(msg=
-                                   f'{keyword_link}:"{msg_link}"组中残缺内容"{split_path(content)[1]}",状态{success_download}。',
-                                   level=LogLevel.info)
-
+                    task = await _create_download_task(client=client,
+                                                       message=msg_group,
+                                                       media_obj='photo',
+                                                       temp_save_path=temp_save_path,
+                                                       save_path=save_path,
+                                                       msg_link=msg_link,
+                                                       link_type=link_type)
+                    if task:
+                        tasks.add(task)
         elif res is False and group is None:
             link_type = LinkType.single.text
             print_with_log(msg=f'正在读取频道"{chat_name}",中"{msg_link}"{link_type}中的内容。',
                            level=LogLevel.info)
+            temp_save_path = _get_temp_path(message=msg, media_obj='video', temp_folder=temp_folder)
             if msg.video:
-                temp_save_path = _get_temp_path(message=msg, media_obj='video', temp_folder=temp_folder)
-                actual_save_path = os.path.join(save_path, split_path(temp_save_path)[1])
-                sever_size = msg.video.file_size
-                if is_exist(actual_save_path):
-                    local_size = os.path.getsize(actual_save_path)
-                    if local_size == sever_size:
-                        print_with_log(msg=
-                                       f'{keyword_link}:"{msg_link}中的"{split_path(temp_save_path)[1]}"文件已在"{actual_save_path}"中存在,{keyword_link_status}:{skip_download}。"',
-                                       level=LogLevel.info)
-                else:
-                    file_id, msg_id = msg.video.file_id, msg.id
-                    format_size = suitable_units_display(sever_size)
-                    print_with_log(
-                        msg=f'{keyword_link}:"{msg_link}",{keyword_link_type}:{link_type},{keyword_id}:{msg_id},{keyword_size}:{format_size},{keyword_link_status}:{downloading}。',
-                        level=LogLevel.info)
-
-                    await client.download_media(message=msg,
-                                                progress_args=(msg_link,),
-                                                progress=_download_bar,
-                                                file_name=temp_save_path)
-                    if temp_save_path and isinstance(temp_save_path, str):
-                        _check_download_finish(sever_size=sever_size, download_path=temp_save_path,
-                                               save_directory=save_path)
+                task = await _create_download_task(client=client,
+                                                   message=msg,
+                                                   media_obj='video',
+                                                   temp_save_path=temp_save_path,
+                                                   save_path=save_path,
+                                                   msg_link=msg_link,
+                                                   link_type=link_type)
+                if task:
+                    tasks.add(task)
             elif msg.photo:
                 temp_save_path = _get_temp_path(message=msg, media_obj='photo', temp_folder=temp_folder)
-                actual_save_path = os.path.join(save_path, split_path(temp_save_path)[1])
-                sever_size = msg.photo.file_size
-                if is_exist(actual_save_path):
-                    local_size = os.path.getsize(actual_save_path)
-                    if local_size == sever_size:
-                        print_with_log(msg=
-                                       f'{keyword_link_status}:"{msg_link}中的"{split_path(temp_save_path)[1]}"文件已在"{actual_save_path}"中存在,{keyword_link_status}:{skip_download}。',
-                                       level=LogLevel.info)
-                else:
-                    file_id, msg_id = msg.photo.file_id, msg.id,
-                    format_size = suitable_units_display(sever_size)
-                    print_with_log(msg=
-                                   f'{keyword_link_status}:"{msg_link}",{keyword_link_status}:{link_type},{keyword_id}:{msg_id},{keyword_size}:{format_size},{keyword_link_status}:{downloading}。',
-                                   level=LogLevel.info)
-                    await client.download_media(message=msg,
-                                                progress_args=(msg_link,),
-                                                progress=_download_bar,
-                                                file_name=temp_save_path)
-                    if temp_save_path and isinstance(temp_save_path, str):
-                        _check_download_finish(sever_size=sever_size, download_path=temp_save_path,
-                                               save_directory=save_path)
+                task = await _create_download_task(client=client,
+                                                   message=msg,
+                                                   media_obj='photo',
+                                                   temp_save_path=temp_save_path,
+                                                   save_path=save_path,
+                                                   msg_link=msg_link,
+                                                   link_type=link_type)
+                if task:
+                    tasks.add(task)
         elif res is None and group is None:
             print_with_log(msg=f'{keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{skip_download}。',
                            level=LogLevel.warning)
+
         elif res is None and group == 0:
             print_with_log(msg=f'读取"{msg_link}"时出现未知错误,{skip_download}。', level=LogLevel.error)
     except UnicodeEncodeError as e:
@@ -303,15 +254,13 @@ async def download_media_from_link(client: pyrogram.client.Client,
         print_with_log(msg=f'{keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{skip_download}。原因:"{e}"',
                        level=LogLevel.error)
     finally:
-        pass
-        # todo 已在main实现,未看出问题
-        # 报错时移动已下载好的文件到下载目录
+        return tasks
 
 
-async def _download_bar(current, total, msg_link):
+async def _download_bar(current, total, msg_link, file_name):
     format_current_size, format_total_size = suitable_units_display(current), suitable_units_display(total)
     # todo 加入颜色
-    print(f"{msg_link}({format_current_size}/{format_total_size}[{current * 100 / total:.1f}%])")
+    print(f"{msg_link}[{file_name}]({format_current_size}/{format_total_size}[{current * 100 / total:.1f}%])")
 
 
 def _process_links(links: Any) -> List[str]:
@@ -366,26 +315,10 @@ async def download_media_from_links(client: pyrogram.client.Client,
                                     save_path: str = os.path.join(os.getcwd(), 'downloads')):
     await client.start()
     print_meta(print_with_log)
-    tasks = []
-    media_links = _process_links(links=links)  # 处理链接列表
-    num_tasks = len(media_links)  # 获取任务数量
-    if num_tasks >= max_download_task:
-        for batch_num in range(0, num_tasks, max_download_task):
-            # 通过切片获取指定数量的链接
-            batch_link_list = media_links[batch_num:batch_num + max_download_task]
-            for batch_link in batch_link_list:
-                task = asyncio.create_task(
-                    download_media_from_link(client=client,
-                                             msg_link=batch_link,
-                                             temp_folder=temp_folder,
-                                             save_path=save_path))
-                tasks.append(task)
-            await asyncio.gather(*tasks)
-    else:
-        for link in _process_links(links=links):
-            task = asyncio.create_task(download_media_from_link(client=client,
-                                                                msg_link=link,
-                                                                temp_folder=temp_folder,
-                                                                save_path=save_path))
-            tasks.append(task)
-            await asyncio.gather(*tasks)
+    tasks = set()
+    for link in _process_links(links=links):
+        tasks = await download_media_from_link(client=client,
+                                               msg_link=link,
+                                               temp_folder=temp_folder,
+                                               save_path=save_path)
+    await asyncio.gather(*tasks)

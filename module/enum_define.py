@@ -47,18 +47,24 @@ class KeyWorld(Enum):
     file = 5
     error_size = 6
     actual_size = 7
+    already_exist = 8
+    reading = 9
+    label = 10
 
     @property
     def text(self):
         return {
-            KeyWorld.link: '链接',
-            KeyWorld.link_type: '链接类型',
-            KeyWorld.id: '标识',
-            KeyWorld.size: '大小',
-            KeyWorld.status: '状态',
-            KeyWorld.file: '文件',
-            KeyWorld.error_size: '错误大小',
-            KeyWorld.actual_size: '实际大小'
+            KeyWorld.link: '[链接]',
+            KeyWorld.link_type: '[链接类型]',
+            KeyWorld.id: '[标识]',
+            KeyWorld.size: '[大小]',
+            KeyWorld.status: '[状态]',
+            KeyWorld.file: '[文件]',
+            KeyWorld.error_size: '[错误大小]',
+            KeyWorld.actual_size: '[实际大小]',
+            KeyWorld.already_exist: '[已存在]',
+            KeyWorld.reading: '[正在读取]',
+            KeyWorld.label: '[标签]'
         }[self]
 
 
@@ -89,6 +95,14 @@ class LogLevel(Enum):
             LogLevel.error: PrintColor.red
         }
         return color_mapping.get(self, PrintColor.white)
+
+    @property
+    def translate_text(self):
+        return {LogLevel.debug: '调试',
+                LogLevel.info: '信息',
+                LogLevel.success: '成功',
+                LogLevel.warning: '警告',
+                LogLevel.error: '错误'}[self]
 
 
 class PrintColor(Enum):
