@@ -6,8 +6,9 @@
 import os
 from pyrogram import Client
 from module.enum_define import LogLevel
-from module.logger_config import setup_no_console_loger_config, print_with_log
 from limited_media_downloader import download_media_from_links
+from module.logger_config import setup_no_console_loger_config, print_with_log
+
 
 from module.app import Application
 
@@ -31,8 +32,6 @@ if __name__ == '__main__':
                                              save_path=save_path))
     except KeyboardInterrupt:
         print_with_log(msg='用户手动终止下载任务。', level=LogLevel.info)
-
     finally:
-        ...
-
+        os.system('pause')
         # todo 下载统计
