@@ -20,55 +20,38 @@ def is_folder_empty(folder_path):
         return False
 
 
-def is_exist(file_path: str) -> bool:
-    """
-    Check if a file exists and it is not a directory.
-
-    Parameters
-    ----------
-    file_path: str
-        Absolute path of the file to be checked.
-
-    Returns
-    -------
-    bool
-        True if the file exists else False.
-    """
+def _is_exist(file_path: str) -> bool:
     return not os.path.isdir(file_path) and os.path.exists(file_path)
 
 
+def _compare_file_size(local_size, sever_size) -> bool:
+    return local_size == sever_size
+
+
+def is_file_duplicate(local_file_path, sever_size):
+    return _is_exist(local_file_path) and _compare_file_size(os.path.getsize(local_file_path), sever_size)
+
 
 def validate_title(title: str) -> str:
-    """Fix if title validation fails
-
-    Parameters
-    ----------
-    title: str
-        Chat title
-
-    """
     r_str = r"[/\\:*?\"<>|\n]"  # '/ \ : * ? " < > |'
-
     new_title = re.sub(r_str, "_", title)
     return new_title
 
 
 def truncate_filename(path: str, limit: int = 230) -> str:
     """将文件名截断到最大长度。
-
     Parameters
     ----------
     path: str
         文件名路径
 
     limit: int
-        文件名长度限制（以UTF-8字节为单位）
+        文件名长度限制（以UTF-8 字节为单位）
 
     Returns
     -------
     str
         如果文件名的长度超过限制，则返回截断后的文件名；否则返回原始文件名。
-
     """
     p, f = os.path.split(os.path.normpath(path))
     f, e = os.path.splitext(f)
