@@ -11,3 +11,7 @@ config.yaml.template
 output/
 img/
 test.py
+output/
+pay.py
+venv/
+Pipfile

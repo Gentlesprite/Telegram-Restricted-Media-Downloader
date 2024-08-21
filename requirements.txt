@@ -1,0 +1,8 @@
+pyrogram==2.0.106
+tgcrypto
+PyYAML
+rich
+loguru
+scprint
+prettytable
+qrcode

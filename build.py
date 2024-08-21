@@ -7,7 +7,7 @@ import os
 from module import author, __version__,SOFTWARE_FULL_NAME
 app_name = SOFTWARE_FULL_NAME
 file_version = __version__
-ico_path = 'doc/icon.ico'
+ico_path = 'res/icon.ico'
 output = 'output'
 main = 'main.py'
 copy_right = f'Copyright (C) 2024 {author}.'
