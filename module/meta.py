@@ -25,5 +25,6 @@ def print_meta(printer):
         f"[bold]{SOFTWARE_FULL_NAME} v{__version__}[/bold],\n[i]{__copyright__}[/i]"
     )
     console.log(f"Licensed under the terms of the {__license__}", end="\n\n")
+    console.log('软件完全免费使用！禁止倒卖,如果你付费那就是被骗了。')
     printer(f"Device: {DEVICE_MODEL} - {APP_VERSION}", level=LogLevel.info)
     printer(f"System: {SYSTEM_VERSION} ({LANG_CODE.upper()})", level=LogLevel.info)
