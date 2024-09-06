@@ -2,291 +2,400 @@
 # Author:LZY/我不是盘神
 # Software:PyCharm
 # Time:2023/10/3 1:00:03
-# File:break_download_limit.py
+# File:limited_media_downloader
 import os
 import shutil
 import asyncio
 import pyrogram
+import mimetypes
+from loguru import logger
+from functools import wraps
 from typing import List, Any
+from module.app import Application
 from module.meta import print_meta
+from module.panel_form import PanelTable, pay
 from module.unit import suitable_units_display
-from module.logger_config import print_with_log
 from module.pyrogram_extension import get_extension
-from module.enum_define import LinkType, DownloadStatus, KeyWorld, LogLevel
-from module.process_path import split_path, is_folder_empty, is_file_duplicate, validate_title, truncate_filename
+from module.enum_define import LinkType, DownloadStatus, DownloadType, KeyWorld
+from module.process_path import split_path, is_folder_empty, is_file_duplicate, validate_title, truncate_filename, \
+    gen_backup_config
 
 
-downloading = DownloadStatus.downloading.text
-success_download = DownloadStatus.success.text
-failure_download = DownloadStatus.failure.text
-skip_download = DownloadStatus.skip.text
-all_complete = DownloadStatus.all_complete.text
-keyword_link = KeyWorld.link.text
-keyword_link_type = KeyWorld.link_type.text
-keyword_id = KeyWorld.id.text
-keyword_size = KeyWorld.size.text
-keyword_link_status = KeyWorld.status.text
-keyword_file = KeyWorld.file.text
-keyword_error_size = KeyWorld.error_size.text
-keyword_actual_size = KeyWorld.actual_size.text
-keyword_already_exist = KeyWorld.already_exist.text
-keyword_reading = KeyWorld.reading.text
-keyword_label = KeyWorld.label.text
-current_task_num = 0
-event = asyncio.Event()
+class RestrictedMediaDownloader:
+    downloading = DownloadStatus.translate(DownloadStatus.downloading.text)
+    success_download = DownloadStatus.translate(DownloadStatus.success.text)
+    failure_download = DownloadStatus.translate(DownloadStatus.failure.text)
+    skip_download = DownloadStatus.translate(DownloadStatus.skip.text)
+    keyword_link = KeyWorld.translate(KeyWorld.link.text, True)
+    keyword_link_type = KeyWorld.translate(KeyWorld.link_type.text, True)
+    keyword_id = KeyWorld.translate(KeyWorld.id.text, True)
+    keyword_size = KeyWorld.translate(KeyWorld.size.text, True)
+    keyword_link_status = KeyWorld.translate(KeyWorld.status.text, True)
+    keyword_file = KeyWorld.translate(KeyWorld.file.text, True)
+    keyword_error_size = KeyWorld.translate(KeyWorld.error_size.text, True)
+    keyword_actual_size = KeyWorld.translate(KeyWorld.actual_size.text, True)
+    keyword_already_exist = KeyWorld.translate(KeyWorld.already_exist.text, True)
+    keyword_chanel = KeyWorld.translate(KeyWorld.chanel.text, True)
+    keyword_type = KeyWorld.translate(KeyWorld.type.text, True)
+    keyword_download_task_error = KeyWorld.translate(KeyWorld.download_task_error.text, True)
+    APP_NAME = 'TelegramRestrictedMediaDownloader'
+    event = asyncio.Event()
 
+    def __init__(self):
+        self.app = Application()
+        self.app.config_guide()
+        self.temp_folder: str = self.app.TEMP_FOLDER
+        self.save_path: str = self.app.config.get('save_path')
+        self.max_download_task: int = self.app.config.get('max_download_task')
+        self.links: List[str] or str = self.app.config.get('links')
+        os.makedirs(os.path.join(os.getcwd(), 'sessions'), exist_ok=True)
+        self.client: pyrogram.client.Client = pyrogram.client.Client(name=self.APP_NAME,
+                                                                     api_id=self.app.config.get('api_id'),
+                                                                     api_hash=self.app.config.get('api_hash'),
+                                                                     proxy=self.app.config.get(
+                                                                         'proxy', {}) if self.app.config.get('proxy',
+                                                                                                             {}).get(
+                                                                         'enable_proxy') else None,
+                                                                     workdir=os.path.join(os.getcwd(), 'sessions'))
+        self.current_task_num = 0
+        self.skip_video, self.skip_photo = set(), set()
+        self.success_video, self.success_photo = set(), set()
+        self.failure_video, self.failure_photo = set(), set()
 
-def _move_to_download_path(temp_save_path: str, save_path: str):
-    os.makedirs(save_path, exist_ok=True)
-    if os.path.isdir(save_path):
-        shutil.move(temp_save_path, save_path)
-    else:
-        print_with_log(msg=f'"{save_path}"不是一个目录,已将文件下载到默认目录。', level=LogLevel.error)
-        if is_folder_empty(save_path):
-            os.rmdir(save_path)
-        save_path = os.path.join(os.getcwd(), 'downloads')
-        os.makedirs(save_path, exist_ok=True)
-        shutil.move(temp_save_path, save_path)
-
-
-def _get_temp_path(message: pyrogram.types.Message,
-                   media_obj: str,
-                   temp_folder: str) -> str:
-    file_name = None
-    os.makedirs(temp_folder, exist_ok=True)
-    if media_obj == 'video':
-        file_name = "{} - {}.{}".format(
-            message.id,
-            os.path.splitext(f'{message.video.file_name}')[0],
-            get_extension(file_id=message.video.file_id, mime_type='video', dot=False)
-        )
-        file_name = os.path.join(temp_folder, validate_title(file_name))
-    elif media_obj == 'photo':
-        file_name = "{} - {}.{}".format(
-            message.id,
-            message.photo.file_unique_id,
-            get_extension(file_id=message.photo.file_id, mime_type='photo', dot=False)
-        )
-        file_name = os.path.join(temp_folder, validate_title(file_name))
-    return truncate_filename(file_name)
-
-
-def _check_download_finish(sever_size: int, download_path: str, save_directory: str):
-    local_size: int = os.path.getsize(download_path)
-    format_local_size, format_sever_size = suitable_units_display(local_size), suitable_units_display(sever_size)
-    save_path: str = os.path.join(save_directory, split_path(download_path)[1])
-    if sever_size == local_size:
-        # TODO: 根据下载的文件判断其类型对其精准分类计数:视频个数,图片个数
-        _move_to_download_path(temp_save_path=download_path, save_path=save_directory)
-        print_with_log(
-            msg=f'{keyword_file}:"{save_path}",'
-                f'{keyword_size}:{format_local_size},'
-                f'{keyword_link_status}:{DownloadStatus.success.text}。',
-            level=LogLevel.success)  # todo 后续加入下载任务链接的文件名,解决组或者讨论组下载的媒体链接都是一样的,但是媒体有多个,导致不好区分的问题
-    else:
-        print_with_log(msg=f'{keyword_file}:"{save_path}",'
-                       f'{keyword_error_size}:{format_local_size},'
-                       f'{keyword_actual_size}:{format_sever_size},'
-                       f'{keyword_link_status}:{failure_download}',
-                       level=LogLevel.warning)
-        os.remove(download_path)
-        # raise pyrogram.errors.exceptions.bad_request_400.BadRequest()
-
-
-async def _extract_link_content(client, msg_link):
-    comment_message = []
-    is_comment = False
-    if "?single" in msg_link:  # todo 如果用户只想下载组中的其一
-        msg_link = msg_link.split("?single")[0]
-    if "?comment" in msg_link:  # 链接中包含?comment表示用户需要同时下载评论中的媒体
-        msg_link = msg_link.split("?comment")[0]
-        is_comment = True
-    msg_id = int(msg_link.split("/")[-1])
-    if 't.me/c/' in msg_link:
-        if 't.me/b/' in msg_link:
-            chat_name = str(msg_link.split("/")[-2])
-        else:
-            chat_name = int('-100' + str(msg_link.split("/")[-2]))  # 得到频道的id
-    else:
-        chat_name = msg_link.split("/")[-2]  # 频道的名字
-
-    if is_comment:
-        # 如果用户需要同时下载媒体下面的评论,把评论中的所有信息放入列表一起返回
-        async for comment in client.get_discussion_replies(chat_name, msg_id):
-            comment_message.append(comment)
-
-    return chat_name, msg_id, comment_message
-
-
-async def _is_group(message) -> Any:
-    try:
-        return True, await message.get_media_group()
-    except ValueError as e:
-        return False, None if str(e) == "The message doesn't belong to a media group" else 0
-        # v1.0.4 修改单文件无法下载问题return False, [] if str(e) == "The message doesn't belong to a media group" else 0
-    except AttributeError:
-        return None, None
-
-
-async def get_download_task(client: pyrogram.client.Client,
-                            msg_link: str,
-                            max_download_task: int,
-                            temp_folder=os.path.join(os.getcwd(), 'temp'),
-                            save_path=os.path.join(os.getcwd(), 'downloads')) -> set:
-    tasks = set()
-
-    async def add_task(message):
-        # 判断消息类型
-        _task = None
-        m_obj = next((i for i in ['video', 'photo'] if getattr(message, i, None)), None)
-        # 如果是匹配到的消息类型就创建任务
-        if m_obj:
-            _temp_save_path = _get_temp_path(message, m_obj, temp_folder)
-            global current_task_num
-            while current_task_num >= max_download_task:  # v1.0.7 增加下载任务数限制
-                await event.wait()
-                event.clear()
-            sever_meta = getattr(message, m_obj)
-            sever_size = getattr(sever_meta, 'file_size')
-            local_file_path = os.path.join(save_path, split_path(_temp_save_path)[1])
-            if is_file_duplicate(local_file_path=local_file_path,
-                                 sever_size=sever_size):  # 检测是否存在
-                print_with_log(msg=f'{keyword_link}:"{msg_link},'
-                               f'{keyword_file}:"{split_path(_temp_save_path)[1]}",'
-                               f'{keyword_already_exist}:"{local_file_path}",'
-                               f'{keyword_link_status}:{skip_download}。',
-                               level=LogLevel.info)
+    def config_table(self):
+        try:
+            if self.app.config.get('proxy', {}).get('enable_proxy'):
+                logger.info('当前正在使用代理!')
+                proxy_key: list = []
+                proxy_value: list = []
+                for i in self.app.config.get('proxy').items():
+                    if i[0] not in ['username', 'password']:
+                        key, value = i
+                        proxy_key.append(key)
+                        proxy_value.append(value)
+                proxy_table = PanelTable(title='代理配置', header=tuple(proxy_key), data=[proxy_value])
+                proxy_table.print_meta(color='PaleVioletRed1')
             else:
-                file_meta = getattr(message, m_obj)
-                _file_id, _msg_id = getattr(file_meta, 'file_id'), getattr(message, 'id')
-                format_size = suitable_units_display(sever_size)
-                print_with_log(msg=f'{keyword_link}:"{msg_link}",'
-                               f'{keyword_link_type}:{link_type},'
-                               f'{keyword_id}:{_msg_id},'
-                               f'{keyword_size}:{format_size},'
-                               f'{keyword_link_status}:{downloading}。',
-                               level=LogLevel.info)
-                _task = asyncio.create_task(
-                    client.download_media(message=message,
-                                          progress_args=(msg_link, os.path.basename(_temp_save_path)),
-                                          progress=_download_bar,
-                                          file_name=_temp_save_path))
-
-                current_task_num += 1
-                print_with_log(msg=f'当前任务数:{current_task_num}', level=LogLevel.info)
-
-                def call(future):
-                    global current_task_num
-                    current_task_num -= 1
-                    if future.exception() is not None:
-                        print_with_log(msg=f'任务出错:{future.exception()}', level=LogLevel.error)
-                        # todo 后续尝试突破底层代码实现下载出错重试功能
-                    else:
-                        _check_download_finish(sever_size=sever_size, download_path=_temp_save_path,
-                                               save_directory=save_path)
-                    print_with_log(msg=f'当前任务数:{current_task_num}', level=LogLevel.info)
-                    event.set()
-
-                _task.add_done_callback(lambda future: call(future))
-
-            return tasks.add(_task) if _task else 0
-
-    try:
-        chat_name, msg_id, is_download_comment = await _extract_link_content(client, msg_link)
-        msg = await client.get_messages(chat_name, msg_id)  # 该消息的信息
-        res, group = await _is_group(msg)
-        if res or is_download_comment:  # 组或讨论组
-            group.extend(is_download_comment) if is_download_comment else 0
-            link_type = LinkType.include_comment.text if is_download_comment else LinkType.group.text
-            print_with_log(
-                msg=f'{keyword_reading}:"{chat_name}",{keyword_link}"{msg_link}",{keyword_label}:{link_type}。',
-                level=LogLevel.info)
-            [await add_task(msg_group) for msg_group in group]
-        elif res is False and group is None:  # 单文件
-            link_type = LinkType.single.text
-            print_with_log(msg=f'正在读取频道"{chat_name}",中"{msg_link}"{link_type}中的内容。',
-                           level=LogLevel.info)
-            await add_task(msg)
-        elif res is None and group is None:
-            print_with_log(msg=f'{keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{skip_download}。',
-                           level=LogLevel.warning)
-        elif res is None and group == 0:
-            print_with_log(msg=f'读取"{msg_link}"时出现未知错误,{skip_download}。', level=LogLevel.error)
-    except UnicodeEncodeError as e:
-        print_with_log(msg=f'{keyword_link}:"{msg_link}"频道标题存在特殊字符,请移步终端下载!。原因:"{e}"',
-                       level=LogLevel.error)
-    except Exception as e:
-        # todo 测试倘若频道中确实不存在的报错,进行判断提示,非该错误则不提示,并且注意区分错误在于未加入频道,还是已加入频道视频被删了,甚至是频道直接解散了
-        print_with_log(
-            msg=f'{keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{skip_download}。原因:"{e}"',
-            level=LogLevel.error)
-    finally:
-        return tasks
-
-
-async def _download_bar(current, total, msg_link, file_name):
-    format_current_size, format_total_size = suitable_units_display(current), suitable_units_display(total)
-    # todo 加入颜色
-    print(f"{msg_link}[{file_name}]({format_current_size}/{format_total_size}[{current * 100 / total:.1f}%])")
-
-
-def _process_links(links: Any) -> List[str]:
-    start_content: str = 'https://t.me/'
-    msg_link_list: list = []
-    if isinstance(links, str):
-        if links.endswith('.txt') and os.path.isfile(links):
-            with open(file=links, mode='r', encoding='UTF-8') as _:
-                for link in [content.strip() for content in _.readlines()]:
-                    if link.startswith(start_content):
-                        msg_link_list.append(link)
-                    else:
-                        print_with_log(msg=f'"{link}"是一个非法链接,{keyword_link_status}:{skip_download}。',
-                                       level=LogLevel.warning)
-        elif not os.path.isfile(links):
-            if os.path.exists(links):
-                print_with_log(msg=f'读取"{links}"路径时出现未知错误。', level=LogLevel.error)
-            else:
-                print_with_log(msg=f'文件"{links}"不存在。', level=LogLevel.error)
-        elif links.startswith(start_content):
-            if 80 > len(links) - len(start_content) > 2:
-                msg_link_list.append(links)
-            else:
-                print_with_log(msg=f'"{links}"是一个非法链接,{keyword_link_status}:{skip_download}。',
-                               level=LogLevel.warning)
-    elif isinstance(links, list):
-        for single_link in links:
+                logger.info('当前没有使用代理!')
+        except Exception as e:
             try:
-                if single_link.startswith(start_content) and 80 > len(single_link) - len(
-                        start_content) > 2 and single_link not in msg_link_list:
-                    msg_link_list.append(single_link)
-                elif single_link in msg_link_list:
-                    print_with_log(msg=f'"{single_link}"已存在,{keyword_link_status}:{skip_download}。',
-                                   level=LogLevel.info)
+                logger.info(self.app.config)
+            except Exception as _:
+                logger.error(f'配置信息打印错误!原因"{_}"')
+            logger.error(f'表格打印错误!原因"{e}"')
+
+        # 展示链接内容表格
+        with open(file=self.app.config.get('links'), mode='r', encoding='UTF-8') as _:
+            res = [content.strip() for content in _.readlines()]
+        format_res: list = []
+        for i in enumerate(res, start=1):
+            format_res.append(list(i))
+        link_table = PanelTable(title='链接内容', header=('编号', '链接'),
+                                data=format_res)
+        link_table.print_meta(color='SkyBlue2')
+
+    @staticmethod
+    def _move_to_download_path(temp_save_path: str, save_path: str):
+        os.makedirs(save_path, exist_ok=True)
+        if os.path.isdir(save_path):
+            shutil.move(temp_save_path, save_path)
+        else:
+            logger.error(f'"{save_path}"不是一个目录,已将文件下载到默认目录。')
+            if is_folder_empty(save_path):
+                os.rmdir(save_path)
+            save_path = os.path.join(os.getcwd(), 'downloads')
+            os.makedirs(save_path, exist_ok=True)
+            shutil.move(temp_save_path, save_path)
+
+    def _recorder(func):
+        @wraps(func)
+        def wrapper(self, file_name, status):
+            res = func(self, file_name, status)
+            file_type, status = res
+            if file_type == DownloadType.photo:
+                if status == DownloadStatus.success:
+                    self.success_photo.add(file_name)
+                elif status == DownloadStatus.failure:
+                    self.failure_photo.add(file_name)
+                elif status == DownloadStatus.skip:
+                    self.skip_photo.add(file_name)
+                elif status == DownloadStatus.downloading:
+                    self.current_task_num += 1
+            elif file_type == DownloadType.video:
+                if status == DownloadStatus.success:
+                    self.success_video.add(file_name)
+                elif status == DownloadStatus.failure:
+                    self.failure_video.add(file_name)
+                elif status == DownloadStatus.skip:
+                    self.skip_video.add(file_name)
+                elif status == DownloadStatus.downloading:
+                    self.current_task_num += 1
+            return res
+
+        return wrapper
+
+    @_recorder
+    def _guess_file_type(self, file_name, status):
+        result = ''
+        file_type, _ = mimetypes.guess_type(file_name)
+        if file_type is not None:
+            file_main_type: str = file_type.split('/')[0]
+            if file_main_type == 'image':
+                result = DownloadType.photo
+            elif file_main_type == 'video':
+                result = DownloadType.video
+        return result, status
+
+    def _get_temp_path(self, message: pyrogram.types.Message,
+                       mime_type: DownloadType) -> str:
+        file_name = None
+        os.makedirs(self.temp_folder, exist_ok=True)
+        if mime_type == DownloadType.video.text:
+            file_name = "{} - {}.{}".format(
+                message.id,
+                os.path.splitext(f'{message.video.file_name}')[0],
+                get_extension(file_id=message.video.file_id, mime_type=DownloadType.video.text, dot=False)
+            )
+            file_name = os.path.join(self.temp_folder, validate_title(file_name))
+        elif mime_type == DownloadType.photo.text:
+            file_name = "{} - {}.{}".format(
+                message.id,
+                message.photo.file_unique_id,
+                get_extension(file_id=message.photo.file_id, mime_type=DownloadType.photo.text, dot=False)
+            )
+            file_name = os.path.join(self.temp_folder, validate_title(file_name))
+        return truncate_filename(file_name)
+
+    def _check_download_finish(self, sever_size: int, download_path: str, save_directory: str):
+        local_size: int = os.path.getsize(download_path)
+        format_local_size, format_sever_size = suitable_units_display(local_size), suitable_units_display(sever_size)
+        save_path: str = os.path.join(save_directory, split_path(download_path)[1])
+        if sever_size == local_size:
+            # TODO: 根据下载的文件判断其类型对其精准分类计数:视频个数,图片个数
+            self._move_to_download_path(temp_save_path=download_path, save_path=save_directory)
+            logger.success(
+                f'{self.keyword_file}:"{save_path}",'
+                f'{self.keyword_size}:{format_local_size},'
+                f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=download_path, status=DownloadStatus.success)[0].text)},'
+                f'{self.keyword_link_status}:{DownloadStatus.translate(DownloadStatus.success.text)}。',
+            )  # todo 后续加入下载任务链接的文件名,解决组或者讨论组下载的媒体链接都是一样的,但是媒体有多个,导致不好区分的问题
+        else:
+            logger.warning(f'{self.keyword_file}:"{save_path}",'
+                           f'{self.keyword_error_size}:{format_local_size},'
+                           f'{self.keyword_actual_size}:{format_sever_size},'
+                           f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=download_path, status=DownloadStatus.failure)[0].text)},'
+                           f'{self.keyword_link_status}:{self.failure_download}')
+            os.remove(download_path)
+
+    async def _extract_link_content(self, msg_link):
+        comment_message = []
+        is_comment = False
+        if '?single&comment' in msg_link:  # v1.1.0修复讨论组中附带?single时不下载的问题
+            is_comment = True
+        if '?single' in msg_link:  # todo 如果用户只想下载组中的其一
+            msg_link = msg_link.split('?single')[0]
+        if '?comment' in msg_link:  # 链接中包含?comment表示用户需要同时下载评论中的媒体
+            msg_link = msg_link.split('?comment')[0]
+            is_comment = True
+        msg_id = int(msg_link.split('/')[-1])
+        if 't.me/c/' in msg_link:
+            if 't.me/b/' in msg_link:
+                chat_name = str(msg_link.split('/')[-2])
+            else:
+                chat_name = int('-100' + str(msg_link.split('/')[-2]))  # 得到频道的id
+        else:
+            chat_name = msg_link.split('/')[-2]  # 频道的名字
+
+        if is_comment:
+            # 如果用户需要同时下载媒体下面的评论,把评论中的所有信息放入列表一起返回
+            async for comment in self.client.get_discussion_replies(chat_name, msg_id):
+                comment_message.append(comment)
+
+        return chat_name, msg_id, comment_message
+
+    @staticmethod
+    async def _is_group(message) -> Any:
+        try:
+            return True, await message.get_media_group()
+        except ValueError as e:
+            return False, None if str(e) == "The message doesn't belong to a media group" else 0
+            # v1.0.4 修改单文件无法下载问题return False, [] if str(e) == "The message doesn't belong to a media group" else 0
+        except AttributeError:
+            return None, None
+
+    async def _get_download_task(self, msg_link: str) -> set:
+        tasks = set()
+
+        async def add_task(message):
+            # 判断消息类型
+            _task = None
+            mime_type = next((i for i in DownloadType.support_type() if getattr(message, i, None)), None)
+            # 如果是匹配到的消息类型就创建任务
+            if mime_type:
+                _temp_save_path: str = self._get_temp_path(message, mime_type)
+                while self.current_task_num >= self.max_download_task:  # v1.0.7 增加下载任务数限制
+                    await self.event.wait()
+                    self.event.clear()
+                sever_meta = getattr(message, mime_type)
+                sever_size: int = getattr(sever_meta, 'file_size')
+                file_name: str = split_path(_temp_save_path)[1]
+                local_file_path: str = os.path.join(self.save_path, file_name)
+                format_file_size: str = suitable_units_display(sever_size)
+                if is_file_duplicate(local_file_path=local_file_path,
+                                     sever_size=sever_size):  # 检测是否存在
+                    logger.info(f'{self.keyword_file}:"{file_name}",'
+                                f'{self.keyword_size}:{format_file_size},'
+                                f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=file_name, status=DownloadStatus.skip)[0].text)},'
+                                f'{self.keyword_already_exist}:"{local_file_path}",'
+                                f'{self.keyword_link_status}:{self.skip_download}。')
                 else:
-                    print_with_log(msg=f'"{single_link}"是一个非法链接,{keyword_link_status}:{skip_download}。',
-                                   level=LogLevel.warning)
-            except AttributeError:
-                print_with_log(msg=f'"{single_link}"是一个非法链接,{keyword_link_status}:{skip_download}。',
-                               level=LogLevel.warning)
-    if len(msg_link_list) > 0:
-        return msg_link_list
-    else:
-        print_with_log('没有找到有效链接,程序已退出。', level=LogLevel.info)
-        exit(0)
+                    logger.info(f'{self.keyword_file}:"{file_name}",'
+                                f'{self.keyword_size}:{format_file_size},'
+                                f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=file_name, status=DownloadStatus.downloading)[0].text)},'
+                                f'{self.keyword_link_status}:{self.downloading}。')
+                    _task = asyncio.create_task(
+                        self.client.download_media(message=message,
+                                                   progress_args=(msg_link, file_name),
+                                                   progress=self._download_bar,
+                                                   file_name=_temp_save_path))
+                    logger.info(f'当前任务数:{self.current_task_num}。')
 
+                    def call(future):
+                        self.current_task_num -= 1
+                        if future.exception() is not None:
+                            logger.error(f'{self.keyword_download_task_error}:"{future.exception()}"')
+                            # todo 后续可能实现下载出错重试功能
+                        else:
+                            self._check_download_finish(sever_size=sever_size, download_path=_temp_save_path,
+                                                        save_directory=self.save_path)
+                        logger.info(f'当前任务数:{self.current_task_num}。')
+                        self.event.set()
 
-async def download_media_from_links(client: pyrogram.client.Client,
-                                    links: List[str] or str,
-                                    max_download_task: int = 3,
-                                    temp_folder=os.path.join(os.getcwd(), 'temp'),
-                                    save_path: str = os.path.join(os.getcwd(), 'downloads')):
-    await client.start()
-    print_meta(print_with_log)
-    tasks = set()
-    for link in _process_links(links=links):
-        tasks = await get_download_task(client=client,
-                                        msg_link=link,
-                                        max_download_task=max_download_task,
-                                        temp_folder=temp_folder,
-                                        save_path=save_path)
-    await asyncio.gather(*tasks)
+                    _task.add_done_callback(lambda future: call(future))
+            tasks.add(_task) if _task else 0
+
+        try:
+            chat_name, msg_id, is_download_comment = await self._extract_link_content(msg_link)
+            msg = await self.client.get_messages(chat_name, msg_id)  # 该消息的信息
+            res, group = await self._is_group(msg)
+            if res or is_download_comment:  # 组或评论区
+                group.extend(is_download_comment) if is_download_comment else 0
+                link_type = LinkType.comment.text if is_download_comment else LinkType.group.text
+                logger.info(
+                    f'{self.keyword_chanel}:"{chat_name}",'  # 频道名
+                    f'{self.keyword_link}:"{msg_link}",'  # 链接
+                    f'{self.keyword_link_type}:{LinkType.translate(link_type)}。')  # 链接类型
+                [await add_task(msg_group) for msg_group in group]
+
+            elif res is False and group is None:  # 单文件
+                link_type = LinkType.single.text
+                logger.info(
+                    f'{self.keyword_chanel}:"{chat_name}",'  # 频道名
+                    f'{self.keyword_link}:"{msg_link}",'  # 链接
+                    f'{self.keyword_link_type}:{LinkType.translate(link_type)}。')  # 链接类型
+                await add_task(msg)
+            elif res is None and group is None:
+                logger.warning(
+                    f'{self.keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{self.skip_download}。')
+            elif res is None and group == 0:
+                logger.error(f'读取"{msg_link}"时出现未知错误,{self.skip_download}。')
+        except UnicodeEncodeError as e:
+            logger.error(f'{self.keyword_link}:"{msg_link}"频道标题存在特殊字符,请移步终端下载!。原因:"{e}"')
+        except pyrogram.errors.exceptions.bad_request_400.MsgIdInvalid as e:
+            logger.error(f'{self.keyword_link}:"{msg_link}"消息不存在,可能已删除,{self.skip_download}。原因:"{e}"')
+        except Exception as e:
+            # todo 测试倘若频道中确实不存在的报错,进行判断提示,非该错误则不提示,并且注意区分错误在于未加入频道,还是已加入频道视频被删了,甚至是频道直接解散了
+            logger.error(
+                f'{self.keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{self.skip_download}。原因:"{e}"')
+        finally:
+            return tasks
+
+    @staticmethod
+    async def _download_bar(current, total, msg_link, file_name):
+        format_current_size, format_total_size = suitable_units_display(current), suitable_units_display(total)
+        # todo 加入颜色
+        print(f"{msg_link}[{file_name}]({format_current_size}/{format_total_size}[{current * 100 / total:.1f}%])")
+
+    def _process_links(self, links: Any) -> List[str]:
+        start_content: str = 'https://t.me/'
+        msg_link_list: list = []
+        if isinstance(links, str):
+            if links.endswith('.txt') and os.path.isfile(links):
+                with open(file=links, mode='r', encoding='UTF-8') as _:
+                    for link in [content.strip() for content in _.readlines()]:
+                        if link.startswith(start_content):
+                            msg_link_list.append(link)
+                        else:
+                            logger.warning(f'"{link}"是一个非法链接,{self.keyword_link_status}:{self.skip_download}。')
+            elif not os.path.isfile(links):
+                if os.path.exists(links):
+                    logger.error(f'读取"{links}"路径时出现未知错误。')
+                else:
+                    logger.error(f'文件"{links}"不存在。')
+            elif links.startswith(start_content):
+                if 80 > len(links) - len(start_content) > 2:
+                    msg_link_list.append(links)
+                else:
+                    logger.warning(f'"{links}"是一个非法链接,{self.keyword_link_status}:{self.skip_download}。')
+        if len(msg_link_list) > 0:
+            return msg_link_list
+        else:
+            logger.info('没有找到有效链接,程序已退出。')
+            exit(0)
+
+    async def download_media_from_links(self):
+        await self.client.start()
+        tasks = set()
+        for link in self._process_links(links=self.links):
+            res = await self._get_download_task(msg_link=link)
+            tasks.update(res)  # v1.1.0修复同一链接若第一次未下载完整,在第二次补全时,任务创建了但不等待该下载完成就结束程序,导致下载不完全的的致命性问题
+        await asyncio.gather(*tasks)
+
+    def run(self):
+        record_error = False
+        try:
+            print_meta(print)
+            self.config_table()
+            pay()
+            self.client.run(self.download_media_from_links())
+        except Exception as e:
+            record_error = True
+            self.config_table()
+            logger.error(
+                f'填写的配置出现了错误,请参考教程文档中,仔细填写配置文件,推荐使用代理运行该脚本,或将代理软件设置为TUN模式!原因:"{e}"')
+            while True:
+                question = input('是否重新配置文件?(之前的文件将为你备份在当前目录下?)[y|n]:').lower()
+                if question == 'y':
+                    backup_path = gen_backup_config(old_path=self.app.config_path, dir_name=Application.DIR_NAME)  # 备份
+                    logger.success(
+                        f'备份配置文件已备份至"{backup_path}"')
+                    self.app.config = self.app.CONFIG_TEMPLATE  # 恢复为默认配置开始重新配置
+                    self.app.save_config()
+                    rmd = RestrictedMediaDownloader()
+                    rmd.run()
+                    break
+                elif question == 'n':
+                    logger.info('程序已退出。')
+                    exit()
+        except KeyboardInterrupt:
+            logger.info('用户手动终止下载任务。')
+        finally:
+            if not record_error:
+                total_video = len(self.success_video) + len(self.failure_video) + len(self.skip_video)
+                total_photo = len(self.success_photo) + len(self.failure_photo) + len(self.skip_photo)
+                media_table = PanelTable(title='媒体下载统计',
+                                         header=('种类&状态', '成功下载', '失败下载', '跳过下载', '合计'),
+                                         data=[
+                                             ["视频", len(self.success_video), len(self.failure_video),
+                                              len(self.skip_video),
+                                              total_video],
+                                             ["图片", len(self.success_photo), len(self.failure_photo),
+                                              len(self.skip_photo),
+                                              total_photo],
+                                             ["合计", len(self.success_video) + len(self.success_photo),
+                                              len(self.failure_video) + len(self.failure_photo),
+                                              len(self.skip_video) + len(self.skip_photo), total_video + total_photo]
+                                         ])
+                media_table.print_meta(color='Pink1')
+                pay()
+                os.system('pause')

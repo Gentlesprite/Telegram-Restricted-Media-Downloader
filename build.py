@@ -4,7 +4,8 @@
 # Time:2024/7/22 22:37
 # File:build
 import os
-from module import author, __version__,SOFTWARE_FULL_NAME
+from module import author, __version__, SOFTWARE_FULL_NAME
+
 app_name = SOFTWARE_FULL_NAME
 file_version = __version__
 ico_path = 'res/icon.ico'

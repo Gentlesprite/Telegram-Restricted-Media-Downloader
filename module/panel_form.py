@@ -3,45 +3,11 @@
 # Software:PyCharm
 # Time:2024/1/2 17:43:02
 # File:panel_form.py
-from enum import Enum
-from prettytable import PrettyTable
 from ctypes import windll
-
-
-class StatusInfo(Enum):
-    skip = 1
-    success = 2
-    failure = 3
-    downloading = 4
-
-
-class MediaType(Enum):
-    video = 1
-    photo = 2
-    unknown = 3
-
-
-class StorageType(Enum):
-    single = 1
-    group = 2
-
-
-def translate_storage_type(stype: StorageType):
-    if stype == StorageType.single:
-        stype = '单文件'
-    elif stype == StorageType.group:
-        stype = '组'
-    return stype
-
-
-def translate_media_type(name: MediaType):
-    if name == MediaType.video:
-        name = '视频'
-    elif name == MediaType.photo:
-        name = '图片'
-    elif name == MediaType.unknown:
-        name = '未知'
-    return name
+from prettytable import PrettyTable
+from scprint import print, rainbow
+from module import qrterm
+from module.enum_define import StatusInfo
 
 
 def translate_link_status(status: StatusInfo, image_display=False):
@@ -57,17 +23,19 @@ def translate_link_status(status: StatusInfo, image_display=False):
 
 
 class PanelTable:
-    def __init__(self, title: str, header: tuple, data=None):
+    def __init__(self, title: str, header: tuple, data: list):
         self.table = PrettyTable(title=title, field_names=header)
-        self.add_row(data) if data else None
+        self.table.add_rows(data)
 
-    def add_row(self, data):
-        self.table.add_rows([data])
+    def print_meta(self, color='Pink1'):
+        print(self.table, color=color)
 
-    def print_meta(self):
-        print(self.table)
+
+def pay():
+    if check_run_env():  # 是终端才打印,生产环境会报错
+        qrterm.draw('wxp://f2f0g8lKGhzEsr0rwtKWTTB2gQzs9Xg9g31aBvlpbILowMTa5SAMMEwn0JH1VEf2TGbS')
+        rainbow('欢迎[微信扫码]支持作者!')
 
 
 def check_run_env():  # 检测是控制台运行还是IDE运行
     return windll.kernel32.SetConsoleTextAttribute(windll.kernel32.GetStdHandle(-0xb), 0x7)
-

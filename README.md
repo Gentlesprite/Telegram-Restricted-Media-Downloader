@@ -65,18 +65,20 @@ Github:[点击跳转下载](https://github.com/Gentlesprite/Telegram-Restricted-
 ## 2.2.配置文件说明
 
 ```yaml
+# 下载完成直接打开软件即可,软件会一步一步引导你输入的!这里只是介绍每个参数的含义
 # 填入第一步教你申请的api_hash和api_id
 api_hash: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx #api_hash没有引号
 api_id: 'xxxxxxxx' #注意配置文件中只有api_id有引号！！！
-links: D:\path\where\your\link\txt\save\content.txt # 链接地址有2种格式:如下
-# 新建txt文本,一个链接为一行,将路径填入即可请不要加引号
-# 写法1:D:\path\where\your\link\txt\save\content.txt 请注意一个链接一行
-# 写法2:['链接1','链接2','链接3','链接4'] 请注意逗号必须为","
-max_download_task: 3 # 最大的同时下载任务数
-# 注意:如果你不是telegram会员,那么最大同时下载数只有1
+links: D:\path\where\your\link\txt\save\content.txt # 链接地址写法如下:
+# 新建txt文本,一个链接为一行,将路径填入即可请不要加引号,在软件运行前就准备好
+# D:\path\where\your\link\txt\save\content.txt 请注意一个链接一行
+# 列表写法已在v1.1.0版本中弃用,目前只有上述唯一写法！！！
+max_download_task: 3 # 最大的同时下载任务数 注意:如果你不是Telegram会员,那么最大同时下载数只有1
 proxy: # 代理部分,如不使用请全部填null注意冒号后面有空格,否则不生效导致报错!
-  scheme: socks5 # 代理的类型,支持socks5和http
+  enable_proxy: true # 是否开启代理 true 为开启 false为关闭
   hostname: 127.0.0.1 # 代理的ip地址
+  is_notice: false # 是否开启代理提示, true 为每次打开询问你是否开启代理, false则为关闭
+  scheme: socks5 # 代理的类型,支持http,socks4,socks5
   port: 10808 # 代理ip的端口
   username: null # 代理的账号,有就填,没有请都填null!
   password: null # 代理的密码,有就填,没有请都填null!
@@ -112,6 +114,8 @@ B站视频教程:[在后续完成]()
 
 ```bash
 # 请使用python 3.11.7版本！
+git clone https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader.git
+cd Telegram-Restricted-Media-Downloader
 pip install -r requirements.txt
 python main.py
 ```

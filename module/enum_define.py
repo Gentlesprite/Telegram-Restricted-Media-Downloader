@@ -9,15 +9,54 @@ from enum import Enum
 class LinkType(Enum):
     single = 0
     group = 1
-    include_comment = 2
+    comment = 2
 
     @property
     def text(self):
         return {
-            LinkType.single: '单文件',
-            LinkType.group: '组',
-            LinkType.include_comment: '包含评论',
+            LinkType.single: 'single',
+            LinkType.group: 'group',
+            LinkType.comment: 'comment',
         }[self]
+
+    @staticmethod
+    def translate(text: 'LinkType.text'):
+        translation = {
+            LinkType.single.text: '单文件',
+            LinkType.group.text: '组文件',
+            LinkType.comment.text: '评论文件',
+        }
+        if text in translation:
+            return translation[text]
+        else:
+            raise ValueError(f'Unsupported Keyword:{text}')
+
+
+class DownloadType(Enum):
+    video = 0
+    photo = 1
+
+    @property
+    def text(self):
+        return {
+            DownloadType.video: 'video',
+            DownloadType.photo: 'photo'
+        }[self]
+
+    @staticmethod
+    def support_type() -> list:
+        return [i.text for i in DownloadType]
+
+    @staticmethod
+    def translate(text: 'DownloadType.text'):
+        translation = {
+            DownloadType.video.text: '视频',
+            DownloadType.photo.text: '图片'
+        }
+        if text in translation:
+            return translation[text]
+        else:
+            raise ValueError(f'Unsupported Keyword:{text}')
 
 
 class DownloadStatus(Enum):
@@ -30,12 +69,29 @@ class DownloadStatus(Enum):
     @property
     def text(self):
         return {
-            DownloadStatus.downloading: '下载中',
-            DownloadStatus.success: '下载成功',
-            DownloadStatus.failure: '下载失败',
-            DownloadStatus.skip: '跳过下载',
-            DownloadStatus.all_complete: '全部下载完成'
+            DownloadStatus.downloading: 'downloading',
+            DownloadStatus.success: 'success',
+            DownloadStatus.failure: 'failure',
+            DownloadStatus.skip: 'skip'
         }[self]
+
+    @staticmethod
+    def translate(text: 'DownloadStatus.text'):
+        translation = {
+            DownloadStatus.downloading.text: '正在下载',
+            DownloadStatus.success.text: '成功下载',
+            DownloadStatus.failure.text: '失败下载',
+            DownloadStatus.skip.text: '跳过下载'
+        }
+        if text in translation:
+            return translation[text]
+        else:
+            print(text)
+            raise ValueError(f'Unsupported Keyword:{text}')
+
+    @staticmethod
+    def all_status() -> list:
+        return [i.text for i in DownloadStatus]
 
 
 class KeyWorld(Enum):
@@ -48,81 +104,55 @@ class KeyWorld(Enum):
     error_size = 6
     actual_size = 7
     already_exist = 8
-    reading = 9
-    label = 10
+    chanel = 9
+    type = 10
+    download_task_error = 11
 
     @property
     def text(self):
         return {
-            KeyWorld.link: '[链接]',
-            KeyWorld.link_type: '[链接类型]',
-            KeyWorld.id: '[标识]',
-            KeyWorld.size: '[大小]',
-            KeyWorld.status: '[状态]',
-            KeyWorld.file: '[文件]',
-            KeyWorld.error_size: '[错误大小]',
-            KeyWorld.actual_size: '[实际大小]',
-            KeyWorld.already_exist: '[已存在]',
-            KeyWorld.reading: '[正在读取]',
-            KeyWorld.label: '[标签]'
+            KeyWorld.link: 'link',
+            KeyWorld.link_type: 'link_type',
+            KeyWorld.id: 'id',
+            KeyWorld.size: 'size',
+            KeyWorld.status: 'status',
+            KeyWorld.file: 'file',
+            KeyWorld.error_size: 'error_size',
+            KeyWorld.actual_size: 'actual_size',
+            KeyWorld.already_exist: 'already_exist',
+            KeyWorld.chanel: 'chanel',
+            KeyWorld.type: 'type',
+            KeyWorld.download_task_error: 'download_task_error'
         }[self]
 
-
-class LogLevel(Enum):
-    debug = 0
-    info = 1
-    success = 2
-    warning = 3
-    error = 4
-
-    @property
-    def text(self):
-        return {
-            LogLevel.debug: 'debug',
-            LogLevel.info: 'info',
-            LogLevel.success: 'success',
-            LogLevel.warning: 'warning',
-            LogLevel.error: 'error'
-        }[self]
-
-    @property
-    def color(self):
-        color_mapping = {
-            LogLevel.debug: PrintColor.blue,
-            LogLevel.info: PrintColor.white,
-            LogLevel.success: PrintColor.green,
-            LogLevel.warning: PrintColor.yellow,
-            LogLevel.error: PrintColor.red
+    @staticmethod
+    def translate(text: 'KeyWorld.text', key_note: bool = False):
+        translation = {
+            KeyWorld.link.text: '链接',
+            KeyWorld.link_type.text: '链接类型',
+            KeyWorld.id.text: '标识',
+            KeyWorld.size.text: '大小',
+            KeyWorld.status.text: '状态',
+            KeyWorld.file.text: '文件',
+            KeyWorld.error_size.text: '错误大小',
+            KeyWorld.actual_size.text: '实际大小',
+            KeyWorld.already_exist.text: '已存在',
+            KeyWorld.chanel.text: '频道',
+            KeyWorld.type.text: '类型',
+            KeyWorld.download_task_error.text: '下载任务错误'
         }
-        return color_mapping.get(self, PrintColor.white)
 
-    @property
-    def translate_text(self):
-        return {LogLevel.debug: '调试',
-                LogLevel.info: '信息',
-                LogLevel.success: '成功',
-                LogLevel.warning: '警告',
-                LogLevel.error: '错误'}[self]
+        if text in translation:
+            if key_note:
+                return f'[{translation[text]}]'
+            else:
+                return translation[text]
+        else:
+            raise ValueError(f'Unsupported Keyword:{text}')
 
 
-class PrintColor(Enum):
-    blue = 0
-    white = 1
-    green = 2
-    yellow = 3
-    red = 4
-
-    @property
-    def text(self):
-        return {
-            PrintColor.blue: 'blue',
-            PrintColor.white: 'white',
-            PrintColor.green: 'green',
-            PrintColor.yellow: 'yellow',
-            PrintColor.red: 'red',
-            PrintColor.violet: 'violet'
-        }[self]
-
-    @classmethod
-    def violet(cls):
-        return cls(6)
+class StatusInfo(Enum):
+    skip = 1
+    success = 2
+    failure = 3
+    downloading = 4
