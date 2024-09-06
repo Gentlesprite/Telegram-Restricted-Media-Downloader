@@ -5,6 +5,7 @@
 # File:process_path.py
 import os
 import re
+import datetime
 import unicodedata
 
 
@@ -59,3 +60,14 @@ def truncate_filename(path: str, limit: int = 230) -> str:
     f = unicodedata.normalize("NFC", f)
     f_trunc = f.encode()[:f_max].decode("utf-8", errors="ignore")
     return os.path.join(p, f_trunc + e)
+
+
+def gen_backup_config(old_path: str, dir_name: str):
+    backup_dir = 'ConfigBackup'
+    absolute_backup_dir = os.path.join(dir_name, backup_dir)
+    os.makedirs(absolute_backup_dir, exist_ok=True)
+    new_path = os.path.join(absolute_backup_dir,
+                            f'history_{datetime.datetime.now().strftime("%H-%M-%S")}_config.yaml')
+    os.rename(old_path, new_path)
+    return new_path
+

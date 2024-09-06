@@ -8,11 +8,11 @@
 @site:
 @file: qrterm.py
 @time: 2017/2/10 16:38
+感谢作者代码
 '''
 import qrcode
 from optparse import OptionParser
 import sys
-import platform
 
 parser = OptionParser()
 parser.add_option('-d', '--data', dest='data', help='data to be paser to QRCode')
@@ -108,7 +108,3 @@ def draw_cmd():
         else:
             version = 1
         draw(options.data, version)
-
-
-if __name__ == '__main__':
-    draw_cmd()

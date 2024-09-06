@@ -24,7 +24,7 @@ def determine_suitable_units(number, unit=None):
         return "{:.2f}".format(values[-1]), units[len(values) - 1]
 
 
-def suitable_units_display(number:int)->str:
+def suitable_units_display(number: int) -> str:
     return determine_suitable_units(number)[0] + determine_suitable_units(number)[1]
 
 
