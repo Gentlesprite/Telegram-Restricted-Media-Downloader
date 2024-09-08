@@ -24,7 +24,11 @@
 
 作者:[Gentlesprite](https://github.com/Gentlesprite)
 
+B站视频教程:[点击观看](https://www.bilibili.com/video/BV1nCp8evEwv)
+
 软件完全免费使用！禁止倒卖，如果你付费那就是被骗了。
+
+
 
 # 1.0.下载地址:
 
@@ -67,6 +71,9 @@ Github:[点击跳转下载](https://github.com/Gentlesprite/Telegram-Restricted-
 ```yaml
 # 下载完成直接打开软件即可,软件会一步一步引导你输入的!这里只是介绍每个参数的含义
 # 填入第一步教你申请的api_hash和api_id
+# 如果是按照软件的提示填,不需要加引号,如果是手动打开config.yaml修改配置,请仔细阅读下面内容
+# 手动填写注意区分冒号类型,例如 - 是:不是：
+# 手动填写的时候还请注意参数冒号不加空格会报错 后面有一个空格,例如 - api_hash: xxx而不是api_hash:xxx
 api_hash: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx #api_hash没有引号
 api_id: 'xxxxxxxx' #注意配置文件中只有api_id有引号！！！
 links: D:\path\where\your\link\txt\save\content.txt # 链接地址写法如下:
@@ -104,11 +111,40 @@ save_path: F:\path\the\media\where\you\save # 下载的媒体保存的地址
 
 6. 你所需要下载的视频前提是你当前的Telegram账号，在此视频链接的频道中，否则会报错无法下载！！！
 
+7. 常见的**错误**写法(**请不要这样写**)：
 
+   ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/2_4_3.png)
 
-## 2.3.视频教程
+   字段解释：
 
-B站视频教程:[在后续完成]()
+   | 字段            | 解释                   |
+   | --------------- | ---------------------- |
+   | ?comment        | 讨论组                 |
+   | ?single         | 单独的某个媒体         |
+   | ?single&comment | 讨论组中单独的某个媒体 |
+
+   链接解释：
+   
+   Telegram链接组成：https://t.me/频道名/消息ID
+   
+   | 链接                                     | 频道名 | 消息ID | 解释                                                         |
+   | ---------------------------------------- | ------ | ------ | ------------------------------------------------------------ |
+   | https://t.me/TEST/111                    | TEST   | 111    | 下载该链接的**所有视频图片**                                 |
+   | https://t.me/TEST/111?single             | TEST   | 111    | 下载该链接的**所有视频图片**                                 |
+   | https://t.me/TEST/111?comment=666        | TEST   | 111    | 下载该链接的**视频图片**的同时，下载该链接下方的**讨论组**的**视频图片** |
+   | https://t.me/TEST/111?single&comment=666 | TEST   | 111    | 下载该链接的**视频图片**的同时，下载该链接下方的**讨论组**的**视频图片** |
+   
+   上述表格的**频道名**和**消息ID**都是**相同的**，这就代表的**重复链接**，**不要这样写**。
+   
+   原因：注意图片中**红框**的内容结合上述表格，你会发现?comment，?single和?single&comment**前面的内容**都是**一模一样**的，这代表这是**同样的一个链接**，如果需要**同时下载评论区和原本链接的内容**，只需填这**一个链接**即可**全部下载**。报错的原因是因为?comment链接本身就会下载全部内容，若此时再添加一个**前缀完全相同**的**没有带?comment的链接**，就会导致**这条链接的内容**被下载了**两次**，如果**上一次**的任务还没下载完，**同样的链接**的下载任务再一次地被添加进去了，就会导致下载报错。 
+   
+   如果你并非是想下载**评论区**中的内容，而只是**该链接的内容**。
+   
+   写法如下:
+   
+   https://x.xx/xxx/111
+   
+   注意这样写就**不会下载评论区**的内容了!链接中如果带?single或?single&comment字段，不用管，**直接复制**进来，程序会为你下载该链接的**所有内容**！
 
 # 3.0.在生产环境中运行
 
