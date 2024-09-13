@@ -5,9 +5,11 @@
 # File:panel_form.py
 from ctypes import windll
 from prettytable import PrettyTable
-from scprint import print, rainbow
 from module import qrterm
+from module.color_print import rainbow
 from module.enum_define import StatusInfo
+from module.color_print import print as print_with_color
+
 
 
 def translate_link_status(status: StatusInfo, image_display=False):
@@ -28,7 +30,7 @@ class PanelTable:
         self.table.add_rows(data)
 
     def print_meta(self, color='Pink1'):
-        print(self.table, color=color)
+        print_with_color(self.table, color=color)
 
 
 def pay():

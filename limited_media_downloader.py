@@ -13,6 +13,7 @@ from functools import wraps
 from typing import List, Any
 from module.app import Application
 from module.meta import print_meta
+from module.color_print import print as print_with_color
 from module.panel_form import PanelTable, pay
 from module.unit import suitable_units_display
 from module.pyrogram_extension import get_extension
@@ -311,10 +312,37 @@ class RestrictedMediaDownloader:
             return tasks
 
     @staticmethod
-    async def _download_bar(current, total, msg_link, file_name):
+    def _download_bar(current, total, msg_link, file_name):
+        def get_color(rate: float):
+            color_lst = ['Yellow', 'Yellow3', 'Orange1',
+                         'DarkSlateGray3', 'SkyBlue1', 'SteelBlue1',
+                         'PaleGreen3', 'Chartreuse2', 'Chartreuse3']
+            if rate == 100.0:
+                return color_lst[8]
+            elif rate > 90.0:
+                return color_lst[7]
+            elif rate > 80.0:
+                return color_lst[6]
+            elif rate > 70.0:
+                return color_lst[5]
+            elif rate > 60.0:
+                return color_lst[4]
+            elif rate > 40.0:
+                return color_lst[3]
+            elif rate > 30.0:
+                return color_lst[2]
+            elif rate > 20.0:
+                return color_lst[1]
+            elif rate >= 0.0:
+                return color_lst[0]
+            else:
+                return 'Grey82'
         format_current_size, format_total_size = suitable_units_display(current), suitable_units_display(total)
-        # todo 加入颜色
-        print(f"{msg_link}[{file_name}]({format_current_size}/{format_total_size}[{current * 100 / total:.1f}%])")
+        current_rate = float(f'{current * 100 / total:.1f}')
+        current_color = get_color(current_rate)
+        # v1.1.1 加入了进度条颜色
+        print_with_color(f"{msg_link}[{file_name}]({format_current_size}/{format_total_size}[{current_rate}%])",
+              color=current_color)
 
     def _process_links(self, links: Any) -> List[str]:
         start_content: str = 'https://t.me/'

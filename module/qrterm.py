@@ -1,5 +1,5 @@
 # coding=UTF-8
-# Author:Gentlesprite
+# Author:wang_pc, Yihang Liu
 # Software:PyCharm
 # Time:2024/8/20 21:56
 # File:qrterm

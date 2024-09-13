@@ -36,6 +36,20 @@ B站视频教程:[点击观看](https://www.bilibili.com/video/BV1nCp8evEwv)
 
 Github:[点击跳转下载](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/releases)
 
+## 1.1.推荐终端:
+
+1. 推荐使用**Winodws Terminal**作为**默认终端**，避免出现**文字显示**乱码。
+
+   Winodws Terminal 微软商店:[点击跳转下载](https://apps.microsoft.com/detail/9n0dx20hk701?launch=true&mode=full&hl=zh-cn&gl=cn&ocid=bingwebsearch)
+
+   Winodws Terminal Github:[点击跳转下载](https://github.com/microsoft/terminal/releases)
+
+2. 下载完成完成后**win+r**输入**wt**回车打开，然后将**Winodws Terminal**设为**默认终端**再启动软件，教程如下:
+
+   ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/1_1_1.png)
+
+   ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/1_1_2.png)
+
 # 2.0.快速开始:
 
 ## 2.1.申请电报API
@@ -44,13 +58,13 @@ Github:[点击跳转下载](https://github.com/Gentlesprite/Telegram-Restricted-
 
    
 
-2. 填写**自己绑定Telegram电报的手机号**注意手机号格式先要+地区再写入电话号码例如+12223334455，**+1**为地区，**222333445**为你绑定Telegram的手机号，填写后点击**Next**
+2. 填写**自己绑定Telegram电报的手机号**注意手机号格式先要+地区再写入电话号码例如+12223334455，**+1**为地区，**222333445**为你绑定Telegram的手机号，填写后点击**Next**。
 
    ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/2_1_1.png)
 
    
 
-3. 打开你的**Telegram客户端**，此时会收到来自**Telegram**账号的消息，将上面的验证码填入**Confirmation code**框中，然后点击**Sign in**
+3. 打开你的**Telegram客户端**，此时会收到来自**Telegram**账号的消息，将上面的验证码填入**Confirmation code**框中，然后点击**Sign in**。
 
    ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/2_1_2.png)
 
@@ -58,7 +72,7 @@ Github:[点击跳转下载](https://github.com/Gentlesprite/Telegram-Restricted-
 
    
 
-4. 点击**API development tools**按照提示填入即可
+4. 点击**API development tools**按照提示填入即可。
 
    ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/2_1_4.png)
 
@@ -99,7 +113,7 @@ save_path: F:\path\the\media\where\you\save # 下载的媒体保存的地址
 
    ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/2_4_1.png)
 
-2. 目前支持**视频**和**图片**两种类型的下载
+2. 目前支持**视频**和**图片**两种类型的下载。
 
 3. 如果当前复制的**链接**为多张图片或视频，那么程序会**自动下载当前消息所有的内容**!
 
@@ -149,7 +163,6 @@ save_path: F:\path\the\media\where\you\save # 下载的媒体保存的地址
 # 3.0.在生产环境中运行
 
 ```bash
-# 请使用python 3.11.7版本！
 git clone https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader.git
 cd Telegram-Restricted-Media-Downloader
 pip install -r requirements.txt
