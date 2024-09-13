@@ -1,18 +1,18 @@
+# ignore folders
 .idea/
 __pycache__/
-last_version/
 sessions/
-config.yaml
 temp/
-tests.py
-TESTS.py
-config.yaml.template
-*.yaml
 output/
 img/
-test.py
-output/
-pay.py
 venv/
+ConfigBackup/
+# ignore files
+*.yaml
+*.xml
+tests.py
+test.py
+TESTS.py
+config.yaml.template
 Pipfile
-ConfigBackup
+

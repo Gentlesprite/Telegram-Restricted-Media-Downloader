@@ -6,10 +6,10 @@
 import os
 from loguru import logger
 
-__version__ = '1.1.0'
+__version__ = '1.1.1'
 __license__ = "MIT License"
 __copyright__ = "Copyright (C) 2024 Gentlesprite <https://github.com/Gentlesprite>"
-__update_date__ = '2024/09/06 19:54:08'
+__update_date__ = '2024/09/13 20:02:22'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_NAME = 'TRMD'
 author = 'Gentlesprite'
