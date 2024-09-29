@@ -62,8 +62,9 @@ class RestrictedMediaDownloader:
         self.skip_video, self.skip_photo = set(), set()
         self.success_video, self.success_photo = set(), set()
         self.failure_video, self.failure_photo = set(), set()
+        self.failure_link: dict = {} # v1.1.2
 
-    def config_table(self):
+    def _config_table(self):
         try:
             if self.app.config.get('proxy', {}).get('enable_proxy'):
                 logger.info('当前正在使用代理!')
@@ -280,7 +281,12 @@ class RestrictedMediaDownloader:
             msg = await self.client.get_messages(chat_name, msg_id)  # 该消息的信息
             res, group = await self._is_group(msg)
             if res or is_download_comment:  # 组或评论区
-                group.extend(is_download_comment) if is_download_comment else 0
+                try:  # v1.1.2解决当group返回None时出现comment无法下载的问题
+                    group.extend(is_download_comment) if is_download_comment else 0
+                except AttributeError:
+                    if is_download_comment and group is None:
+                        group = []
+                        group.extend(is_download_comment)
                 link_type = LinkType.comment.text if is_download_comment else LinkType.group.text
                 logger.info(
                     f'{self.keyword_chanel}:"{chat_name}",'  # 频道名
@@ -296,15 +302,21 @@ class RestrictedMediaDownloader:
                     f'{self.keyword_link_type}:{LinkType.translate(link_type)}。')  # 链接类型
                 await add_task(msg)
             elif res is None and group is None:
+                error = '消息不存在,频道已解散或未在频道中'
+                self.failure_link[msg_link] = error
                 logger.warning(
-                    f'{self.keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{self.skip_download}。')
+                    f'{self.keyword_link}:"{msg_link}"{error},{self.skip_download}。')
             elif res is None and group == 0:
                 logger.error(f'读取"{msg_link}"时出现未知错误,{self.skip_download}。')
         except UnicodeEncodeError as e:
-            logger.error(f'{self.keyword_link}:"{msg_link}"频道标题存在特殊字符,请移步终端下载!。原因:"{e}"')
+            error = '频道标题存在特殊字符,请移步终端下载'
+            self.failure_link[msg_link] = e
+            logger.error(f'{self.keyword_link}:"{msg_link}"{error},原因:"{e}"')
         except pyrogram.errors.exceptions.bad_request_400.MsgIdInvalid as e:
+            self.failure_link[msg_link] = e
             logger.error(f'{self.keyword_link}:"{msg_link}"消息不存在,可能已删除,{self.skip_download}。原因:"{e}"')
         except Exception as e:
+            self.failure_link[msg_link] = e
             # todo 测试倘若频道中确实不存在的报错,进行判断提示,非该错误则不提示,并且注意区分错误在于未加入频道,还是已加入频道视频被删了,甚至是频道直接解散了
             logger.error(
                 f'{self.keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{self.skip_download}。原因:"{e}"')
@@ -337,12 +349,13 @@ class RestrictedMediaDownloader:
                 return color_lst[0]
             else:
                 return 'Grey82'
+
         format_current_size, format_total_size = suitable_units_display(current), suitable_units_display(total)
         current_rate = float(f'{current * 100 / total:.1f}')
         current_color = get_color(current_rate)
         # v1.1.1 加入了进度条颜色
         print_with_color(f"{msg_link}[{file_name}]({format_current_size}/{format_total_size}[{current_rate}%])",
-              color=current_color)
+                         color=current_color)
 
     def _process_links(self, links: Any) -> List[str]:
         start_content: str = 'https://t.me/'
@@ -371,7 +384,7 @@ class RestrictedMediaDownloader:
             logger.info('没有找到有效链接,程序已退出。')
             exit(0)
 
-    async def download_media_from_links(self):
+    async def _download_media_from_links(self):
         await self.client.start()
         tasks = set()
         for link in self._process_links(links=self.links):
@@ -383,12 +396,12 @@ class RestrictedMediaDownloader:
         record_error = False
         try:
             print_meta(print)
-            self.config_table()
+            self._config_table()
             pay()
-            self.client.run(self.download_media_from_links())
+            self.client.run(self._download_media_from_links())
         except Exception as e:
             record_error = True
-            self.config_table()
+            self._config_table()
             logger.error(
                 f'填写的配置出现了错误,请参考教程文档中,仔细填写配置文件,推荐使用代理运行该脚本,或将代理软件设置为TUN模式!原因:"{e}"')
             while True:
@@ -425,5 +438,13 @@ class RestrictedMediaDownloader:
                                               len(self.skip_video) + len(self.skip_photo), total_video + total_photo]
                                          ])
                 media_table.print_meta(color='Pink1')
+                if self.failure_link:  # v1.1.2 增加下载失败的链接统计,但如果没有失败的链接将不会显示
+                    format_failure_info: list = []
+                    for index, (key, value) in enumerate(self.failure_link.items(), start=1):
+                        format_failure_info.append([index, key, value])
+                    failure_link_table = PanelTable(title='失败链接统计',
+                                                    header=('编号', '链接', '原因'),
+                                                    data=format_failure_info)
+                    failure_link_table.print_meta(color='SkyBlue2')
                 pay()
                 os.system('pause')
