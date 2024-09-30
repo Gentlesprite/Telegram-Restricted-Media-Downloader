@@ -85,16 +85,21 @@ class RestrictedMediaDownloader:
             except Exception as _:
                 logger.error(f'配置信息打印错误!原因"{_}"')
             logger.error(f'表格打印错误!原因"{e}"')
-
-        # 展示链接内容表格
-        with open(file=self.app.config.get('links'), mode='r', encoding='UTF-8') as _:
-            res = [content.strip() for content in _.readlines()]
-        format_res: list = []
-        for i in enumerate(res, start=1):
-            format_res.append(list(i))
-        link_table = PanelTable(title='链接内容', header=('编号', '链接'),
-                                data=format_res)
-        link_table.print_meta(color='SkyBlue2')
+        file_path = self.app.config.get('links')
+        try:
+            # 展示链接内容表格
+            with open(file=file_path, mode='r', encoding='UTF-8') as _:
+                res = [content.strip() for content in _.readlines()]
+            format_res: list = []
+            for i in enumerate(res, start=1):
+                format_res.append(list(i))
+            link_table = PanelTable(title='链接内容', header=('编号', '链接'),
+                                    data=format_res)
+            link_table.print_meta(color='SkyBlue2')
+        except FileNotFoundError: # v1.1.3 用户错误填写路径提示
+            logger.error(f'读取"{file_path}"时出错。')
+        except Exception as e:
+            logger.error(f'读取"{file_path}"时出错,原因:{e}')
 
     @staticmethod
     def _move_to_download_path(temp_save_path: str, save_path: str):
@@ -349,7 +354,6 @@ class RestrictedMediaDownloader:
                 return color_lst[0]
             else:
                 return 'Grey82'
-
         format_current_size, format_total_size = suitable_units_display(current), suitable_units_display(total)
         current_rate = float(f'{current * 100 / total:.1f}')
         current_color = get_color(current_rate)
@@ -357,7 +361,7 @@ class RestrictedMediaDownloader:
         print_with_color(f"{msg_link}[{file_name}]({format_current_size}/{format_total_size}[{current_rate}%])",
                          color=current_color)
 
-    def _process_links(self, links: Any) -> List[str]:
+    def _process_links(self, links: str) -> List[str]:
         start_content: str = 'https://t.me/'
         msg_link_list: list = []
         if isinstance(links, str):
@@ -368,11 +372,8 @@ class RestrictedMediaDownloader:
                             msg_link_list.append(link)
                         else:
                             logger.warning(f'"{link}"是一个非法链接,{self.keyword_link_status}:{self.skip_download}。')
-            elif not os.path.isfile(links):
-                if os.path.exists(links):
-                    logger.error(f'读取"{links}"路径时出现未知错误。')
-                else:
-                    logger.error(f'文件"{links}"不存在。')
+            elif not os.path.isfile(links):# v1.1.3 优化非文件时的提示和逻辑
+                logger.error(f'"{links}"是一个目录,并非.txt结尾的文本文件,请更正配置文件后重试。')
             elif links.startswith(start_content):
                 if 80 > len(links) - len(start_content) > 2:
                     msg_link_list.append(links)
@@ -403,9 +404,9 @@ class RestrictedMediaDownloader:
             record_error = True
             self._config_table()
             logger.error(
-                f'填写的配置出现了错误,请参考教程文档中,仔细填写配置文件,推荐使用代理运行该脚本,或将代理软件设置为TUN模式!原因:"{e}"')
+                f'填写的配置出现了错误,请配合教程文档,仔细检查配置文件,推荐使用代理运行该脚本,或将代理软件设置为TUN模式!原因:"{e}"')
             while True:
-                question = input('是否重新配置文件?(之前的文件将为你备份在当前目录下?)[y|n]:').lower()
+                question = input('是否重新配置文件?(之前的配置文件将为你备份到当前目录下)[y|n]:').lower()
                 if question == 'y':
                     backup_path = gen_backup_config(old_path=self.app.config_path, dir_name=Application.DIR_NAME)  # 备份
                     logger.success(
@@ -417,7 +418,7 @@ class RestrictedMediaDownloader:
                     break
                 elif question == 'n':
                     logger.info('程序已退出。')
-                    exit()
+                    exit(0)
         except KeyboardInterrupt:
             logger.info('用户手动终止下载任务。')
         finally:
