@@ -19,11 +19,11 @@ utils.get_peer_type = get_peer_type_new
 __version__ = '1.1.3'
 __license__ = "MIT License"
 __copyright__ = "Copyright (C) 2024 Gentlesprite <https://github.com/Gentlesprite>"
-__update_date__ = '2024/10/08 9:50:21'
+__update_date__ = '2024/10/08 23:58:41'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_NAME = 'TRMD'
 author = 'Gentlesprite'
-LOG_PATH = os.path.join(os.environ['APPDATA'], SOFTWARE_NAME, 'TRMD_LOG.log')
+LOG_PATH = os.path.join(os.environ['APPDATA'], SOFTWARE_NAME, f'{SOFTWARE_NAME}_LOG.log')
 # 配置日志输出到文件
 logger.add(sink=LOG_PATH, level='INFO', rotation='10 MB', retention='10 days', compression='zip', encoding='UTF-8',
            enqueue=True)
