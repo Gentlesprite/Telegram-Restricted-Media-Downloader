@@ -410,7 +410,7 @@ class RestrictedMediaDownloader:
                 if question == 'y':
                     backup_path = gen_backup_config(old_path=self.app.config_path, dir_name=Application.DIR_NAME)  # 备份
                     logger.success(
-                        f'备份配置文件已备份至"{backup_path}"')
+                        f'原来的配置文件已备份至"{backup_path}"')
                     self.app.config = self.app.CONFIG_TEMPLATE  # 恢复为默认配置开始重新配置
                     self.app.save_config()
                     rmd = RestrictedMediaDownloader()

@@ -39,22 +39,29 @@ class Application:
         self.input_link = []
 
     def load_config(self):
+        config = Application.CONFIG_TEMPLATE.copy()
         try:
             if not os.path.exists(self.config_path):
-                with open(file=self.config_path, mode='w') as f:
+                with open(file=self.config_path, mode='w', encoding='UTF-8') as f:
                     yaml.safe_dump(Application.CONFIG_TEMPLATE, f)
                 logger.info('未找到配置文件,已生成新的模板文件...')
             with open(self.config_path, 'r') as f:
                 config = yaml.safe_load(f)
-                if config is None:
-                    logger.warning('检测到空的配置文件。已生成新的模板文件...')
-                    return Application.CONFIG_TEMPLATE.copy()
-            return config
+        except UnicodeDecodeError as e:  # v1.1.3加入配置文件路径是中文或特殊字符时的错误提示,由于nuitka打包的性质决定,
+            # 中文路径无法被打包好的二进制文件识别,故在配置文件时无论是链接路径还是媒体保存路径都请使用英文命名。
+            logger.warning(
+                f'读取配置文件遇到编码错误,可能保存路径中包含中文或特殊字符的文件夹。已生成新的模板文件...原因:"{e}"')
+            backup_path = gen_backup_config(old_path=self.config_path, dir_name=Application.DIR_NAME)
+            logger.success(f'原来的配置文件已备份至"{backup_path}"')
         except Exception as e:
+            logger.warning('注意链接路径和保存路径不能有引号!')
             logger.warning(f'检测到无效或损坏的配置文件。已生成新的模板文件...原因:"{e}"')
             backup_path = gen_backup_config(old_path=self.config_path, dir_name=Application.DIR_NAME)
-            logger.success(f'备份配置文件已备份至"{backup_path}"')
-            config = Application.CONFIG_TEMPLATE.copy()
+            logger.success(f'原来的配置文件已备份至"{backup_path}"')
+        finally:
+            if config is None:
+                logger.warning('检测到空的配置文件。已生成新的模板文件...')
+                config = Application.CONFIG_TEMPLATE.copy()
             return config
 
     def save_config(self):
