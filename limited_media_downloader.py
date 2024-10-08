@@ -62,7 +62,7 @@ class RestrictedMediaDownloader:
         self.skip_video, self.skip_photo = set(), set()
         self.success_video, self.success_photo = set(), set()
         self.failure_video, self.failure_photo = set(), set()
-        self.failure_link: dict = {} # v1.1.2
+        self.failure_link: dict = {}  # v1.1.2
 
     def _config_table(self):
         try:
@@ -96,7 +96,7 @@ class RestrictedMediaDownloader:
             link_table = PanelTable(title='链接内容', header=('编号', '链接'),
                                     data=format_res)
             link_table.print_meta(color='SkyBlue2')
-        except FileNotFoundError: # v1.1.3 用户错误填写路径提示
+        except FileNotFoundError:  # v1.1.3 用户错误填写路径提示
             logger.error(f'读取"{file_path}"时出错。')
         except Exception as e:
             logger.error(f'读取"{file_path}"时出错,原因:{e}')
@@ -354,6 +354,7 @@ class RestrictedMediaDownloader:
                 return color_lst[0]
             else:
                 return 'Grey82'
+
         format_current_size, format_total_size = suitable_units_display(current), suitable_units_display(total)
         current_rate = float(f'{current * 100 / total:.1f}')
         current_color = get_color(current_rate)
@@ -372,18 +373,16 @@ class RestrictedMediaDownloader:
                             msg_link_list.append(link)
                         else:
                             logger.warning(f'"{link}"是一个非法链接,{self.keyword_link_status}:{self.skip_download}。')
-            elif not os.path.isfile(links):# v1.1.3 优化非文件时的提示和逻辑
-                logger.error(f'"{links}"是一个目录,并非.txt结尾的文本文件,请更正配置文件后重试。')
-            elif links.startswith(start_content):
-                if 80 > len(links) - len(start_content) > 2:
-                    msg_link_list.append(links)
+            elif not os.path.isfile(links):  # v1.1.3 优化非文件时的提示和逻辑
+                if links.endswith('.txt'):
+                    logger.error(f'文件"{links}"不存在。')
                 else:
-                    logger.warning(f'"{links}"是一个非法链接,{self.keyword_link_status}:{self.skip_download}。')
+                    logger.error(f'"{links}"是一个目录或其他未知内容,并非.txt结尾的文本文件,请更正配置文件后重试。')
         if len(msg_link_list) > 0:
             return msg_link_list
         else:
             logger.info('没有找到有效链接,程序已退出。')
-            exit(0)
+            exit()
 
     async def _download_media_from_links(self):
         await self.client.start()

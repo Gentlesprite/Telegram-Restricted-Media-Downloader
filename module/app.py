@@ -46,7 +46,7 @@ class Application:
                     yaml.safe_dump(Application.CONFIG_TEMPLATE, f)
                 logger.info('未找到配置文件,已生成新的模板文件...')
             with open(self.config_path, 'r') as f:
-                config = yaml.safe_load(f)
+                config = yaml.safe_load(f)  # todo v1.1.4加入对每个字段的完整性检测
         except UnicodeDecodeError as e:  # v1.1.3加入配置文件路径是中文或特殊字符时的错误提示,由于nuitka打包的性质决定,
             # 中文路径无法被打包好的二进制文件识别,故在配置文件时无论是链接路径还是媒体保存路径都请使用英文命名。
             logger.warning(
