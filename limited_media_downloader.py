@@ -14,12 +14,12 @@ from typing import List, Any
 from module.app import Application
 from module.meta import print_meta
 from module.color_print import print as print_with_color
+from module.color_print import ColorGroup
 from module.panel_form import PanelTable, pay
 from module.unit import suitable_units_display
 from module.pyrogram_extension import get_extension
 from module.enum_define import LinkType, DownloadStatus, DownloadType, KeyWorld
-from module.process_path import split_path, is_folder_empty, is_file_duplicate, validate_title, truncate_filename, \
-    gen_backup_config
+from module.process_path import split_path, is_folder_empty, is_file_duplicate, validate_title, truncate_filename
 
 
 class RestrictedMediaDownloader:
@@ -330,28 +330,27 @@ class RestrictedMediaDownloader:
 
     @staticmethod
     def _download_bar(current, total, msg_link, file_name):
+        color: list = ColorGroup.PROGRESS_BAR
+
         def get_color(rate: float):
-            color_lst = ['Yellow', 'Yellow3', 'Orange1',
-                         'DarkSlateGray3', 'SkyBlue1', 'SteelBlue1',
-                         'PaleGreen3', 'Chartreuse2', 'Chartreuse3']
             if rate == 100.0:
-                return color_lst[8]
+                return color[8]
             elif rate > 90.0:
-                return color_lst[7]
+                return color[7]
             elif rate > 80.0:
-                return color_lst[6]
+                return color[6]
             elif rate > 70.0:
-                return color_lst[5]
+                return color[5]
             elif rate > 60.0:
-                return color_lst[4]
+                return color[4]
             elif rate > 40.0:
-                return color_lst[3]
+                return color[3]
             elif rate > 30.0:
-                return color_lst[2]
+                return color[2]
             elif rate > 20.0:
-                return color_lst[1]
+                return color[1]
             elif rate >= 0.0:
-                return color_lst[0]
+                return color[0]
             else:
                 return 'Grey82'
 
@@ -405,11 +404,10 @@ class RestrictedMediaDownloader:
             logger.error(
                 f'填写的配置出现了错误,请配合教程文档,仔细检查配置文件,推荐使用代理运行该脚本,或将代理软件设置为TUN模式!原因:"{e}"')
             while True:
-                question = input('是否重新配置文件?(之前的配置文件将为你备份到当前目录下)[y|n]:').lower()
+                question = input('是否重新配置文件?(之前的配置文件将为你备份到当前目录下) - 「y|n」:').lower()
                 if question == 'y':
-                    backup_path = gen_backup_config(old_path=self.app.config_path, dir_name=Application.DIR_NAME)  # 备份
-                    logger.success(
-                        f'原来的配置文件已备份至"{backup_path}"')
+                    self.app.backup_config(self.app.config_path)  # 备份config.yaml
+                    self.app.history_record()  # 更新到上次填写的记录
                     self.app.config = self.app.CONFIG_TEMPLATE  # 恢复为默认配置开始重新配置
                     self.app.save_config()
                     rmd = RestrictedMediaDownloader()
