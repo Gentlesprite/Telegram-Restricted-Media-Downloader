@@ -426,7 +426,7 @@ class Application:
             # 输入媒体保存路径,确保是一个有效的目录路径
             last_record = self.last_record.get('save_path')
             while True:
-                try:  # todo 写人不存在的目录提示文件不存在
+                try:
                     save_path = input(
                         f'请输入媒体「保存路径」。上一次的记录是:「{last_record if last_record else undefined}」:').strip()
                     if save_path == '' and last_record is not None:
