@@ -62,12 +62,9 @@ def truncate_filename(path: str, limit: int = 230) -> str:
     return os.path.join(p, f_trunc + e)
 
 
-def gen_backup_config(old_path: str, dir_name: str):
-    backup_dir = 'ConfigBackup'
-    absolute_backup_dir = os.path.join(dir_name, backup_dir)
+def gen_backup_config(old_path: str, absolute_backup_dir: str, error_config: bool = False) -> str:
     os.makedirs(absolute_backup_dir, exist_ok=True)
     new_path = os.path.join(absolute_backup_dir,
-                            f'history_{datetime.datetime.now().strftime("%H-%M-%S")}_config.yaml')
+                            f'{"error_" if error_config else ""}history_{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_config.yaml')
     os.rename(old_path, new_path)
     return new_path
-
