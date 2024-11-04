@@ -318,7 +318,13 @@ class Application:
     def history_record(self):
 
         # 首先判断是否存在目录文件
-        res: list = os.listdir(Application.ABSOLUTE_BACKUP_DIR)
+        try:
+            res: list = os.listdir(Application.ABSOLUTE_BACKUP_DIR)
+        except FileNotFoundError:
+            return
+        except Exception as e:
+            logger.error(f'读取历史文件时发生错误,原因:"{e}"')
+            return
         file_start: str = 'history_'
         file_end: str = '_config.yaml'
 
