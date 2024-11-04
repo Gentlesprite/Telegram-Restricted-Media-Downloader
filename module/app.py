@@ -347,7 +347,7 @@ class Application:
                 self.last_record = self._find_history_config()
 
         else:
-            self.last_record = {}
+            return
 
     def config_guide(self):
         # input user to input necessary configurations
