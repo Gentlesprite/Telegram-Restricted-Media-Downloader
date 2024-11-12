@@ -76,7 +76,7 @@ class DownloadStatus(Enum):
         }[self]
 
     @staticmethod
-    def translate(text: 'DownloadStatus.text'):
+    def translate(text: 'DownloadStatus.text', key_note: bool = False):
         translation = {
             DownloadStatus.downloading.text: '正在下载',
             DownloadStatus.success.text: '成功下载',
@@ -84,9 +84,11 @@ class DownloadStatus(Enum):
             DownloadStatus.skip.text: '跳过下载'
         }
         if text in translation:
-            return translation[text]
+            if key_note:
+                return f'[{translation[text]}]'
+            else:
+                return translation[text]
         else:
-            print(text)
             raise ValueError(f'Unsupported Keyword:{text}')
 
     @staticmethod
