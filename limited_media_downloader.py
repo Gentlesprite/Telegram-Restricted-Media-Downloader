@@ -402,7 +402,7 @@ class RestrictedMediaDownloader:
             record_error = True
             self._config_table()
             logger.error(
-                f'填写的配置出现了错误,请配合教程文档,仔细检查配置文件,推荐使用代理运行该脚本,或将代理软件设置为TUN模式!原因:"{e}"')
+                f'运行出错,原因:"{e}"')
             while True:
                 question = input('是否重新配置文件?(之前的配置文件将为你备份到当前目录下) - 「y|n」:').lower()
                 if question == 'y':

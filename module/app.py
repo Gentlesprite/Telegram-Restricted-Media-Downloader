@@ -16,9 +16,17 @@ from module.color_print import ColorGroup
 
 class Validator:
     @staticmethod
-    def is_valid_api_id(api_id: str, valid_length: int = 8) -> bool:
+    def is_valid_api_id(api_id: str, valid_length: int = 32) -> bool:
         try:
-            return len(api_id) == valid_length and api_id.isdigit()
+            if len(api_id) < valid_length:
+                if api_id.isdigit():
+                    return True
+                else:
+                    logger.warning(f'意外的参数:"{api_id}",不是「纯数字」请重新输入!')
+                    return False
+            else:
+                logger.warning(f'意外的参数,填写的"{api_id}"可能是「api_hash」,请填入正确的「api_id」!')
+                return False
         except (AttributeError, TypeError):
             logger.error('手动编辑config.yaml时,api_id需要有引号!')
             return False
@@ -370,20 +378,17 @@ class Application:
         ]):
             print_with_color('「注意」直接回车代表使用上次的记录。', color='red')
         if not self.config.get('api_id'):
-            valid_length: int = 8
             last_record = self.last_record.get('api_id')
             while True:
                 try:
                     api_id = input(f'请输入「api_id」上一次的记录是:「{last_record if last_record else undefined}」:')
                     if api_id == '' and last_record is not None:
                         api_id = last_record
-                    if Validator.is_valid_api_id(api_id, valid_length):
+                    if Validator.is_valid_api_id(api_id):
                         self.config['api_id'] = api_id
                         print_with_color(f'已设置「api_id」为:「{api_id}」', color=color[0])
                         self.record_flag = True
                         break
-                    else:
-                        logger.warning(f'意外的参数:"{api_id}",不是一个「{valid_length}位」的「纯数字」!请重新输入!')
                 except KeyboardInterrupt:
                     self._keyboard_interrupt()
         if not self.config.get('api_hash'):
