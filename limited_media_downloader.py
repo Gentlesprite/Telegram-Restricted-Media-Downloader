@@ -11,10 +11,10 @@ import mimetypes
 from loguru import logger
 from functools import wraps
 from typing import List, Any
+from rich.console import Console
+from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn, TransferSpeedColumn
 from module.app import Application
 from module.meta import print_meta
-from module.color_print import print as print_with_color
-from module.color_print import ColorGroup
 from module.panel_form import PanelTable, pay
 from module.unit import suitable_units_display
 from module.pyrogram_extension import get_extension
@@ -63,6 +63,19 @@ class RestrictedMediaDownloader:
         self.success_video, self.success_photo = set(), set()
         self.failure_video, self.failure_photo = set(), set()
         self.failure_link: dict = {}  # v1.1.2
+        self.console = Console()
+        self.progress = Progress(TextColumn("[bold blue]{task.fields[filename]}", justify="right"),
+                                 BarColumn(bar_width=40),
+                                 "[progress.percentage]{task.percentage:>3.1f}%",
+                                 "•",
+                                 '[bold green]{task.fields[info]}',
+                                 "•",
+                                 TransferSpeedColumn(),
+                                 "•",
+                                 TimeRemainingColumn(),
+                                 console=self.console
+                                 )
+        self.progress.start()
 
     def _config_table(self):
         try:
@@ -101,13 +114,12 @@ class RestrictedMediaDownloader:
         except Exception as e:
             logger.error(f'读取"{file_path}"时出错,原因:{e}')
 
-    @staticmethod
-    def _move_to_download_path(temp_save_path: str, save_path: str):
+    def _move_to_download_path(self, temp_save_path: str, save_path: str):
         os.makedirs(save_path, exist_ok=True)
         if os.path.isdir(save_path):
             shutil.move(temp_save_path, save_path)
         else:
-            logger.error(f'"{save_path}"不是一个目录,已将文件下载到默认目录。')
+            self.console.print(f'"{save_path}"不是一个目录,已将文件下载到默认目录。')
             if is_folder_empty(save_path):
                 os.rmdir(save_path)
             save_path = os.path.join(os.getcwd(), 'downloads')
@@ -180,18 +192,19 @@ class RestrictedMediaDownloader:
         if sever_size == local_size:
             # TODO: 根据下载的文件判断其类型对其精准分类计数:视频个数,图片个数
             self._move_to_download_path(temp_save_path=download_path, save_path=save_directory)
-            logger.success(
+            self.console.print(
                 f'{self.keyword_file}:"{save_path}",'
                 f'{self.keyword_size}:{format_local_size},'
                 f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=download_path, status=DownloadStatus.success)[0].text)},'
                 f'{self.keyword_link_status}:{DownloadStatus.translate(DownloadStatus.success.text)}。',
             )  # todo 后续加入下载任务链接的文件名,解决组或者讨论组下载的媒体链接都是一样的,但是媒体有多个,导致不好区分的问题
+
         else:
-            logger.warning(f'{self.keyword_file}:"{save_path}",'
-                           f'{self.keyword_error_size}:{format_local_size},'
-                           f'{self.keyword_actual_size}:{format_sever_size},'
-                           f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=download_path, status=DownloadStatus.failure)[0].text)},'
-                           f'{self.keyword_link_status}:{self.failure_download}')
+            self.console.print(f'{self.keyword_file}:"{save_path}",'
+                               f'{self.keyword_error_size}:{format_local_size},'
+                               f'{self.keyword_actual_size}:{format_sever_size},'
+                               f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=download_path, status=DownloadStatus.failure)[0].text)},'
+                               f'{self.keyword_link_status}:{self.failure_download}')
             os.remove(download_path)
 
     async def _extract_link_content(self, msg_link):
@@ -250,32 +263,36 @@ class RestrictedMediaDownloader:
                 format_file_size: str = suitable_units_display(sever_size)
                 if is_file_duplicate(local_file_path=local_file_path,
                                      sever_size=sever_size):  # 检测是否存在
-                    logger.info(f'{self.keyword_file}:"{file_name}",'
-                                f'{self.keyword_size}:{format_file_size},'
-                                f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=file_name, status=DownloadStatus.skip)[0].text)},'
-                                f'{self.keyword_already_exist}:"{local_file_path}",'
-                                f'{self.keyword_link_status}:{self.skip_download}。')
+                    self.console.print(f'{self.keyword_file}:"{file_name}",'
+                                       f'{self.keyword_size}:{format_file_size},'
+                                       f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=file_name, status=DownloadStatus.skip)[0].text)},'
+                                       f'{self.keyword_already_exist}:"{local_file_path}",'
+                                       f'{self.keyword_link_status}:{self.skip_download}。', style='yellow')
                 else:
-                    logger.info(f'{self.keyword_file}:"{file_name}",'
-                                f'{self.keyword_size}:{format_file_size},'
-                                f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=file_name, status=DownloadStatus.downloading)[0].text)},'
-                                f'{self.keyword_link_status}:{self.downloading}。')
+                    self.console.print(f'{self.keyword_file}:"{file_name}",'
+                                       f'{self.keyword_size}:{format_file_size},'
+                                       f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=file_name, status=DownloadStatus.downloading)[0].text)},'
+                                       f'{self.keyword_link_status}:{self.downloading}。')
+                    task_id = self.progress.add_task(description='',
+                                                     filename=file_name,
+                                                     info=f'0.00B/{suitable_units_display(sever_size)}',
+                                                     total=sever_size)
                     _task = asyncio.create_task(
                         self.client.download_media(message=message,
-                                                   progress_args=(msg_link, file_name),
+                                                   progress_args=(self.progress, task_id),
                                                    progress=self._download_bar,
                                                    file_name=_temp_save_path))
-                    logger.info(f'当前任务数:{self.current_task_num}。')
+                    self.console.print(f'当前任务数:{self.current_task_num}。')
 
                     def call(future):
                         self.current_task_num -= 1
                         if future.exception() is not None:
-                            logger.error(f'{self.keyword_download_task_error}:"{future.exception()}"')
+                            self.console.print(f'{self.keyword_download_task_error}:"{future.exception()}"')
                             # todo 后续可能实现下载出错重试功能
                         else:
                             self._check_download_finish(sever_size=sever_size, download_path=_temp_save_path,
                                                         save_directory=self.save_path)
-                        logger.info(f'当前任务数:{self.current_task_num}。')
+                        self.console.print(f'当前任务数:{self.current_task_num}。')
                         self.event.set()
 
                     _task.add_done_callback(lambda future: call(future))
@@ -293,7 +310,7 @@ class RestrictedMediaDownloader:
                         group = []
                         group.extend(is_download_comment)
                 link_type = LinkType.comment.text if is_download_comment else LinkType.group.text
-                logger.info(
+                self.console.print(
                     f'{self.keyword_chanel}:"{chat_name}",'  # 频道名
                     f'{self.keyword_link}:"{msg_link}",'  # 链接
                     f'{self.keyword_link_type}:{LinkType.translate(link_type)}。')  # 链接类型
@@ -301,7 +318,7 @@ class RestrictedMediaDownloader:
 
             elif res is False and group is None:  # 单文件
                 link_type = LinkType.single.text
-                logger.info(
+                self.console.print(
                     f'{self.keyword_chanel}:"{chat_name}",'  # 频道名
                     f'{self.keyword_link}:"{msg_link}",'  # 链接
                     f'{self.keyword_link_type}:{LinkType.translate(link_type)}。')  # 链接类型
@@ -309,57 +326,33 @@ class RestrictedMediaDownloader:
             elif res is None and group is None:
                 error = '消息不存在,频道已解散或未在频道中'
                 self.failure_link[msg_link] = error
-                logger.warning(
-                    f'{self.keyword_link}:"{msg_link}"{error},{self.skip_download}。')
+                self.console.print(
+                    f'{self.keyword_link}:"{msg_link}"{error},{self.skip_download}。', style='yellow')
             elif res is None and group == 0:
-                logger.error(f'读取"{msg_link}"时出现未知错误,{self.skip_download}。')
+                self.console.print(f'读取"{msg_link}"时出现未知错误,{self.skip_download}。', style='red')
         except UnicodeEncodeError as e:
             error = '频道标题存在特殊字符,请移步终端下载'
             self.failure_link[msg_link] = e
-            logger.error(f'{self.keyword_link}:"{msg_link}"{error},原因:"{e}"')
+            self.console.print(f'{self.keyword_link}:"{msg_link}"{error},原因:"{e}"', style='red')
         except pyrogram.errors.exceptions.bad_request_400.MsgIdInvalid as e:
             self.failure_link[msg_link] = e
-            logger.error(f'{self.keyword_link}:"{msg_link}"消息不存在,可能已删除,{self.skip_download}。原因:"{e}"')
+            self.console.print(f'{self.keyword_link}:"{msg_link}"消息不存在,可能已删除,{self.skip_download}。原因:"{e}"',
+                               style='red')
         except Exception as e:
             self.failure_link[msg_link] = e
             # todo 测试倘若频道中确实不存在的报错,进行判断提示,非该错误则不提示,并且注意区分错误在于未加入频道,还是已加入频道视频被删了,甚至是频道直接解散了
-            logger.error(
-                f'{self.keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{self.skip_download}。原因:"{e}"')
+            self.console.print(
+                f'{self.keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{self.skip_download}。原因:"{e}"',
+                style='red')
         finally:
             return tasks
 
     @staticmethod
-    def _download_bar(current, total, msg_link, file_name):
-        color: list = ColorGroup.PROGRESS_BAR
-
-        def get_color(rate: float):
-            if rate == 100.0:
-                return color[8]
-            elif rate > 90.0:
-                return color[7]
-            elif rate > 80.0:
-                return color[6]
-            elif rate > 70.0:
-                return color[5]
-            elif rate > 60.0:
-                return color[4]
-            elif rate > 40.0:
-                return color[3]
-            elif rate > 30.0:
-                return color[2]
-            elif rate > 20.0:
-                return color[1]
-            elif rate >= 0.0:
-                return color[0]
-            else:
-                return 'Grey82'
-
-        format_current_size, format_total_size = suitable_units_display(current), suitable_units_display(total)
-        current_rate = float(f'{current * 100 / total:.1f}')
-        current_color = get_color(current_rate)
-        # v1.1.1 加入了进度条颜色
-        print_with_color(f"{msg_link}[{file_name}]({format_current_size}/{format_total_size}[{current_rate}%])",
-                         color=current_color)
+    def _download_bar(current, total, progress, task_id):
+        progress.update(task_id,
+                        completed=current,
+                        info=f'{suitable_units_display(current)}/{suitable_units_display(total)}',
+                        total=total)
 
     def _process_links(self, links: str) -> List[str]:
         start_content: str = 'https://t.me/'
@@ -394,11 +387,11 @@ class RestrictedMediaDownloader:
     def run(self):
         record_error = False
         try:
-            print_meta(print)
+            print_meta()
             self._config_table()
-            pay()
             self.client.run(self._download_media_from_links())
         except Exception as e:
+            self.progress.stop()
             record_error = True
             self._config_table()
             logger.error(
@@ -417,8 +410,10 @@ class RestrictedMediaDownloader:
                     logger.info('程序已退出。')
                     exit(0)
         except KeyboardInterrupt:
+            self.progress.stop()
             logger.info('用户手动终止下载任务。')
         finally:
+            self.progress.stop()
             if not record_error:
                 total_video = len(self.success_video) + len(self.failure_video) + len(self.skip_video)
                 total_photo = len(self.success_photo) + len(self.failure_photo) + len(self.skip_photo)
@@ -445,4 +440,7 @@ class RestrictedMediaDownloader:
                                                     data=format_failure_info)
                     failure_link_table.print_meta(color='SkyBlue2')
                 pay()
-                os.system('pause')
+                if self.app.config.get('is_shutdown'):
+                    self.app.shutdown_task(second=60)
+                else:
+                    os.system('pause')

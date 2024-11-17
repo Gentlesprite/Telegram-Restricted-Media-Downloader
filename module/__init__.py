@@ -20,10 +20,10 @@ def get_peer_type_new(peer_id: int) -> str:
 
 
 utils.get_peer_type = get_peer_type_new
-__version__ = '1.1.5'
+__version__ = '1.1.6'
 __license__ = "MIT License"
 __copyright__ = "Copyright (C) 2024 Gentlesprite <https://github.com/Gentlesprite>"
-__update_date__ = '2024/11/12 19:52:37'
+__update_date__ = '2024/11/17 15:33:12'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_NAME = 'TRMD'
 author = 'Gentlesprite'
