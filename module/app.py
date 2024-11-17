@@ -6,8 +6,10 @@
 import os
 import sys
 import yaml
-import datetime
+import time
+import subprocess
 import ipaddress
+import datetime
 from loguru import logger
 from module.process_path import gen_backup_config
 from module.color_print import print as print_with_color
@@ -126,6 +128,7 @@ class Application:
         'links': None,
         'save_path': None,
         'max_download_task': None,
+        'is_shutdown': None
     }
     TEMP_FOLDER = os.path.join(os.getcwd(), 'temp')
     BACKUP_DIR = 'ConfigBackup'
@@ -141,6 +144,22 @@ class Application:
         self.modified = False
         self.history_record()
         self.config = self.load_config()
+
+    @staticmethod
+    def shutdown_task(second: int):
+        try:
+            # 启动关机命令
+            shutdown_command = f'shutdown -s -t {second}'
+            subprocess.Popen(shutdown_command, shell=True)  # 异步执行关机
+            # 实时显示倒计时
+            for remaining in range(second, 0, -1):
+                print(f'\r即将在{remaining}秒后关机, 按「CTRL+C」可取消。', end='')
+                time.sleep(1)
+            print("\n关机即将执行!")
+        except KeyboardInterrupt:
+            subprocess.Popen('shutdown -a', shell=True)
+            print('\n关机已被用户取消!')
+            os.system('pause')
 
     def backup_config(self, backup_config: str, error_config: bool = False):
         if backup_config != Application.ABSOLUTE_BACKUP_DIR:
@@ -203,7 +222,7 @@ class Application:
         with open(self.config_path, 'w') as f:
             yaml.dump(self.config, f)
 
-    def _check_params(self, config: dict):
+    def _check_params(self, config: dict, history=False):
         # 如果 config 为 None，初始化为一个空字典
         if config is None:
             config = {}
@@ -213,21 +232,22 @@ class Application:
             for key, value in template.items():
                 if key not in target:
                     target[key] = value
-                    logger.info(log_message.format(key))
-                    self.modified = True
-                    self.record_flag = True
+                    if not history:
+                        logger.info(log_message.format(key))
+                        self.modified = True
+                        self.record_flag = True
 
         def remove_extra_keys(target, template, log_message):
             # 删除多余的字段并记录日志
             keys_to_remove = [key for key in target.keys() if key not in template]
             for key in keys_to_remove:
                 target.pop(key)
-                logger.info(log_message.format(key))
-                self.record_flag = True
+                if not history:
+                    logger.info(log_message.format(key))
+                    self.record_flag = True
 
         # 处理父级字段
-        add_missing_keys(config, Application.CONFIG_TEMPLATE, '"{}"不在配置文件中,已添加。')
-
+        add_missing_keys(target=config, template=Application.CONFIG_TEMPLATE, log_message='"{}"不在配置文件中,已添加。')
         # 特殊处理 proxy 字段
         if 'proxy' in config:
             proxy_template = Application.CONFIG_TEMPLATE['proxy']
@@ -309,7 +329,7 @@ class Application:
             last_config_file = os.path.join(Application.ABSOLUTE_BACKUP_DIR, min_config_file)  # 拼接文件路径
             with open(file=last_config_file, mode='r', encoding='UTF-8') as f:
                 config = yaml.safe_load(f)
-            last_record = self._check_params(config)  # 确保历史文件有效
+            last_record = self._check_params(config, history=True)  # v1.1.6修复读取历史如果缺失字段使得flag置True
 
             if last_record == Application.CONFIG_TEMPLATE:
                 # 从字典中删除当前文件
@@ -362,6 +382,144 @@ class Application:
         # v1.1.0 更替api_id和api_hash位置,与telegram申请的api位置对应以免输错
         color: list = ColorGroup.PROGRESS_BAR
         undefined = '无'
+
+        def get_api_id(_last_record):
+            while True:
+                try:
+                    api_id = input(f'请输入「api_id」上一次的记录是:「{_last_record if _last_record else undefined}」:')
+                    if api_id == '' and _last_record is not None:
+                        api_id = _last_record
+                    if Validator.is_valid_api_id(api_id):
+                        self.config['api_id'] = api_id
+                        print_with_color(f'已设置「api_id」为:「{api_id}」', color=color[0])
+                        self.record_flag = True
+                        break
+                except KeyboardInterrupt:
+                    self._keyboard_interrupt()
+
+        def get_api_hash(_last_record, _valid_length):
+            while True:
+                try:
+                    api_hash = input(f'请输入「api_hash」上一次的记录是:「{_last_record if _last_record else undefined}」:')
+                    if api_hash == '' and _last_record is not None:
+                        api_hash = _last_record
+                    if Validator.is_valid_api_hash(api_hash, _valid_length):
+                        self.config['api_hash'] = api_hash
+                        print_with_color(f'已设置「api_hash」为:「{api_hash}」', color=color[1])
+                        self.record_flag = True
+                        break
+                    else:
+                        logger.warning(f'意外的参数:"{api_hash}",不是一个「{_valid_length}位」的「值」!请重新输入!')
+                except KeyboardInterrupt:
+                    self._keyboard_interrupt()
+
+        def get_links(_last_record, _valid_format):
+            # 输入需要下载的媒体链接文件路径,确保文件存在
+            links_file = None
+            while True:
+                try:
+                    links_file = input(
+                        f'请输入需要下载的媒体链接的「完整路径」。上一次的记录是:「{_last_record if _last_record else undefined}」格式 - 「{_valid_format}」:').strip()
+                    if links_file == '' and _last_record is not None:
+                        links_file = _last_record
+                    if Validator.is_valid_links_file(links_file, _valid_format):
+                        self.config['links'] = links_file
+                        print_with_color(f'已设置「links_file」为:「{links_file}」', color=color[2])
+                        self.record_flag = True
+                        break
+                    elif not os.path.normpath(links_file).endswith('.txt'):
+                        logger.warning(f'意外的参数:"{links_file}",文件路径必须以「{_valid_format}」结尾,请重新输入!')
+                    else:
+                        logger.warning(
+                            f'意外的参数:"{links_file}",文件路径必须以「{_valid_format}」结尾,并且「必须存在」,请重新输入!')
+                except KeyboardInterrupt:
+                    self._keyboard_interrupt()
+                except Exception as e:
+                    logger.error(f'意外的参数:"{links_file}",请重新输入!原因:"{e}"')
+
+        def get_save_path(_last_record):
+            # 输入媒体保存路径,确保是一个有效的目录路径
+            while True:
+                try:
+                    save_path = input(
+                        f'请输入媒体「保存路径」。上一次的记录是:「{_last_record if _last_record else undefined}」:').strip()
+                    if save_path == '' and _last_record is not None:
+                        save_path = _last_record
+                    if Validator.is_valid_save_path(save_path):
+                        self.config['save_path'] = save_path
+                        print_with_color(f'已设置「save_path」为:「{save_path}」', color=color[3])
+                        self.record_flag = True
+                        break
+                    elif os.path.isfile(save_path):
+                        logger.warning(f'意外的参数:"{save_path}",指定的路径是一个文件并非目录,请重新输入!')
+                    else:
+                        logger.warning(f'意外的参数:"{save_path}",指定的路径无效或不是一个目录,请重新输入!')
+                except KeyboardInterrupt:
+                    self._keyboard_interrupt()
+
+        def get_max_download_task(_last_record):
+            # 输入最大下载任务数,确保是一个整数且不超过特定限制
+            while True:
+                try:
+                    max_tasks = input(
+                        f'请输入「最大下载任务数」。上一次的记录是:「{_last_record if _last_record else undefined}」,非会员不建议大于「5」,容易被限制为强制单任务下载{"(默认3)" if _last_record is None else ""}:').strip()
+                    if max_tasks == '' and _last_record is not None:
+                        max_tasks = _last_record
+                    if max_tasks == '':
+                        max_tasks = 3
+                    if Validator.is_valid_max_download_task(max_tasks):
+                        self.config['max_download_task'] = int(max_tasks)
+                        print_with_color(f'已设置「max_download_task」为:「{max_tasks}」', color=color[4])
+                        self.record_flag = True
+                        break
+                    else:
+                        logger.warning(f'意外的参数:"{max_tasks}",任务数必须是「正整数」,请重新输入!')
+                except KeyboardInterrupt:
+                    self._keyboard_interrupt()
+                except Exception as e:
+                    logger.error(f'意外的错误,原因:"{e}"')
+
+        def get_is_shutdown(_last_record, _valid_format):
+            if _last_record:
+                _last_record = 'y'
+            elif _last_record is False:
+                _last_record = 'n'
+            else:
+                _last_record = undefined
+            while True:
+                try:
+                    question = input(
+                        f'下载完成后是否「自动关机」。上一次的记录是:「{_last_record}」 - 「{_valid_format}」{"(默认n)" if _last_record == undefined else ""}:').strip()
+                    if question == '' and _last_record is not None:
+                        if _last_record == 'y':
+                            self.config['is_shutdown'] = True
+                            print_with_color(f'已设置「is_shutdown」为:「{_last_record}」,下载完成后将自动关机!',
+                                             color='Pink1')
+                            self.record_flag = True
+                            break
+                        elif _last_record == 'n':
+                            self.config['is_shutdown'] = False
+                            print_with_color(f'已设置「is_shutdown」为:「{_last_record}」', color='Pink1')
+                            self.record_flag = True
+                            break
+                    elif question == 'y':
+                        self.config['is_shutdown'] = True
+                        print_with_color(f'已设置「is_shutdown」为:「{question}」,下载完成后将自动关机!', color='Pink1')
+                        self.record_flag = True
+                        break
+                    elif question == 'n' or question == '':
+                        self.config['is_shutdown'] = False
+                        print_with_color(f'已设置「is_shutdown」为:「{question}」', color='Pink1')
+                        self.record_flag = True
+                        break
+                    else:
+                        logger.warning(f'意外的参数:"{question}",支持的参数 - 「{_valid_format}」')
+                except KeyboardInterrupt:
+                    self._keyboard_interrupt()
+                except Exception as e:
+                    logger.error(f'意外的错误,原因:"{e}"')
+                    break
+
         if any([
             not self.config.get('api_id'),
             not self.config.get('api_hash'),
@@ -379,106 +537,29 @@ class Application:
             print_with_color('「注意」直接回车代表使用上次的记录。', color='red')
         if not self.config.get('api_id'):
             last_record = self.last_record.get('api_id')
-            while True:
-                try:
-                    api_id = input(f'请输入「api_id」上一次的记录是:「{last_record if last_record else undefined}」:')
-                    if api_id == '' and last_record is not None:
-                        api_id = last_record
-                    if Validator.is_valid_api_id(api_id):
-                        self.config['api_id'] = api_id
-                        print_with_color(f'已设置「api_id」为:「{api_id}」', color=color[0])
-                        self.record_flag = True
-                        break
-                except KeyboardInterrupt:
-                    self._keyboard_interrupt()
+            get_api_id(_last_record=last_record)
         if not self.config.get('api_hash'):
             valid_length: int = 32
             last_record = self.last_record.get('api_hash')
-            while True:
-                try:
-                    api_hash = input(f'请输入「api_hash」上一次的记录是:「{last_record if last_record else undefined}」:')
-                    if api_hash == '' and last_record is not None:
-                        api_hash = last_record
-                    if Validator.is_valid_api_hash(api_hash, valid_length):
-                        self.config['api_hash'] = api_hash
-                        print_with_color(f'已设置「api_hash」为:「{api_hash}」', color=color[1])
-                        self.record_flag = True
-                        break
-                    else:
-                        logger.warning(f'意外的参数:"{api_hash}",不是一个「{valid_length}位」的「值」!请重新输入!')
-                except KeyboardInterrupt:
-                    self._keyboard_interrupt()
+            get_api_hash(_last_record=last_record, _valid_length=valid_length)
         if not self.config.get('links'):
-            # 输入需要下载的媒体链接文件路径,确保文件存在
             valid_format: str = '.txt'
-            links_file = None
             last_record = self.last_record.get('links')
-            while True:
-                try:
-                    links_file = input(
-                        f'请输入需要下载的媒体链接的「完整路径」。上一次的记录是:「{last_record if last_record else undefined}」格式 - 「{valid_format}」:').strip()
-                    if links_file == '' and last_record is not None:
-                        links_file = last_record
-                    if Validator.is_valid_links_file(links_file, valid_format):
-                        self.config['links'] = links_file
-                        print_with_color(f'已设置「links_file」为:「{links_file}」', color=color[2])
-                        self.record_flag = True
-                        break
-                    elif not os.path.normpath(links_file).endswith('.txt'):
-                        logger.warning(f'意外的参数:"{links_file}",文件路径必须以「{valid_format}」结尾,请重新输入!')
-                    else:
-                        logger.warning(
-                            f'意外的参数:"{links_file}",文件路径必须以「{valid_format}」结尾,并且「必须存在」,请重新输入!')
-                except KeyboardInterrupt:
-                    self._keyboard_interrupt()
-                except Exception as e:
-                    logger.error(f'意外的参数:"{links_file}",请重新输入!原因:"{e}"')
+            get_links(_last_record=last_record, _valid_format=valid_format)
         if not self.config.get('save_path'):
-            # 输入媒体保存路径,确保是一个有效的目录路径
             last_record = self.last_record.get('save_path')
-            while True:
-                try:
-                    save_path = input(
-                        f'请输入媒体「保存路径」。上一次的记录是:「{last_record if last_record else undefined}」:').strip()
-                    if save_path == '' and last_record is not None:
-                        save_path = last_record
-                    if Validator.is_valid_save_path(save_path):
-                        self.config['save_path'] = save_path
-                        print_with_color(f'已设置「save_path」为:「{save_path}」', color=color[3])
-                        self.record_flag = True
-                        break
-                    elif os.path.isfile(save_path):
-                        logger.warning(f'意外的参数:"{save_path}",指定的路径是一个文件并非目录,请重新输入!')
-                    else:
-                        logger.warning(f'意外的参数:"{save_path}",指定的路径无效或不是一个目录,请重新输入!')
-                except KeyboardInterrupt:
-                    self._keyboard_interrupt()
+            get_save_path(_last_record=last_record)
         if not self.config.get('max_download_task'):
-            # 输入最大下载任务数,确保是一个整数且不超过特定限制
             last_record = self.last_record.get('max_download_task') if self.last_record.get(
                 'max_download_task') else None
-            while True:
-                try:
-                    max_tasks = input(
-                        f'请输入「最大下载任务数」。上一次的记录是:「{last_record if last_record else undefined}」,非会员不建议大于「5」,容易被限制为强制单任务下载{"(默认3)" if last_record is None else ""}:').strip()
-                    if max_tasks == '' and last_record is not None:
-                        max_tasks = last_record
-                    if max_tasks == '':
-                        max_tasks = 3
-                    if Validator.is_valid_max_download_task(max_tasks):
-                        self.config['max_download_task'] = int(max_tasks)
-                        print_with_color(f'已设置「max_download_task」为:「{max_tasks}」', color=color[4])
-                        self.record_flag = True
-                        break
-                    else:
-                        logger.warning(f'意外的参数:"{max_tasks}",任务数必须是「正整数」,请重新输入!')
-                except KeyboardInterrupt:
-                    self._keyboard_interrupt()
-                except Exception as e:
-                    logger.error(f'意外的错误,原因:"{e}"')
+            get_max_download_task(_last_record=last_record)
+        # v1.1.6下载完成自动关机
+        last_record = self.last_record.get('is_shutdown')
+        valid_format = 'y|n'
+        get_is_shutdown(_last_record=last_record, _valid_format=valid_format)
+
         proxy_config: dict = self.config.get('proxy', {})  # 读取proxy字段得到字典
         # v1.1.4 移除self._check_proxy_params(proxy_config)改用全字段检测  # 检查代理字典字段是否完整并自动补全保存
-
         enable_proxy = self.config.get('proxy') or {}.get('enable_proxy', False)
         proxy_record = self.last_record.get('proxy') if self.last_record.get('proxy') else {}
 

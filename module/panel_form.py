@@ -11,7 +11,6 @@ from module.enum_define import StatusInfo
 from module.color_print import print as print_with_color
 
 
-
 def translate_link_status(status: StatusInfo, image_display=False):
     if status == StatusInfo.skip:
         status = '⏭️' if image_display and check_run_env() else '跳过'

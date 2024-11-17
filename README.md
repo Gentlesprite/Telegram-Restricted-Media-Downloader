@@ -26,7 +26,7 @@
 
 B站视频教程:[点击观看](https://www.bilibili.com/video/BV1nCp8evEwv)
 
-软件完全免费使用！禁止倒卖，如果你付费购买，那就是被骗了。
+软件完全免费使用!并且在GitHub开源，如果你付费那就是被骗了。
 
 
 
@@ -97,15 +97,16 @@ links: D:\path\where\your\link\txt\save\content.txt # 链接地址写法如下:
 # 不要存在中文或特殊字符
 max_download_task: 3 # 最大的同时下载任务数 注意:如果你不是Telegram会员,那么最大同时下载数只有1
 proxy: # 代理部分,如不使用请全部填null注意冒号后面有空格,否则不生效导致报错!
-  enable_proxy: true # 是否开启代理 true 为开启 false为关闭
+  enable_proxy: true # 是否开启代理 true为开启 false为关闭
   hostname: 127.0.0.1 # 代理的ip地址
-  is_notice: false # 是否开启代理提示, true 为每次打开询问你是否开启代理, false则为关闭
+  is_notice: false # 是否开启代理提示, true为每次打开询问你是否开启代理, false则为关闭
   scheme: socks5 # 代理的类型,支持http,socks4,socks5
   port: 10808 # 代理ip的端口
   username: null # 代理的账号,有就填,没有请都填null!
   password: null # 代理的密码,有就填,没有请都填null!
 save_path: F:\path\the\media\where\you\save # 下载的媒体保存的地址,没有引号,不要存在中文或特殊字符
 # 再次提醒,由于nuitka打包的性质决定,中文路径无法被打包好的二进制文件识别,故在配置文件时无论是链接路径还是媒体保存路径都请使用英文命名。
+is_shutdown: true # 是否下载完成后自动关机 true为下载完成后自动关机 false为下载完成后不关机
 ```
 
 ## 2.4.**使用注意事项**
