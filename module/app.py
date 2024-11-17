@@ -490,7 +490,7 @@ class Application:
                 try:
                     question = input(
                         f'下载完成后是否「自动关机」。上一次的记录是:「{_last_record}」 - 「{_valid_format}」{"(默认n)" if _last_record == undefined else ""}:').strip()
-                    if question == '' and _last_record is not None:
+                    if question == '' and _last_record != undefined:
                         if _last_record == 'y':
                             self.config['is_shutdown'] = True
                             print_with_color(f'已设置「is_shutdown」为:「{_last_record}」,下载完成后将自动关机!',
@@ -509,7 +509,7 @@ class Application:
                         break
                     elif question == 'n' or question == '':
                         self.config['is_shutdown'] = False
-                        print_with_color(f'已设置「is_shutdown」为:「{question}」', color='Pink1')
+                        print_with_color(f'已设置「is_shutdown」为:「n」', color='Pink1')
                         self.record_flag = True
                         break
                     else:
@@ -588,7 +588,7 @@ class Application:
             try:
                 while True:
                     enable_proxy = input(
-                        f'是否需要使用代理?上一次的记录是:「{ep_notice}」 - 「{valid_format}」{"(默认n)" if ep_notice == undefined else ""}:').lower()  # 询问是否开启代理
+                        f'是否需要使用「代理」。上一次的记录是:「{ep_notice}」 - 「{valid_format}」{"(默认n)" if ep_notice == undefined else ""}:').lower()  # 询问是否开启代理
                     if enable_proxy == '' and ep_last_record is not None:
                         if ep_last_record is True:
                             enable_proxy = 'y'
@@ -609,7 +609,7 @@ class Application:
                 while True:
                     # 是否记住选项
                     is_notice = input(
-                        f'下次是否不再询问使用代理?上一次的记录是:「{in_notice}」 - 「{valid_format}」{("(默认n)" if in_notice == undefined else "")}:').lower()
+                        f'下次是否「不再询问使用代理」。上一次的记录是:「{in_notice}」 - 「{valid_format}」{("(默认n)" if in_notice == undefined else "")}:').lower()
                     if is_notice == '' and in_last_record is not None:
                         if in_last_record is True:
                             is_notice = 'y'
