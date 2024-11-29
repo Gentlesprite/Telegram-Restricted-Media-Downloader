@@ -3,9 +3,9 @@
 # Software:PyCharm
 # Time:2023/10/31 17:47:31
 # File:unit.py
-from typing import Tuple, List, Dict
-import os
-import mimetypes
+from module import os
+from module import mimetypes
+from module import Tuple, List, Dict
 
 
 def determine_suitable_units(number, unit=None):

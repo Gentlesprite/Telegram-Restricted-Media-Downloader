@@ -3,17 +3,22 @@
 # Software:PyCharm
 # Time:2024/7/25 12:32
 # File:app
-import os
-import sys
-import yaml
 import time
 import subprocess
 import ipaddress
-import datetime
-from loguru import logger
+from prettytable import PrettyTable
+from module import os
+from module import sys
+from module import datetime
+from module import qrterm
+from module import check_run_env
+from module import logger
+from module import console
+from module import yaml
+from module import CustomDumper
+from module import SOFTWARE_FULL_NAME, __version__, __copyright__, __license__
 from module.process_path import gen_backup_config
-from module.color_print import print as print_with_color
-from module.color_print import ColorGroup
+from module.enum_define import GradientColor
 
 
 class Validator:
@@ -101,15 +106,9 @@ class Validator:
             return False
 
 
-# 自定义 yaml文件中 None 的表示
-class CustomDumper(yaml.Dumper):
-    def represent_none(self, data):
-        return self.represent_scalar('tag:yaml.org,2002:null', '~')
-
-
 class Application:
     # 将 None 的表示注册到 Dumper 中
-    CustomDumper.add_representer(type(None), CustomDumper.represent_none)
+
     DIR_NAME = os.path.dirname(os.path.abspath(sys.argv[0]))  # 获取软件工作绝对目录
     CONFIG_NAME = 'config.yaml'  # 配置文件名
     CONFIG_PATH = os.path.join(DIR_NAME, CONFIG_NAME)
@@ -135,6 +134,7 @@ class Application:
     ABSOLUTE_BACKUP_DIR = os.path.join(DIR_NAME, BACKUP_DIR)
 
     def __init__(self):
+        self.color: list = GradientColor.blue_to_purple
         self.history_timestamp: dict = {}
         self.input_link: list = []
         self.last_record: dict = {}
@@ -153,12 +153,12 @@ class Application:
             subprocess.Popen(shutdown_command, shell=True)  # 异步执行关机
             # 实时显示倒计时
             for remaining in range(second, 0, -1):
-                print(f'\r即将在{remaining}秒后关机, 按「CTRL+C」可取消。', end='')
+                console.print(f'即将在{remaining}秒后关机, 按「CTRL+C」可取消。', end='\r', style='#ff4805')
                 time.sleep(1)
-            print("\n关机即将执行!")
+            console.print('\n关机即将执行!', style='#f6ad00')
         except KeyboardInterrupt:
             subprocess.Popen('shutdown -a', shell=True)
-            print('\n关机已被用户取消!')
+            console.print('\n关机已被用户取消!', style='#19ac18')
             os.system('pause')
 
     def backup_config(self, backup_config: str, error_config: bool = False):
@@ -188,7 +188,7 @@ class Application:
             self.backup_config(config, error_config=error_config)
         except Exception as e:
             error_config: bool = True
-            print_with_color('「注意」链接路径和保存路径不能有引号!', color='red')
+            console.print('「注意」链接路径和保存路径不能有引号!', style='red')
             logger.warning(f'检测到无效或损坏的配置文件。已生成新的模板文件...原因:"{e}"')
             self.backup_config(config, error_config=error_config)
         finally:
@@ -266,8 +266,7 @@ class Application:
 
         return config
 
-    @staticmethod
-    def _is_proxy_input(config: dict):  # 检测代理配置是否需要用户输入
+    def _is_proxy_input(self, config: dict):  # 检测代理配置是否需要用户输入
         result = False
         basic_truth_table: list = []
         advance_account_truth_table: list = []
@@ -279,7 +278,7 @@ class Application:
             if _[0] in ['username', 'password']:
                 advance_account_truth_table.append(_[1])
         if all(basic_truth_table) is False:
-            print_with_color('请配置代理!', color='blue')
+            console.print('请配置代理!', style=self.color[8])
             result = True
         if any(advance_account_truth_table) and all(advance_account_truth_table) is False:
             logger.warning('代理账号或密码未输入!')
@@ -380,7 +379,6 @@ class Application:
     def config_guide(self):
         # input user to input necessary configurations
         # v1.1.0 更替api_id和api_hash位置,与telegram申请的api位置对应以免输错
-        color: list = ColorGroup.PROGRESS_BAR
         undefined = '无'
 
         def get_api_id(_last_record):
@@ -391,7 +389,7 @@ class Application:
                         api_id = _last_record
                     if Validator.is_valid_api_id(api_id):
                         self.config['api_id'] = api_id
-                        print_with_color(f'已设置「api_id」为:「{api_id}」', color=color[0])
+                        console.print(f'已设置「api_id」为:「{api_id}」', style=self.color[0])
                         self.record_flag = True
                         break
                 except KeyboardInterrupt:
@@ -405,7 +403,7 @@ class Application:
                         api_hash = _last_record
                     if Validator.is_valid_api_hash(api_hash, _valid_length):
                         self.config['api_hash'] = api_hash
-                        print_with_color(f'已设置「api_hash」为:「{api_hash}」', color=color[1])
+                        console.print(f'已设置「api_hash」为:「{api_hash}」', style=self.color[1])
                         self.record_flag = True
                         break
                     else:
@@ -424,7 +422,7 @@ class Application:
                         links_file = _last_record
                     if Validator.is_valid_links_file(links_file, _valid_format):
                         self.config['links'] = links_file
-                        print_with_color(f'已设置「links_file」为:「{links_file}」', color=color[2])
+                        console.print(f'已设置「links_file」为:「{links_file}」', style=self.color[2])
                         self.record_flag = True
                         break
                     elif not os.path.normpath(links_file).endswith('.txt'):
@@ -447,7 +445,7 @@ class Application:
                         save_path = _last_record
                     if Validator.is_valid_save_path(save_path):
                         self.config['save_path'] = save_path
-                        print_with_color(f'已设置「save_path」为:「{save_path}」', color=color[3])
+                        console.print(f'已设置「save_path」为:「{save_path}」', style=self.color[3])
                         self.record_flag = True
                         break
                     elif os.path.isfile(save_path):
@@ -469,7 +467,7 @@ class Application:
                         max_tasks = 3
                     if Validator.is_valid_max_download_task(max_tasks):
                         self.config['max_download_task'] = int(max_tasks)
-                        print_with_color(f'已设置「max_download_task」为:「{max_tasks}」', color=color[4])
+                        console.print(f'已设置「max_download_task」为:「{max_tasks}」', style=self.color[4])
                         self.record_flag = True
                         break
                     else:
@@ -493,23 +491,23 @@ class Application:
                     if question == '' and _last_record != undefined:
                         if _last_record == 'y':
                             self.config['is_shutdown'] = True
-                            print_with_color(f'已设置「is_shutdown」为:「{_last_record}」,下载完成后将自动关机!',
-                                             color='Pink1')
+                            console.print(f'已设置「is_shutdown」为:「{_last_record}」,下载完成后将自动关机!',
+                                          style=self.color[5])
                             self.record_flag = True
                             break
                         elif _last_record == 'n':
                             self.config['is_shutdown'] = False
-                            print_with_color(f'已设置「is_shutdown」为:「{_last_record}」', color='Pink1')
+                            console.print(f'已设置「is_shutdown」为:「{_last_record}」', style=self.color[5])
                             self.record_flag = True
                             break
                     elif question == 'y':
                         self.config['is_shutdown'] = True
-                        print_with_color(f'已设置「is_shutdown」为:「{question}」,下载完成后将自动关机!', color='Pink1')
+                        console.print(f'已设置「is_shutdown」为:「{question}」,下载完成后将自动关机!', style='Pink1')
                         self.record_flag = True
                         break
                     elif question == 'n' or question == '':
                         self.config['is_shutdown'] = False
-                        print_with_color(f'已设置「is_shutdown」为:「n」', color='Pink1')
+                        console.print(f'已设置「is_shutdown」为:「n」', style=self.color[5])
                         self.record_flag = True
                         break
                     else:
@@ -534,7 +532,7 @@ class Application:
             not (self.config.get('proxy') or {}).get('password', False),
             not (self.config.get('proxy') or {}).get('scheme', False)
         ]):
-            print_with_color('「注意」直接回车代表使用上次的记录。', color='red')
+            console.print('「注意」直接回车代表使用上次的记录。', style='red')
         if not self.config.get('api_id'):
             last_record = self.last_record.get('api_id')
             get_api_id(_last_record=last_record)
@@ -601,7 +599,7 @@ class Application:
                             proxy_config['enable_proxy'] = True
                         elif enable_proxy == 'n':
                             proxy_config['enable_proxy'] = False
-                        print_with_color(f'已设置「enable_proxy」为:「{enable_proxy}」', color=color[5])
+                        console.print(f'已设置「enable_proxy」为:「{enable_proxy}」', style=self.color[6])
                         self.record_flag = True
                         break
                     else:
@@ -620,10 +618,10 @@ class Application:
                     if Validator.is_valid_is_notice(is_notice):
                         if is_notice == 'y':
                             proxy_config['is_notice'] = False
-                            print_with_color('下次将不再询问是否使用代理!', color='green')
+                            console.print('下次将不再询问是否使用代理!', style='green')
                         elif is_notice == 'n':
                             proxy_config['is_notice'] = True
-                        print_with_color(f'已设置「is_notice」为:「{is_notice}」', color=color[6])
+                        console.print(f'已设置「is_notice」为:「{is_notice}」', style=self.color[7])
                         self.record_flag = True
                         break
                     else:
@@ -651,7 +649,7 @@ class Application:
                             if Validator.is_valid_scheme(scheme, valid_format):
                                 proxy_config['scheme'] = scheme
                                 self.record_flag = True
-                                print_with_color(f'已设置「scheme」为:「{scheme}」', color=color[7])
+                                console.print(f'已设置「scheme」为:「{scheme}」', style=self.color[9])
                                 break
                             else:
                                 logger.warning(
@@ -672,7 +670,7 @@ class Application:
                             if Validator.is_valid_hostname(hostname):
                                 proxy_config['hostname'] = hostname
                                 self.record_flag = True
-                                print_with_color(f'已设置「hostname」为:「{hostname}」', color=color[8])
+                                console.print(f'已设置「hostname」为:「{hostname}」', style=self.color[10])
                                 break
                         except ValueError:
                             logger.warning(f'"{hostname}"不是一个「ip地址」,请输入有效的ipv4地址! - 「{valid_format}」!')
@@ -691,7 +689,7 @@ class Application:
                             if Validator.is_valid_port(port):
                                 proxy_config['port'] = int(port)
                                 self.record_flag = True
-                                print_with_color(f'已设置「port」为:「{port}」', color=color[9])
+                                console.print(f'已设置「port」为:「{port}」', style=self.color[11])
                                 break
                             else:
                                 logger.warning(f'意外的参数:"{port}",端口号必须在「{valid_port}」之间!')
@@ -712,7 +710,7 @@ class Application:
                                     self.record_flag = True
                                     proxy_config['password'] = input('请输入「密码」:').strip()
                                     self.record_flag = True
-                                    print_with_color(f'已设置为:「代理需要认证」', color=color[10])
+                                    console.print(f'已设置为:「代理需要认证」', style=self.color[12])
                                 except KeyboardInterrupt:
                                     self._keyboard_interrupt()
                                 finally:
@@ -720,9 +718,45 @@ class Application:
                             elif is_proxy == 'n' or is_proxy == '':
                                 proxy_config['username'] = None
                                 proxy_config['password'] = None
-                                print_with_color(f'已设置为:「代理不需要认证」', color=color[10])
+                                console.print(f'已设置为:「代理不需要认证」', style=self.color[12])
                                 break
                         except KeyboardInterrupt:
                             self._keyboard_interrupt()
         self.save_config()
         return
+
+
+class PanelTable:
+    def __init__(self, title: str, header: tuple, data: list):
+        self.table = PrettyTable(title=title, field_names=header)
+        self.table.add_rows(data)
+
+    def print_meta(self, style: str):
+        console.print(self.table, style=style)
+
+
+def pay():
+    if check_run_env():  # 是终端才打印,生产环境会报错
+        qrterm.draw('wxp://f2f0g8lKGhzEsr0rwtKWTTB2gQzs9Xg9g31aBvlpbILowMTa5SAMMEwn0JH1VEf2TGbS')
+        console.print(
+            GradientColor.gen_gradient_text(text='欢迎微信扫码支持作者', gradient_color=GradientColor.green_to_pink))
+
+
+def print_meta():
+    author_art = r'''
+   _____               _    _                          _  _        
+  / ____|             | |  | |                        (_)| |       
+ | |  __   ___  _ __  | |_ | |  ___  ___  _ __   _ __  _ | |_  ___ 
+ | | |_ | / _ \| '_ \ | __|| | / _ \/ __|| '_ \ | '__|| || __|/ _ \
+ | |__| ||  __/| | | || |_ | ||  __/\__ \| |_) || |   | || |_|  __/
+  \_____| \___||_| |_| \__||_| \___||___/| .__/ |_|   |_| \__|\___|
+                                         | |                       
+                                         |_|                       
+'''
+    console.print(author_art, style="blink #eb4cb9", highlight=False)
+    console.log(
+        f"[bold]{SOFTWARE_FULL_NAME} v{__version__}[/bold],\n[i]{__copyright__}[/i]"
+    )
+    console.log(f"Licensed under the terms of the {__license__}", end="\n")
+    console.log(GradientColor.gen_gradient_text('软件完全免费使用!并且在GitHub开源,如果你付费那就是被骗了。',
+                                                gradient_color=GradientColor.blue_to_purple))

@@ -153,8 +153,52 @@ class KeyWorld(Enum):
             raise ValueError(f'Unsupported Keyword:{text}')
 
 
-class StatusInfo(Enum):
-    skip = 1
-    success = 2
-    failure = 3
-    downloading = 4
+class GradientColor:
+    blue_to_purple = ['#0ebeff',
+                      '#22b4f9',
+                      '#36a9f2',
+                      '#4a9fec',
+                      '#5e95e6',
+                      '#728adf',
+                      '#8780d9',
+                      '#9b76d3',
+                      '#af6bcc',
+                      '#c361c6',
+                      '#d757c0',
+                      '#eb4cb9',
+                      '#ff42b3']
+    green_to_pink = ['#00ff40',
+                     '#14f54c',
+                     '#29eb58',
+                     '#3de064',
+                     '#52d670',
+                     '#66cc7c',
+                     '#7ac288',
+                     '#8fb894',
+                     '#a3ada0',
+                     '#b8a3ac',
+                     '#cc99b8']
+
+    @staticmethod
+    def __extend_gradient_colors(colors: list, target_length: int) -> list:
+        extended_colors = colors[:]
+        while len(extended_colors) < target_length:
+            # 添加原列表（除最后一个元素外）的逆序
+            extended_colors.extend(colors[-2::-1])
+            # 如果仍然不够长，继续添加正序部分
+            if len(extended_colors) < target_length:
+                extended_colors.extend(colors[:-1])
+        return extended_colors[:target_length]
+
+    @staticmethod
+    def gen_gradient_text(text: str, gradient_color: list) -> str:
+        text_lst: list = [i for i in text]
+        text_lst_len: int = len(text_lst)
+        gradient_color_len: int = len(gradient_color)
+        if text_lst_len > gradient_color_len:
+            # 扩展颜色列表以适应文本长度
+            gradient_color = GradientColor.__extend_gradient_colors(gradient_color, text_lst_len)
+        result: str = ''
+        for i in range(text_lst_len):
+            result += f'[{gradient_color[i]}]{text_lst[i]}[/{gradient_color[i]}]'
+        return result

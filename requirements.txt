@@ -2,6 +2,8 @@ pyrogram==2.0.106
 tgcrypto
 PyYAML
 rich
+qrcode
 loguru
 prettytable
-qrcode
+pyreadline3
+

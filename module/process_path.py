@@ -3,10 +3,10 @@
 # Software:PyCharm
 # Time:2023/11/13 20:34:13
 # File:process_path.py
-import os
 import re
-import datetime
 import unicodedata
+from module import os
+from module import datetime
 
 
 def split_path(path):

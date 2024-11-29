@@ -3,9 +3,7 @@
 # Software:PyCharm
 # Time:2023/11/12 20:52:12
 # File:pyrogram_extension.py
-from mimetypes import MimeTypes
 from io import BytesIO
-from typing import Optional
 from pyrogram.file_id import (
     FILE_REFERENCE_FLAG,
     PHOTO_TYPES,
@@ -15,8 +13,10 @@ from pyrogram.file_id import (
     rle_decode,
 )
 import struct
+from module import mimetypes
+from module import Optional
 
-_mimetypes = MimeTypes()
+_mimetypes = mimetypes.MimeTypes()
 
 
 def get_extension(file_id: str, mime_type: str, dot: bool = True) -> str:
