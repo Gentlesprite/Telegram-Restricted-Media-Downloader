@@ -10,6 +10,7 @@ ConfigBackup/
 test_download/
 test_download/test/
 # ignore files
+*.exe
 *.yaml
 *.xml
 tests.py
