@@ -8,7 +8,7 @@ img/
 venv/
 ConfigBackup/
 test_download/
-test/
+test_download/test/
 # ignore files
 *.yaml
 *.xml

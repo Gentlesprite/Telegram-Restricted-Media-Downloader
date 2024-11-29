@@ -2,22 +2,15 @@
 # Author:wang_pc, Yihang Liu
 # Software:PyCharm
 # Time:2024/8/20 21:56
-# File:qrterm
-'''
+# File:qrterm.py
+"""
 @author: 'wang_pc', 'Yihang Liu'
 @site:
 @file: qrterm.py
 @time: 2017/2/10 16:38
 感谢作者代码
-'''
+"""
 import qrcode
-from optparse import OptionParser
-import sys
-
-parser = OptionParser()
-parser.add_option('-d', '--data', dest='data', help='data to be paser to QRCode')
-parser.add_option('-s', '--size', type='choice', choices=['s', 'm', 'l', 'S', 'M', 'L'], dest='size', default='s',
-                  help='QRCode size,you can choose S/M/L')
 
 
 def render_2by1(qr_map):
@@ -91,20 +84,3 @@ def qr_terminal_str(str, version=1, render=render_2by1):
 def draw(str, version=1, render=render_2by1):
     output = qr_terminal_str(str, version=version, render=render)
     print(output)
-
-
-def draw_cmd():
-    (options, args) = parser.parse_args()
-    if not options.data:
-        options.data = sys.stdin.readline()[:-1]
-    if not options.data:
-        print('data must be specified. see %s -h' % sys.argv[0])
-    else:
-        size = options.size
-        if size == 'm' or size == 'M':
-            version = 3
-        elif size == 'l' or size == 'L':
-            version = 5
-        else:
-            version = 1
-        draw(options.data, version)
