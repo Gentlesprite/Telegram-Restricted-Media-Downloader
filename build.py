@@ -18,7 +18,6 @@ build_command = f'nuitka --standalone --show-memory --show-progress --onefile {i
 build_command += f'--output-dir={output} --file-version={file_version} '
 build_command += f'--windows-icon-from-ico="{ico_path}" '
 build_command += f'--output-filename="{app_name}.exe" --copyright="{copy_right}"  --mingw64 '
-
 build_command += main
 print(build_command)
 os.system(build_command)
