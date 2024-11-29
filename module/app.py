@@ -52,7 +52,7 @@ class Validator:
         if not os.path.exists(save_path):
             while True:
                 try:
-                    question = input(f'目录:"{save_path}"不存在,是否创建? - 「y|n」(默认y):')
+                    question = console.input(f'目录:"{save_path}"不存在,是否创建? - 「y|n」(默认y):')
                     if question == 'y' or question == '':
                         os.makedirs(save_path, exist_ok=True)
                         logger.success(f'成功创建目录:"{save_path}"')
@@ -200,7 +200,7 @@ class Application:
             elif not self.modified and config != Application.CONFIG_TEMPLATE:  # v1.1.4 加入是否重新编辑配置文件的引导。保证配置文件没有缺少任何字段,否则不询问
                 while True:
                     try:
-                        question = input(
+                        question = console.input(
                             '检测到已配置完成的配置文件,是否需要重新配置?(之前的配置文件将为你备份到当前目录下) - 「y|n」(默认n):').lower()
                         if question == 'y':
                             config = Application.CONFIG_TEMPLATE.copy()
@@ -291,7 +291,7 @@ class Application:
             if self.record_flag:
                 print('\n')
                 while True:
-                    question = input('「退出提示」是否需要保存当前已填写的参数? - 「y|n」:').lower()
+                    question = console.input('「退出提示」是否需要保存当前已填写的参数? - 「y|n」:').lower()
                     if question == 'y':
                         logger.success('配置已保存!')
                         self.save_config()
@@ -384,7 +384,7 @@ class Application:
         def get_api_id(_last_record):
             while True:
                 try:
-                    api_id = input(f'请输入「api_id」上一次的记录是:「{_last_record if _last_record else undefined}」:')
+                    api_id = console.input(f'请输入「api_id」上一次的记录是:「{_last_record if _last_record else undefined}」:')
                     if api_id == '' and _last_record is not None:
                         api_id = _last_record
                     if Validator.is_valid_api_id(api_id):
@@ -398,7 +398,7 @@ class Application:
         def get_api_hash(_last_record, _valid_length):
             while True:
                 try:
-                    api_hash = input(f'请输入「api_hash」上一次的记录是:「{_last_record if _last_record else undefined}」:')
+                    api_hash = console.input(f'请输入「api_hash」上一次的记录是:「{_last_record if _last_record else undefined}」:')
                     if api_hash == '' and _last_record is not None:
                         api_hash = _last_record
                     if Validator.is_valid_api_hash(api_hash, _valid_length):
@@ -416,7 +416,7 @@ class Application:
             links_file = None
             while True:
                 try:
-                    links_file = input(
+                    links_file = console.input(
                         f'请输入需要下载的媒体链接的「完整路径」。上一次的记录是:「{_last_record if _last_record else undefined}」格式 - 「{_valid_format}」:').strip()
                     if links_file == '' and _last_record is not None:
                         links_file = _last_record
@@ -439,7 +439,7 @@ class Application:
             # 输入媒体保存路径,确保是一个有效的目录路径
             while True:
                 try:
-                    save_path = input(
+                    save_path = console.input(
                         f'请输入媒体「保存路径」。上一次的记录是:「{_last_record if _last_record else undefined}」:').strip()
                     if save_path == '' and _last_record is not None:
                         save_path = _last_record
@@ -459,7 +459,7 @@ class Application:
             # 输入最大下载任务数,确保是一个整数且不超过特定限制
             while True:
                 try:
-                    max_tasks = input(
+                    max_tasks = console.input(
                         f'请输入「最大下载任务数」。上一次的记录是:「{_last_record if _last_record else undefined}」,非会员不建议大于「5」,容易被限制为强制单任务下载{"(默认3)" if _last_record is None else ""}:').strip()
                     if max_tasks == '' and _last_record is not None:
                         max_tasks = _last_record
@@ -486,7 +486,7 @@ class Application:
                 _last_record = undefined
             while True:
                 try:
-                    question = input(
+                    question = console.input(
                         f'下载完成后是否「自动关机」。上一次的记录是:「{_last_record}」 - 「{_valid_format}」{"(默认n)" if _last_record == undefined else ""}:').strip()
                     if question == '' and _last_record != undefined:
                         if _last_record == 'y':
@@ -585,7 +585,7 @@ class Application:
 
             try:
                 while True:
-                    enable_proxy = input(
+                    enable_proxy = console.input(
                         f'是否需要使用「代理」。上一次的记录是:「{ep_notice}」 - 「{valid_format}」{"(默认n)" if ep_notice == undefined else ""}:').lower()  # 询问是否开启代理
                     if enable_proxy == '' and ep_last_record is not None:
                         if ep_last_record is True:
@@ -606,7 +606,7 @@ class Application:
                         logger.error(f'意外的参数:"{enable_proxy}",请输入有效参数! - 「{valid_format}」!')
                 while True:
                     # 是否记住选项
-                    is_notice = input(
+                    is_notice = console.input(
                         f'下次是否「不再询问使用代理」。上一次的记录是:「{in_notice}」 - 「{valid_format}」{("(默认n)" if in_notice == undefined else "")}:').lower()
                     if is_notice == '' and in_last_record is not None:
                         if in_last_record is True:
@@ -642,7 +642,7 @@ class Application:
                     last_record = proxy_record.get('scheme')
                     while True:
                         try:
-                            scheme = input(
+                            scheme = console.input(
                                 f'请输入「代理类型」。上一次的记录是:「{last_record if last_record else undefined}」 - 「{"|".join(valid_format)}」:').strip().lower()
                             if scheme == '' and last_record is not None:
                                 scheme = last_record
@@ -663,7 +663,7 @@ class Application:
                         scheme, _, __ = get_proxy_info(scheme, None, None)
                         # 输入代理IP地址
                         try:
-                            hostname = input(
+                            hostname = console.input(
                                 f'请输入代理类型为:"{scheme}"的「ip地址」。上一次的记录是:「{last_record if last_record else undefined}」 - 「{valid_format}」:').strip()
                             if hostname == '' and last_record is not None:
                                 hostname = last_record
@@ -682,7 +682,7 @@ class Application:
                     while True:
                         try:  # hostname，scheme可能出现None
                             scheme, hostname, __ = get_proxy_info(scheme, hostname, None)
-                            port = input(
+                            port = console.input(
                                 f'请输入ip地址为:"{hostname}",代理类型为:"{scheme}"的「代理端口」。上一次的记录是:「{last_record if last_record else undefined}」 - 「{valid_port}」:').strip()
                             if port == '' and last_record is not None:
                                 port = last_record
@@ -703,12 +703,12 @@ class Application:
                     # 是否需要认证
                     while True:
                         try:
-                            is_proxy = input(f'代理是否需要「认证」? - 「y|n」(默认n):').strip().lower()
+                            is_proxy = console.input(f'代理是否需要「认证」? - 「y|n」(默认n):').strip().lower()
                             if is_proxy == 'y':
                                 try:
-                                    proxy_config['username'] = input('请输入「用户名」:').strip()
+                                    proxy_config['username'] = console.input('请输入「用户名」:').strip()
                                     self.record_flag = True
-                                    proxy_config['password'] = input('请输入「密码」:').strip()
+                                    proxy_config['password'] = console.input('请输入「密码」:').strip()
                                     self.record_flag = True
                                     console.print(f'已设置为:「代理需要认证」', style=self.color[12])
                                 except KeyboardInterrupt:

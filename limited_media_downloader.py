@@ -394,7 +394,7 @@ class RestrictedMediaDownloader:
             logger.error(
                 f'运行出错,原因:"{e}"')
             while True:
-                question = input('是否重新配置文件?(之前的配置文件将为你备份到当前目录下) - 「y|n」:').lower()
+                question = console.input('是否重新配置文件?(之前的配置文件将为你备份到当前目录下) - 「y|n」:').lower()
                 if question == 'y':
                     self.app.backup_config(self.app.config_path)  # 备份config.yaml
                     self.app.history_record()  # 更新到上次填写的记录
