@@ -8,6 +8,8 @@ import sys
 import yaml
 import atexit
 import readline
+import pyrogram
+from pyrogram.errors import FloodWait
 import datetime
 import mimetypes
 from ctypes import windll
@@ -16,6 +18,125 @@ from pyrogram import utils
 from rich.console import Console
 from rich.markdown import Markdown
 from typing import Tuple, List, Dict, Any, Optional
+
+
+class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
+
+    async def authorize(self) -> pyrogram.types.User:
+        if self.bot_token:
+            return await self.sign_in_bot(self.bot_token)
+
+        console.print(f'欢迎使用{SOFTWARE_FULL_NAME}(版本 {__version__})', highlight=False)
+
+        while True:
+            try:
+                if not self.phone_number:
+                    while True:
+                        value = console.input('请输入「电话号码」或「bot token」([#6a2c70]电话号码[/#6a2c70]需以[#b83b5e]「+地区」'
+                                              '[/#b83b5e]开头!如:[#f08a5d]+86[/#f08a5d][#f9ed69]15000000000[/#f9ed69]):')
+                        if not value:
+                            continue
+
+                        confirm = console.input(f'输入的「{value}」是否[green]正确[/green]? - 「y|n」: ').lower()
+
+                        if confirm == 'y':
+                            break
+
+                    if ":" in value:
+                        self.bot_token = value
+                        return await self.sign_in_bot(value)
+                    else:
+                        self.phone_number = value
+
+                sent_code = await self.send_code(self.phone_number)
+            except pyrogram.errors.BadRequest as e:
+                console.print(e.MESSAGE)
+                self.phone_number = None
+                self.bot_token = None
+            else:
+                break
+
+        sent_code_descriptions = {
+            pyrogram.enums.SentCodeType.APP: 'Telegram app',
+            pyrogram.enums.SentCodeType.SMS: 'SMS',
+            pyrogram.enums.SentCodeType.CALL: 'phone call',
+            pyrogram.enums.SentCodeType.FLASH_CALL: 'phone flash call',
+            pyrogram.enums.SentCodeType.FRAGMENT_SMS: 'Fragment SMS',
+            pyrogram.enums.SentCodeType.EMAIL_CODE: 'email code'
+        }
+
+        console.print(f'「验证码」已通过「{sent_code_descriptions[sent_code.type]}」发送。')
+
+        while True:
+            if not self.phone_code:
+                self.phone_code = console.input('请输入收到的「验证码」:')
+
+            try:
+                signed_in = await self.sign_in(self.phone_number, sent_code.phone_code_hash, self.phone_code)
+            except pyrogram.errors.BadRequest as e:
+                console.print(e.MESSAGE)
+                self.phone_code = None
+            except pyrogram.errors.SessionPasswordNeeded as e:
+                console.print(e.MESSAGE)
+
+                while True:
+                    console.print('密码提示:{}'.format(await self.get_password_hint()))
+
+                    if not self.password:
+                        self.password = console.input('输入「密码」(为空代表恢复密码):', password=self.hide_password)
+
+                    try:
+                        if not self.password:
+                            confirm = console.input('确认「恢复密码」? - 「y|n」:').lower()
+
+                            if confirm == 'y':
+                                email_pattern = await self.send_recovery_code()
+                                console.print(f'「恢复代码」已发送到「{email_pattern}」。')
+
+                                while True:
+                                    recovery_code = console.input('请输入「恢复代码」:')
+
+                                    try:
+                                        return await self.recover_password(recovery_code)
+                                    except pyrogram.errors.BadRequest as e:
+                                        console.print(e.MESSAGE)
+                                    except Exception as e:
+                                        console.print_exception()
+                                        raise
+                            else:
+                                self.password = None
+                        else:
+                            return await self.check_password(self.password)
+                    except pyrogram.errors.BadRequest as e:
+                        console.print(e.MESSAGE)
+                        self.password = None
+            else:
+                break
+
+        if isinstance(signed_in, pyrogram.types.User):
+            return signed_in
+
+        while True:
+            first_name = console.input('输入「名字」:')
+            last_name = console.input('输入「姓氏」(为空代表跳过): ')
+
+            try:
+                signed_up = await self.sign_up(
+                    self.phone_number,
+                    sent_code.phone_code_hash,
+                    first_name,
+                    last_name
+                )
+            except pyrogram.errors.BadRequest as e:
+                console.print(e.MESSAGE)
+            else:
+                break
+
+        if isinstance(signed_in, pyrogram.types.TermsOfService):
+            console.print('\n' + signed_in.text + '\n')
+            await self.accept_terms_of_service(signed_in.id)
+
+        return signed_up
 
 
 def print_helper():
@@ -87,10 +208,10 @@ class CustomDumper(yaml.Dumper):
 
 console = Console()
 utils.get_peer_type = get_peer_type_new
-__version__ = '1.1.7'
+__version__ = '1.1.8'
 __license__ = "MIT License"
 __copyright__ = "Copyright (C) 2024 Gentlesprite <https://github.com/Gentlesprite>"
-__update_date__ = '2024/11/29 13:26:05'
+__update_date__ = '2024/12/01 22:11:04'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_NAME = 'TRMD'
 author = 'Gentlesprite'
