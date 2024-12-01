@@ -8,6 +8,7 @@ import asyncio
 import pyrogram
 from functools import wraps
 from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn, TransferSpeedColumn
+import module
 from module import os
 from module import mimetypes
 from module import console, logger
@@ -47,7 +48,7 @@ class RestrictedMediaDownloader:
         self.max_download_task: int = self.app.config.get('max_download_task')
         self.links: List[str] or str = self.app.config.get('links')
         os.makedirs(os.path.join(os.getcwd(), 'sessions'), exist_ok=True)
-        self.client: pyrogram.client.Client = pyrogram.client.Client(name=self.APP_NAME,
+        self.client = module.TelegramRestrictedMediaDownloaderClient(name=self.APP_NAME,
                                                                      api_id=self.app.config.get('api_id'),
                                                                      api_hash=self.app.config.get('api_hash'),
                                                                      proxy=self.app.config.get(
@@ -71,7 +72,6 @@ class RestrictedMediaDownloader:
                                  TimeRemainingColumn(),
                                  console=console
                                  )
-        self.progress.start()
 
     def _config_table(self):
         try:
@@ -375,6 +375,7 @@ class RestrictedMediaDownloader:
 
     async def _download_media_from_links(self):
         await self.client.start()
+        self.progress.start()  # v1.1.8修复登录输入手机号不显示文本问题
         tasks = set()
         for link in self._process_links(links=self.links):
             res = await self._get_download_task(msg_link=link)

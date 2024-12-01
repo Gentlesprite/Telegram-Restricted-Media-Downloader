@@ -384,7 +384,8 @@ class Application:
         def get_api_id(_last_record):
             while True:
                 try:
-                    api_id = console.input(f'请输入「api_id」上一次的记录是:「{_last_record if _last_record else undefined}」:')
+                    api_id = console.input(
+                        f'请输入「api_id」上一次的记录是:「{_last_record if _last_record else undefined}」:')
                     if api_id == '' and _last_record is not None:
                         api_id = _last_record
                     if Validator.is_valid_api_id(api_id):
@@ -398,7 +399,8 @@ class Application:
         def get_api_hash(_last_record, _valid_length):
             while True:
                 try:
-                    api_hash = console.input(f'请输入「api_hash」上一次的记录是:「{_last_record if _last_record else undefined}」:')
+                    api_hash = console.input(
+                        f'请输入「api_hash」上一次的记录是:「{_last_record if _last_record else undefined}」:')
                     if api_hash == '' and _last_record is not None:
                         api_hash = _last_record
                     if Validator.is_valid_api_hash(api_hash, _valid_length):
