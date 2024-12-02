@@ -1,4 +1,3 @@
-pyrogram==2.0.106
 tgcrypto
 PyYAML
 rich
@@ -6,4 +5,4 @@ qrcode
 loguru
 prettytable
 pyreadline3
-
+git+https://github.com/Gentlesprite/pyrogram.git@v2.1.33#egg=pyrogram
