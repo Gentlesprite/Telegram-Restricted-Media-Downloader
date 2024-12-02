@@ -25,7 +25,12 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
     async def authorize(self) -> pyrogram.types.User:
         if self.bot_token:
             return await self.sign_in_bot(self.bot_token)
-        console.print(f'欢迎使用{SOFTWARE_FULL_NAME}(版本 {__version__})')
+        console.print(
+            f"Pyrogram is free software and comes with ABSOLUTELY NO WARRANTY. Licensed\n"
+            f"under the terms of the {pyrogram.__license__}.")
+        console.print(
+            f'欢迎使用[#b4009e]{SOFTWARE_FULL_NAME}[/#b4009e](版本 {__version__})'
+            f'基于Pyrogram(版本 {pyrogram.__version__}).')
         while True:
             try:
                 if not self.phone_number:
