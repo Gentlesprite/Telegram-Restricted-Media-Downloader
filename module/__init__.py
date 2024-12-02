@@ -30,7 +30,7 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
             f"under the terms of the {pyrogram.__license__}.")
         console.print(
             f'欢迎使用[#b4009e]{SOFTWARE_FULL_NAME}[/#b4009e](版本 {__version__})'
-            f'基于Pyrogram(版本 {pyrogram.__version__})')
+            f'基于Pyrogram(版本 {pyrogram.__version__})。')
         while True:
             try:
                 if not self.phone_number:
