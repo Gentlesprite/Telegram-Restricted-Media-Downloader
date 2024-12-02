@@ -5,12 +5,12 @@
 # File:limited_media_downloader
 import shutil
 import asyncio
-import pyrogram
 from functools import wraps
 from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn, TransferSpeedColumn
 import module
 from module import os
 from module import mimetypes
+from module import pyrogram
 from module import console, logger
 from module import List, Any
 from module.app import Application, PanelTable, pay, print_meta

@@ -213,7 +213,7 @@ class Application:
                         elif question == 'n' or question == '':
                             break
                         else:
-                            logger.warning(f'意外的参数:"{question}",支持的参数 - 「y|n」')
+                            logger.warning(f'意外的参数:"{question}",支持的参数 - 「y|n」(默认n)')
                     except KeyboardInterrupt:
                         self._keyboard_interrupt()
             return config
