@@ -5,4 +5,4 @@ qrcode
 loguru
 prettytable
 pyreadline3
-git+https://github.com/Gentlesprite/pyrogram.git@v2.1.33#egg=pyrogram
+https://github.com/Gentlesprite/pyrogram/archive/refs/heads/dev.zip#egg=pyrogram
