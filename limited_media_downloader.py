@@ -435,8 +435,6 @@ class RestrictedMediaDownloader:
         def _process_shutdown():
             if self.app.config.get('is_shutdown'):
                 self.app.shutdown_task(second=60)
-            else:
-                os.system('pause')
 
         try:
             MetaData.print_meta()
@@ -464,3 +462,4 @@ class RestrictedMediaDownloader:
                 _print_failure_table() if self.failure_link else 0  # v1.1.2 增加下载失败的链接统计,但如果没有失败的链接将不会显示
                 MetaData.pay()
                 _process_shutdown()
+            os.system('pause')
