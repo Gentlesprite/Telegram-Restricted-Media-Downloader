@@ -43,6 +43,7 @@ class RestrictedMediaDownloader:
     event = asyncio.Event()
 
     def __init__(self):
+        print_helper()
         self.app = Application()
         self.app.config_guide()
         self.temp_folder: str = self.app.TEMP_FOLDER
@@ -438,7 +439,6 @@ class RestrictedMediaDownloader:
                 os.system('pause')
 
         try:
-            print_helper()
             MetaData.print_meta()
             self._config_table()
             self.client.run(self._download_media_from_links())
