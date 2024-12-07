@@ -7,6 +7,7 @@ import re
 import unicodedata
 from module import os
 from module import datetime
+from module import shutil
 
 
 def split_path(path):
@@ -68,3 +69,16 @@ def gen_backup_config(old_path: str, absolute_backup_dir: str, error_config: boo
                             f'{"error_" if error_config else ""}history_{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_config.yaml')
     os.rename(old_path, new_path)
     return new_path
+
+
+def safe_delete(file_path):
+    try:
+        if os.path.isdir(file_path):
+            shutil.rmtree(file_path)
+        else:
+            os.remove(file_path)
+        return True
+    except PermissionError:
+        return False
+    except Exception:
+        return False

@@ -3,21 +3,23 @@
 # Software:PyCharm
 # Time:2023/10/3 1:00:03
 # File:limited_media_downloader
-import shutil
 import asyncio
 from functools import wraps
 from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn, TransferSpeedColumn
-import module
 from module import os
+from module import shutil
 from module import mimetypes
 from module import pyrogram
+from module import SessionRevoked, AuthKeyUnregistered, SessionExpired, RPCError
 from module import console, logger
 from module import List, Any
+from module import TelegramRestrictedMediaDownloaderClient
 from module.app import Application, PanelTable, pay, print_meta
 from module.unit import suitable_units_display
 from module.pyrogram_extension import get_extension
 from module.enum_define import LinkType, DownloadStatus, DownloadType, KeyWorld
-from module.process_path import split_path, is_folder_empty, is_file_duplicate, validate_title, truncate_filename
+from module.process_path import split_path, is_folder_empty, is_file_duplicate, validate_title, truncate_filename, \
+    safe_delete
 
 
 class RestrictedMediaDownloader:
@@ -48,14 +50,14 @@ class RestrictedMediaDownloader:
         self.max_download_task: int = self.app.config.get('max_download_task')
         self.links: List[str] or str = self.app.config.get('links')
         os.makedirs(os.path.join(os.getcwd(), 'sessions'), exist_ok=True)
-        self.client = module.TelegramRestrictedMediaDownloaderClient(name=self.APP_NAME,
-                                                                     api_id=self.app.config.get('api_id'),
-                                                                     api_hash=self.app.config.get('api_hash'),
-                                                                     proxy=self.app.config.get(
-                                                                         'proxy', {}) if self.app.config.get('proxy',
-                                                                                                             {}).get(
-                                                                         'enable_proxy') else None,
-                                                                     workdir=os.path.join(os.getcwd(), 'sessions'))
+        self.client = TelegramRestrictedMediaDownloaderClient(name=self.APP_NAME,
+                                                              api_id=self.app.config.get('api_id'),
+                                                              api_hash=self.app.config.get('api_hash'),
+                                                              proxy=self.app.config.get(
+                                                                  'proxy', {}) if self.app.config.get('proxy',
+                                                                                                      {}).get(
+                                                                  'enable_proxy') else None,
+                                                              workdir=os.path.join(os.getcwd(), 'sessions'))
         self.current_task_num = 0
         self.skip_video, self.skip_photo = set(), set()
         self.success_video, self.success_photo = set(), set()
@@ -384,10 +386,65 @@ class RestrictedMediaDownloader:
 
     def run(self):
         record_error = False
+
+        def _reload():
+            rmd = RestrictedMediaDownloader()
+            rmd.run()
+
+        def _backup_last_config():
+            self.app.backup_config(self.app.config_path)  # 备份config.yaml
+            self.app.history_record()  # 更新到上次填写的记录
+            self.app.config = self.app.CONFIG_TEMPLATE  # 恢复为默认配置开始重新配置
+            self.app.save_config()
+
+        def _print_media_table():
+            total_video = len(self.success_video) + len(self.failure_video) + len(self.skip_video)
+            total_photo = len(self.success_photo) + len(self.failure_photo) + len(self.skip_photo)
+            media_table = PanelTable(title='媒体下载统计',
+                                     header=('种类&状态', '成功下载', '失败下载', '跳过下载', '合计'),
+                                     data=[
+                                         ['视频', len(self.success_video), len(self.failure_video),
+                                          len(self.skip_video),
+                                          total_video],
+                                         ['图片', len(self.success_photo), len(self.failure_photo),
+                                          len(self.skip_photo),
+                                          total_photo],
+                                         ['合计', len(self.success_video) + len(self.success_photo),
+                                          len(self.failure_video) + len(self.failure_photo),
+                                          len(self.skip_video) + len(self.skip_photo), total_video + total_photo]
+                                     ])
+            media_table.print_meta(style='#06a3d7')
+
+        def _print_failure_table():
+            format_failure_info: list = []
+            for index, (key, value) in enumerate(self.failure_link.items(), start=1):
+                format_failure_info.append([index, key, value])
+            failure_link_table = PanelTable(title='失败链接统计',
+                                            header=('编号', '链接', '原因'),
+                                            data=format_failure_info)
+            failure_link_table.print_meta(style='#e53e30')
+
+        def _process_shutdown():
+            if self.app.config.get('is_shutdown'):
+                self.app.shutdown_task(second=60)
+            else:
+                os.system('pause')
+
         try:
             print_meta()
             self._config_table()
             self.client.run(self._download_media_from_links())
+        except (SessionRevoked, AuthKeyUnregistered, SessionExpired, ConnectionError):
+            res = safe_delete(file_path=os.path.join(self.app.DIR_NAME, 'sessions'))
+            if res:
+                logger.warning('账号已失效请重新登录!')
+                _reload()  # v1.2.0 加入sessions失效重新登录功能,正常情况下不再需要手动删除。
+            else:
+                logger.error('账号已失效请手动删除软件目录下的sessions文件并重新登录!')
+                exit(0)
+        except KeyboardInterrupt:
+            self.progress.stop()
+            logger.info('用户手动终止下载任务。')
         except Exception as e:
             self.progress.stop()
             record_error = True
@@ -397,48 +454,18 @@ class RestrictedMediaDownloader:
             while True:
                 question = console.input('是否重新配置文件?(之前的配置文件将为你备份到当前目录下) - 「y|n」:').lower()
                 if question == 'y':
-                    self.app.backup_config(self.app.config_path)  # 备份config.yaml
-                    self.app.history_record()  # 更新到上次填写的记录
-                    self.app.config = self.app.CONFIG_TEMPLATE  # 恢复为默认配置开始重新配置
-                    self.app.save_config()
-                    rmd = RestrictedMediaDownloader()
-                    rmd.run()
+                    _backup_last_config()
+                    _reload()
                     break
                 elif question == 'n':
-                    logger.info('程序已退出。')
+                    logger.info('软件已退出。')
                     exit(0)
-        except KeyboardInterrupt:
-            self.progress.stop()
-            logger.info('用户手动终止下载任务。')
         finally:
+            if self.client.is_connected:
+                self.client.stop()
             self.progress.stop()
             if not record_error:
-                total_video = len(self.success_video) + len(self.failure_video) + len(self.skip_video)
-                total_photo = len(self.success_photo) + len(self.failure_photo) + len(self.skip_photo)
-                media_table = PanelTable(title='媒体下载统计',
-                                         header=('种类&状态', '成功下载', '失败下载', '跳过下载', '合计'),
-                                         data=[
-                                             ["视频", len(self.success_video), len(self.failure_video),
-                                              len(self.skip_video),
-                                              total_video],
-                                             ["图片", len(self.success_photo), len(self.failure_photo),
-                                              len(self.skip_photo),
-                                              total_photo],
-                                             ["合计", len(self.success_video) + len(self.success_photo),
-                                              len(self.failure_video) + len(self.failure_photo),
-                                              len(self.skip_video) + len(self.skip_photo), total_video + total_photo]
-                                         ])
-                media_table.print_meta(style='#06a3d7')
-                if self.failure_link:  # v1.1.2 增加下载失败的链接统计,但如果没有失败的链接将不会显示
-                    format_failure_info: list = []
-                    for index, (key, value) in enumerate(self.failure_link.items(), start=1):
-                        format_failure_info.append([index, key, value])
-                    failure_link_table = PanelTable(title='失败链接统计',
-                                                    header=('编号', '链接', '原因'),
-                                                    data=format_failure_info)
-                    failure_link_table.print_meta(style='#e53e30')
+                _print_media_table()
+                _print_failure_table() if self.failure_link else 0  # v1.1.2 增加下载失败的链接统计,但如果没有失败的链接将不会显示
                 pay()
-                if self.app.config.get('is_shutdown'):
-                    self.app.shutdown_task(second=60)
-                else:
-                    os.system('pause')
+                _process_shutdown()

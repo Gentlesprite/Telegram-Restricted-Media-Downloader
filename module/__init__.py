@@ -7,9 +7,11 @@ import os
 import sys
 import yaml
 import atexit
+import shutil
 import readline
 import pyrogram
 from pyrogram.errors import FloodWait
+from pyrogram.errors.exceptions.unauthorized_401 import SessionRevoked, AuthKeyUnregistered, SessionExpired, RPCError
 import datetime
 import mimetypes
 from ctypes import windll
@@ -26,8 +28,8 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
         if self.bot_token:
             return await self.sign_in_bot(self.bot_token)
         console.print(
-            f"Pyrogram is free software and comes with ABSOLUTELY NO WARRANTY. Licensed\n"
-            f"under the terms of the {pyrogram.__license__}.")
+            f'Pyrogram is free software and comes with ABSOLUTELY NO WARRANTY. Licensed\n'
+            f'under the terms of the {pyrogram.__license__}.')
         console.print(
             f'欢迎使用[#b4009e]{SOFTWARE_FULL_NAME}[/#b4009e](版本 {__version__})'
             f'基于Pyrogram(版本 {pyrogram.__version__})。')
@@ -212,10 +214,10 @@ class CustomDumper(yaml.Dumper):
 
 console = Console()
 utils.get_peer_type = get_peer_type_new
-__version__ = '1.1.9'
+__version__ = '1.2.0'
 __license__ = "MIT License"
 __copyright__ = "Copyright (C) 2024 Gentlesprite <https://github.com/Gentlesprite>"
-__update_date__ = '2024/12/02 23:54:30'
+__update_date__ = '2024/12/07 14:49:46'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_NAME = 'TRMD'
 author = 'Gentlesprite'
