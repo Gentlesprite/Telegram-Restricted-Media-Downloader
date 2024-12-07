@@ -448,16 +448,13 @@ class RestrictedMediaDownloader:
                 logger.warning('账号已失效请重新登录!')
             else:
                 logger.error('账号已失效请手动删除软件目录下的sessions文件并重新登录!')
-                exit(0)
         except KeyboardInterrupt:
             self.progress.stop()
             logger.info('用户手动终止下载任务。')
         except Exception as e:
             self.progress.stop()
             record_error = True
-            logger.error(
-                f'运行出错,原因:"{e}"')
-            exit(0)
+            logger.error(f'运行出错,原因:"{e}"')
         finally:
             if self.client.is_connected:
                 self.client.stop()
