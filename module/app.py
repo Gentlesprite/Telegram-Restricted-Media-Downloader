@@ -6,7 +6,8 @@
 import time
 import subprocess
 import ipaddress
-from prettytable import PrettyTable
+from rich.table import Table
+from rich.markdown import Markdown
 from module import os
 from module import sys
 from module import datetime
@@ -729,36 +730,83 @@ class Application:
 
 
 class PanelTable:
-    def __init__(self, title: str, header: tuple, data: list):
-        self.table = PrettyTable(title=title, field_names=header)
-        self.table.add_rows(data)
+    def __init__(self, title: str, header: tuple, data: list, styles: dict = None):
+        self.table = Table(title=title, highlight=True)
+        from rich.table import Style
+        self.table.title_style = Style(color='white', bold=True)
+        # 添加列
+        for i, col in enumerate(header):
+            style = styles.get(col, {}) if styles else {}
+            self.table.add_column(col, **style)
 
-    def print_meta(self, style: str):
-        console.print(self.table, style=style)
+        # 添加数据行
+        for row in data:
+            self.table.add_row(*map(str, row))  # 确保数据项是字符串类型，防止类型错误
+
+    def print_meta(self):
+        console.print(self.table, justify='center')
 
 
-def pay():
-    if check_run_env():  # 是终端才打印,生产环境会报错
-        qrterm.draw('wxp://f2f0g8lKGhzEsr0rwtKWTTB2gQzs9Xg9g31aBvlpbILowMTa5SAMMEwn0JH1VEf2TGbS')
-        console.print(
-            GradientColor.gen_gradient_text(text='欢迎微信扫码支持作者', gradient_color=GradientColor.green_to_pink))
+class MetaData:
+    @staticmethod
+    def pay():
+        if check_run_env():  # 是终端才打印,生产环境会报错
+            console.print(qrterm.draw('wxp://f2f0g8lKGhzEsr0rwtKWTTB2gQzs9Xg9g31aBvlpbILowMTa5SAMMEwn0JH1VEf2TGbS'),
+                          justify='center')
+            console.print(
+                GradientColor.gen_gradient_text(text='欢迎微信扫码支持作者!',
+                                                gradient_color=GradientColor.yellow_to_green),
+                justify='center')
+
+    @staticmethod
+    def print_meta():
+        author_art = r'''
+       _____               _    _                          _  _        
+      / ____|             | |  | |                        (_)| |       
+     | |  __   ___  _ __  | |_ | |  ___  ___  _ __   _ __  _ | |_  ___ 
+     | | |_ | / _ \| '_ \ | __|| | / _ \/ __|| '_ \ | '__|| || __|/ _ \
+     | |__| ||  __/| | | || |_ | ||  __/\__ \| |_) || |   | || |_|  __/
+      \_____| \___||_| |_| \__||_| \___||___/| .__/ |_|   |_| \__|\___|
+                                             | |                       
+                                             |_|                       
+    '''
+        console.print(author_art, style='blink #eb4cb9', highlight=False)
+        console.print(f'[bold]{SOFTWARE_FULL_NAME} v{__version__}[/bold],\n[i]{__copyright__}[/i]'
+                      )
+        console.print(f'Licensed under the terms of the {__license__}', end='\n')
+        console.print(GradientColor.gen_gradient_text('\t软件免费使用!并且在GitHub开源,如果你付费那就是被骗了。',
+                                                      gradient_color=GradientColor.blue_to_purple))
 
 
-def print_meta():
-    author_art = r'''
-   _____               _    _                          _  _        
-  / ____|             | |  | |                        (_)| |       
- | |  __   ___  _ __  | |_ | |  ___  ___  _ __   _ __  _ | |_  ___ 
- | | |_ | / _ \| '_ \ | __|| | / _ \/ __|| '_ \ | '__|| || __|/ _ \
- | |__| ||  __/| | | || |_ | ||  __/\__ \| |_) || |   | || |_|  __/
-  \_____| \___||_| |_| \__||_| \___||___/| .__/ |_|   |_| \__|\___|
-                                         | |                       
-                                         |_|                       
+def print_helper():
+    config_helper = r'''
+# 配置文件说明
+```yaml
+# 下载完成直接打开软件即可,软件会一步一步引导你输入的!这里只是介绍每个参数的含义
+# 填入第一步教你申请的api_hash和api_id
+# 如果是按照软件的提示填,不需要加引号,如果是手动打开config.yaml修改配置,请仔细阅读下面内容
+# 手动填写注意区分冒号类型,例如 - 是:不是：
+# 手动填写的时候还请注意参数冒号不加空格会报错 后面有一个空格,例如 - api_hash: xxx而不是api_hash:xxx
+api_hash: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx #api_hash没有引号
+api_id: 'xxxxxxxx' #注意配置文件中只有api_id有引号！！！
+links: D:\path\where\your\link\txt\save\content.txt # 链接地址写法如下:
+# 新建txt文本,一个链接为一行,将路径填入即可请不要加引号,在软件运行前就准备好
+# D:\path\where\your\link\txt\save\content.txt 请注意一个链接一行
+# 列表写法已在v1.1.0版本中弃用,目前只有上述唯一写法！！！
+# 不要存在中文或特殊字符
+max_download_task: 3 # 最大的同时下载任务数 注意:如果你不是Telegram会员,那么最大同时下载数只有1
+proxy: # 代理部分,如不使用请全部填null注意冒号后面有空格,否则不生效导致报错!
+  enable_proxy: true # 是否开启代理 true为开启 false为关闭
+  hostname: 127.0.0.1 # 代理的ip地址
+  is_notice: false # 是否开启代理提示, true为每次打开询问你是否开启代理, false则为关闭
+  scheme: socks5 # 代理的类型,支持http,socks4,socks5
+  port: 10808 # 代理ip的端口
+  username: null # 代理的账号,有就填,没有请都填null!
+  password: null # 代理的密码,有就填,没有请都填null!
+save_path: F:\path\the\media\where\you\save # 下载的媒体保存的地址,没有引号,不要存在中文或特殊字符
+# 再次提醒,由于nuitka打包的性质决定,中文路径无法被打包好的二进制文件识别,故在配置文件时无论是链接路径还是媒体保存路径都请使用英文命名。
+is_shutdown: true # 是否下载完成后自动关机 true为下载完成后自动关机 false为下载完成后不关机
+```
 '''
-    console.print(author_art, style="blink #eb4cb9", highlight=False)
-    console.log(
-        f"[bold]{SOFTWARE_FULL_NAME} v{__version__}[/bold],\n[i]{__copyright__}[/i]"
-    )
-    console.log(f"Licensed under the terms of the {__license__}", end="\n")
-    console.log(GradientColor.gen_gradient_text('软件完全免费使用!并且在GitHub开源,如果你付费那就是被骗了。',
-                                                gradient_color=GradientColor.blue_to_purple))
+    markdown = Markdown(config_helper)
+    console.print(markdown)

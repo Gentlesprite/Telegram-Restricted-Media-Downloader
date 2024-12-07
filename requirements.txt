@@ -3,6 +3,5 @@ PyYAML
 rich
 qrcode
 loguru
-prettytable
 pyreadline3
 https://github.com/Gentlesprite/pyrogram/archive/refs/heads/dev.zip#egg=pyrogram

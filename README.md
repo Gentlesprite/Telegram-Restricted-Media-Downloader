@@ -26,7 +26,7 @@
 
 B站视频教程:[点击观看](https://www.bilibili.com/video/BV1nCp8evEwv)
 
-软件完全免费使用!并且在GitHub开源，如果你付费那就是被骗了。
+软件免费使用!并且在GitHub开源，如果你付费那就是被骗了。
 
 
 

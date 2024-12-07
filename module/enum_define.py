@@ -178,6 +178,36 @@ class GradientColor:
                      '#a3ada0',
                      '#b8a3ac',
                      '#cc99b8']
+    green_to_blue = ['#84fab0',
+                     '#85f6b8',
+                     '#86f1bf',
+                     '#88edc7',
+                     '#89e9ce',
+                     '#8ae4d6',
+                     '#8be0dd',
+                     '#8ddce5',
+                     '#8ed7ec',
+                     '#8fd3f4']
+    yellow_to_green = ['#d4fc79',
+                       '#cdfa7d',
+                       '#c6f782',
+                       '#bff586',
+                       '#b8f28b',
+                       '#b2f08f',
+                       '#abed94',
+                       '#a4eb98',
+                       '#9de89d',
+                       '#96e6a1']
+    new_life = ['#43e97b',
+                '#42eb85',
+                '#41ed8f',
+                '#3fee9a',
+                '#3ef0a4',
+                '#3df2ae',
+                '#3cf4b8',
+                '#3af5c3',
+                '#39f7cd',
+                '#38f9d7']
 
     @staticmethod
     def __extend_gradient_colors(colors: list, target_length: int) -> list:
