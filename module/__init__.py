@@ -20,7 +20,6 @@ from loguru import logger
 from pyrogram import utils
 from rich.console import Console
 from typing import Tuple, List, Set, Dict, Any, Optional
-from pyrogram.session import Session
 
 
 class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
