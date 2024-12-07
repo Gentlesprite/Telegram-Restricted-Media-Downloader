@@ -67,9 +67,9 @@ def render_3by2(qr_map):
     return output[:-1]
 
 
-def qr_terminal_str(str, version=1, render=render_2by1):
+def qr_terminal_str(_str, version=1, render=render_2by1):
     qr = qrcode.QRCode(version)
-    qr.add_data(str)
+    qr.add_data(_str)
     qr.make()
     qr_map = []
     qr_row = len(qr.modules) + 2
@@ -81,6 +81,6 @@ def qr_terminal_str(str, version=1, render=render_2by1):
     return render(qr_map)
 
 
-def draw(str, version=1, render=render_2by1):
-    output = qr_terminal_str(str, version=version, render=render)
-    print(output)
+def draw(_str, version=1, render=render_2by1):
+    output = qr_terminal_str(_str, version=version, render=render)
+    return output

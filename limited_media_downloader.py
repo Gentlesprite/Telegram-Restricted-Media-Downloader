@@ -10,14 +10,14 @@ from module import os
 from module import shutil
 from module import mimetypes
 from module import pyrogram
-from module import SessionRevoked, AuthKeyUnregistered, SessionExpired, RPCError
+from module import SessionRevoked, AuthKeyUnregistered, SessionExpired, MsgIdInvalid
 from module import console, logger
-from module import List, Any
+from module import List, Set, Any
 from module import TelegramRestrictedMediaDownloaderClient
-from module.app import Application, PanelTable, pay, print_meta
+from module.app import Application, PanelTable, MetaData, print_helper
 from module.unit import suitable_units_display
 from module.pyrogram_extension import get_extension
-from module.enum_define import LinkType, DownloadStatus, DownloadType, KeyWorld
+from module.enum_define import LinkType, DownloadStatus, DownloadType, KeyWorld, GradientColor
 from module.process_path import split_path, is_folder_empty, is_file_duplicate, validate_title, truncate_filename, \
     safe_delete
 
@@ -58,7 +58,8 @@ class RestrictedMediaDownloader:
                                                                                                       {}).get(
                                                                   'enable_proxy') else None,
                                                               workdir=os.path.join(os.getcwd(), 'sessions'))
-        self.current_task_num = 0
+        self.current_task_num: int = 0
+        self.max_retry_count: int = 3
         self.skip_video, self.skip_photo = set(), set()
         self.success_video, self.success_photo = set(), set()
         self.failure_video, self.failure_photo = set(), set()
@@ -78,7 +79,9 @@ class RestrictedMediaDownloader:
     def _config_table(self):
         try:
             if self.app.config.get('proxy', {}).get('enable_proxy'):
-                logger.info('当前正在使用代理!')
+                console.print(GradientColor.gen_gradient_text(
+                    text='当前正在使用代理!',
+                    gradient_color=GradientColor.green_to_blue))
                 proxy_key: list = []
                 proxy_value: list = []
                 for i in self.app.config.get('proxy').items():
@@ -87,9 +90,10 @@ class RestrictedMediaDownloader:
                         proxy_key.append(key)
                         proxy_value.append(value)
                 proxy_table = PanelTable(title='代理配置', header=tuple(proxy_key), data=[proxy_value])
-                proxy_table.print_meta(style='yellow')
+                proxy_table.print_meta()
             else:
-                logger.info('当前没有使用代理!')
+                console.print(GradientColor.gen_gradient_text(text='当前没有使用代理!',
+                                                              gradient_color=GradientColor.new_life))
         except Exception as e:
             try:
                 logger.info(self.app.config)
@@ -106,7 +110,7 @@ class RestrictedMediaDownloader:
                 format_res.append(list(i))
             link_table = PanelTable(title='链接内容', header=('编号', '链接'),
                                     data=format_res)
-            link_table.print_meta(style='#279947')
+            link_table.print_meta()
         except FileNotFoundError:  # v1.1.3 用户错误填写路径提示
             logger.error(f'读取"{file_path}"时出错。')
         except Exception as e:
@@ -148,6 +152,10 @@ class RestrictedMediaDownloader:
                     self.skip_video.add(file_name)
                 elif status == DownloadStatus.downloading:
                     self.current_task_num += 1
+            if self.failure_video and self.success_video:
+                for i in self.failure_video:
+                    if i in self.success_video:
+                        self.failure_video.remove(i)
             return res
 
         return wrapper
@@ -184,27 +192,27 @@ class RestrictedMediaDownloader:
             file_name = os.path.join(self.temp_folder, validate_title(file_name))
         return truncate_filename(file_name)
 
-    def _check_download_finish(self, sever_size: int, download_path: str, save_directory: str):
+    def _check_download_finish(self, sever_size: int, download_path: str, save_directory: str) -> bool:
         local_size: int = os.path.getsize(download_path)
         format_local_size, format_sever_size = suitable_units_display(local_size), suitable_units_display(sever_size)
         save_path: str = os.path.join(save_directory, split_path(download_path)[1])
         if sever_size == local_size:
-            # TODO: 根据下载的文件判断其类型对其精准分类计数:视频个数,图片个数
             self._move_to_download_path(temp_save_path=download_path, save_path=save_directory)
             console.print(
                 f'{self.keyword_file}:"{save_path}",'
                 f'{self.keyword_size}:{format_local_size},'
                 f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=download_path, status=DownloadStatus.success)[0].text)},'
                 f'{self.keyword_link_status}:{DownloadStatus.translate(DownloadStatus.success.text)}。',
-            )  # todo 后续加入下载任务链接的文件名,解决组或者讨论组下载的媒体链接都是一样的,但是媒体有多个,导致不好区分的问题
-
+            )
+            return True
         else:
             console.print(f'{self.keyword_file}:"{save_path}",'
                           f'{self.keyword_error_size}:{format_local_size},'
                           f'{self.keyword_actual_size}:{format_sever_size},'
                           f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=download_path, status=DownloadStatus.failure)[0].text)},'
-                          f'{self.keyword_link_status}:{self.failure_download}')
+                          f'{self.keyword_link_status}:{self.failure_download}。')
             os.remove(download_path)
+            return False
 
     async def _extract_link_content(self, msg_link):
         comment_message = []
@@ -242,10 +250,10 @@ class RestrictedMediaDownloader:
         except AttributeError:
             return None, None
 
-    async def _get_download_task(self, msg_link: str) -> set:
+    async def _get_download_task(self, msg_link: str) -> Set[asyncio.Task]:
         tasks = set()
 
-        async def add_task(message):
+        async def add_task(message, retry_count=0):
             # 判断消息类型
             _task = None
             mime_type = next((i for i in DownloadType.support_type() if getattr(message, i, None)), None)
@@ -283,18 +291,27 @@ class RestrictedMediaDownloader:
                                                    file_name=_temp_save_path))
                     console.print(f'当前任务数:{self.current_task_num}。')
 
-                    def call(future):
+                    def call(_future):
                         self.current_task_num -= 1
-                        if future.exception() is not None:
-                            console.print(f'{self.keyword_download_task_error}:"{future.exception()}"')
-                            # todo 后续可能实现下载出错重试功能
+                        if self._check_download_finish(sever_size=sever_size,
+                                                       download_path=_temp_save_path,
+                                                       save_directory=self.save_path):
+                            console.print(f'当前任务数:{self.current_task_num}。')
+                            self.event.set()
                         else:
-                            self._check_download_finish(sever_size=sever_size, download_path=_temp_save_path,
-                                                        save_directory=self.save_path)
-                        console.print(f'当前任务数:{self.current_task_num}。')
-                        self.event.set()
+                            if retry_count < self.max_retry_count:
+                                console.print(
+                                    f'[重新下载]:"{file_name}",[重试次数]:{retry_count + 1}/{self.max_retry_count}。')
+                                asyncio.create_task(add_task(message, retry_count + 1))
+                            else:
+                                console.print(f'{self.keyword_file}:"{file_name}"',
+                                              f'{self.keyword_size}:{format_file_size},'
+                                              f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=_temp_save_path, status=DownloadStatus.failure)[0].text)},'
+                                              f'{self.keyword_link_status}:{self.failure_download}'
+                                              f'(达到最大重试次数:{self.max_retry_count}次)。')
+                                self.event.set()
 
-                    _task.add_done_callback(lambda future: call(future))
+                    _task.add_done_callback(lambda _future: call(_future))
             tasks.add(_task) if _task else 0
 
         try:
@@ -333,7 +350,7 @@ class RestrictedMediaDownloader:
             error = '频道标题存在特殊字符,请移步终端下载'
             self.failure_link[msg_link] = e
             console.print(f'{self.keyword_link}:"{msg_link}"{error},原因:"{e}"', style='red')
-        except pyrogram.errors.exceptions.bad_request_400.MsgIdInvalid as e:
+        except MsgIdInvalid as e:
             self.failure_link[msg_link] = e
             console.print(f'{self.keyword_link}:"{msg_link}"消息不存在,可能已删除,{self.skip_download}。原因:"{e}"',
                           style='red')
@@ -387,16 +404,6 @@ class RestrictedMediaDownloader:
     def run(self):
         record_error = False
 
-        def _reload():
-            rmd = RestrictedMediaDownloader()
-            rmd.run()
-
-        def _backup_last_config():
-            self.app.backup_config(self.app.config_path)  # 备份config.yaml
-            self.app.history_record()  # 更新到上次填写的记录
-            self.app.config = self.app.CONFIG_TEMPLATE  # 恢复为默认配置开始重新配置
-            self.app.save_config()
-
         def _print_media_table():
             total_video = len(self.success_video) + len(self.failure_video) + len(self.skip_video)
             total_photo = len(self.success_photo) + len(self.failure_photo) + len(self.skip_photo)
@@ -413,7 +420,7 @@ class RestrictedMediaDownloader:
                                           len(self.failure_video) + len(self.failure_photo),
                                           len(self.skip_video) + len(self.skip_photo), total_video + total_photo]
                                      ])
-            media_table.print_meta(style='#06a3d7')
+            media_table.print_meta()
 
         def _print_failure_table():
             format_failure_info: list = []
@@ -422,7 +429,7 @@ class RestrictedMediaDownloader:
             failure_link_table = PanelTable(title='失败链接统计',
                                             header=('编号', '链接', '原因'),
                                             data=format_failure_info)
-            failure_link_table.print_meta(style='#e53e30')
+            failure_link_table.print_meta()
 
         def _process_shutdown():
             if self.app.config.get('is_shutdown'):
@@ -431,14 +438,14 @@ class RestrictedMediaDownloader:
                 os.system('pause')
 
         try:
-            print_meta()
+            print_helper()
+            MetaData.print_meta()
             self._config_table()
             self.client.run(self._download_media_from_links())
         except (SessionRevoked, AuthKeyUnregistered, SessionExpired, ConnectionError):
             res = safe_delete(file_path=os.path.join(self.app.DIR_NAME, 'sessions'))
             if res:
                 logger.warning('账号已失效请重新登录!')
-                _reload()  # v1.2.0 加入sessions失效重新登录功能,正常情况下不再需要手动删除。
             else:
                 logger.error('账号已失效请手动删除软件目录下的sessions文件并重新登录!')
                 exit(0)
@@ -448,18 +455,9 @@ class RestrictedMediaDownloader:
         except Exception as e:
             self.progress.stop()
             record_error = True
-            self._config_table()
             logger.error(
                 f'运行出错,原因:"{e}"')
-            while True:
-                question = console.input('是否重新配置文件?(之前的配置文件将为你备份到当前目录下) - 「y|n」:').lower()
-                if question == 'y':
-                    _backup_last_config()
-                    _reload()
-                    break
-                elif question == 'n':
-                    logger.info('软件已退出。')
-                    exit(0)
+            exit(0)
         finally:
             if self.client.is_connected:
                 self.client.stop()
@@ -467,5 +465,5 @@ class RestrictedMediaDownloader:
             if not record_error:
                 _print_media_table()
                 _print_failure_table() if self.failure_link else 0  # v1.1.2 增加下载失败的链接统计,但如果没有失败的链接将不会显示
-                pay()
+                MetaData.pay()
                 _process_shutdown()
