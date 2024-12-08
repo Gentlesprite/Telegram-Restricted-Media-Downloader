@@ -19,7 +19,7 @@ from module import yaml
 from module import CustomDumper
 from module import SOFTWARE_FULL_NAME, __version__, __copyright__, __license__
 from module.process_path import gen_backup_config
-from module.enum_define import GradientColor
+from module.enum_define import GradientColor, ArtFont
 
 
 class Validator:
@@ -760,17 +760,14 @@ class MetaData:
 
     @staticmethod
     def print_meta():
-        author_art = r'''
-       _____               _    _                          _  _        
-      / ____|             | |  | |                        (_)| |       
-     | |  __   ___  _ __  | |_ | |  ___  ___  _ __   _ __  _ | |_  ___ 
-     | | |_ | / _ \| '_ \ | __|| | / _ \/ __|| '_ \ | '__|| || __|/ _ \
-     | |__| ||  __/| | | || |_ | ||  __/\__ \| |_) || |   | || |_|  __/
-      \_____| \___||_| |_| \__||_| \___||___/| .__/ |_|   |_| \__|\___|
-                                             | |                       
-                                             |_|                       
-    '''
-        console.print(author_art, style='blink #eb4cb9', highlight=False)
+        console.print(GradientColor.gen_gradient_text(
+            text=ArtFont.author_art_3,
+            gradient_color=GradientColor.generate_gradient(
+                start_color='#fa709a',
+                end_color='#fee140',
+                steps=10)),
+            style='blink',
+            highlight=False)
         console.print(f'[bold]{SOFTWARE_FULL_NAME} v{__version__}[/bold],\n[i]{__copyright__}[/i]'
                       )
         console.print(f'Licensed under the terms of the {__license__}', end='\n')
