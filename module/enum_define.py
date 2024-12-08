@@ -222,6 +222,7 @@ class GradientColor:
 
     @staticmethod
     def gen_gradient_text(text: str, gradient_color: list) -> str:
+        """当渐变色列表小于文字长度时,翻转并扩展当前列表"""
         text_lst: list = [i for i in text]
         text_lst_len: int = len(text_lst)
         gradient_color_len: int = len(gradient_color)
@@ -232,3 +233,67 @@ class GradientColor:
         for i in range(text_lst_len):
             result += f'[{gradient_color[i]}]{text_lst[i]}[/{gradient_color[i]}]'
         return result
+
+    @staticmethod
+    def __hex_to_rgb(hex_color: str) -> tuple:
+        """将十六进制颜色值转换为RGB元组"""
+        hex_color = hex_color.lstrip('#')
+        return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+
+    @staticmethod
+    def __rgb_to_hex(r: int, g: int, b: int) -> str:
+        """将RGB元组转换为十六进制颜色值"""
+        return f"#{r:02x}{g:02x}{b:02x}"
+
+    @staticmethod
+    def generate_gradient(start_color: str, end_color: str, steps: int) -> list:
+        """根据起始和结束颜色生成颜色渐变列表"""
+        steps = 2 if steps <= 1 else steps
+        # 转换起始和结束颜色为RGB
+        start_rgb = GradientColor.__hex_to_rgb(start_color)
+        end_rgb = GradientColor.__hex_to_rgb(end_color)
+        # 生成渐变色列表
+        gradient_color: list = []
+        for i in range(steps):
+            r = int(start_rgb[0] + (end_rgb[0] - start_rgb[0]) * i / (steps - 1))
+            g = int(start_rgb[1] + (end_rgb[1] - start_rgb[1]) * i / (steps - 1))
+            b = int(start_rgb[2] + (end_rgb[2] - start_rgb[2]) * i / (steps - 1))
+            gradient_color.append(GradientColor.__rgb_to_hex(r, g, b))
+
+        return gradient_color
+
+
+class ArtFont:
+    author_art_1 = r'''
+       ______           __  __                     _ __          
+      / ____/__  ____  / /_/ /__  _________  _____(_) /____      
+     / / __/ _ \/ __ \/ __/ / _ \/ ___/ __ \/ ___/ / __/ _ \     
+    / /_/ /  __/ / / / /_/ /  __(__  ) /_/ / /  / / /_/  __/     
+    \____/\___/_/ /_/\__/_/\___/____/ .___/_/  /_/\__/\___/      
+                                   /_/                           
+        '''
+    author_art_2 = r'''
+    ╔═╗┌─┐┌┐┌┌┬┐┬  ┌─┐┌─┐┌─┐┬─┐┬┌┬┐┌─┐  
+    ║ ╦├┤ │││ │ │  ├┤ └─┐├─┘├┬┘│ │ ├┤   
+    ╚═╝└─┘┘└┘ ┴ ┴─┘└─┘└─┘┴  ┴└─┴ ┴ └─┘  
+        '''
+    author_art_3 = r'''
+     ██████╗ ███████╗███╗   ██╗████████╗██╗     ███████╗███████╗██████╗ ██████╗ ██╗████████╗███████╗    
+    ██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝██║     ██╔════╝██╔════╝██╔══██╗██╔══██╗██║╚══██╔══╝██╔════╝    
+    ██║  ███╗█████╗  ██╔██╗ ██║   ██║   ██║     █████╗  ███████╗██████╔╝██████╔╝██║   ██║   █████╗      
+    ██║   ██║██╔══╝  ██║╚██╗██║   ██║   ██║     ██╔══╝  ╚════██║██╔═══╝ ██╔══██╗██║   ██║   ██╔══╝      
+    ╚██████╔╝███████╗██║ ╚████║   ██║   ███████╗███████╗███████║██║     ██║  ██║██║   ██║   ███████╗    
+     ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚══════╝╚══════╝╚═╝     ╚═╝  ╚═╝╚═╝   ╚═╝   ╚══════╝           
+            '''
+    author_art_4 = r'''                                                                          
+                                        ,,                                       ,,                    
+  .g8"""bgd                      mm   `7MM                                       db   mm               
+.dP'     `M                      MM     MM                                            MM               
+dM'       `   .gP"Ya `7MMpMMMb.mmMMmm   MM  .gP"Ya  ,pP"Ybd `7MMpdMAo.`7Mb,od8 `7MM mmMMmm .gP"Ya      
+MM           ,M'   Yb  MM    MM  MM     MM ,M'   Yb 8I   `"   MM   `Wb  MM' "'   MM   MM  ,M'   Yb     
+MM.    `7MMF'8M""""""  MM    MM  MM     MM 8M"""""" `YMMMa.   MM    M8  MM       MM   MM  8M""""""     
+`Mb.     MM  YM.    ,  MM    MM  MM     MM YM.    , L.   I8   MM   ,AP  MM       MM   MM  YM.    ,     
+  `"bmmmdPY   `Mbmmd'.JMML  JMML.`Mbmo.JMML.`Mbmmd' M9mmmP'   MMbmmd' .JMML.   .JMML. `Mbmo`Mbmmd'     
+                                                              MM                                       
+                                                            .JMML.                                     
+    '''
