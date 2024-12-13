@@ -29,6 +29,7 @@ def suitable_units_display(number: int) -> str:
 
 
 def read_media_type(file_path) -> Tuple[List[str], List[str], Dict[str, str]]:
+    # 作者:tangyoha
     """判断并得到媒体类型文件名字列表
     参数
     ----------

@@ -4,22 +4,25 @@
 # Time:2023/10/3 1:00:03
 # File:limited_media_downloader
 import asyncio
+import traceback
 from functools import wraps
+
 from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn, TransferSpeedColumn
-from module import os
-from module import shutil
-from module import mimetypes
-from module import pyrogram
-from module import SessionRevoked, AuthKeyUnregistered, SessionExpired, MsgIdInvalid
-from module import console, logger
+
 from module import List, Set, Any
+from module import SessionRevoked, AuthKeyUnregistered, SessionExpired, MsgIdInvalid
 from module import TelegramRestrictedMediaDownloaderClient
+from module import console, logger
+from module import mimetypes
+from module import os
+from module import pyrogram
+from module import shutil
 from module.app import Application, PanelTable, MetaData, print_helper
-from module.unit import suitable_units_display
-from module.pyrogram_extension import get_extension
 from module.enum_define import LinkType, DownloadStatus, DownloadType, KeyWorld, GradientColor
 from module.process_path import split_path, is_folder_empty, is_file_duplicate, validate_title, truncate_filename, \
     safe_delete
+from module.pyrogram_extension import get_extension
+from module.unit import suitable_units_display
 
 
 class RestrictedMediaDownloader:
@@ -80,7 +83,7 @@ class RestrictedMediaDownloader:
     def _config_table(self):
         try:
             if self.app.config.get('proxy', {}).get('enable_proxy'):
-                console.print(GradientColor.gen_gradient_text(
+                console.log(GradientColor.gen_gradient_text(
                     text='当前正在使用代理!',
                     gradient_color=GradientColor.green_to_blue))
                 proxy_key: list = []
@@ -93,8 +96,8 @@ class RestrictedMediaDownloader:
                 proxy_table = PanelTable(title='代理配置', header=tuple(proxy_key), data=[proxy_value])
                 proxy_table.print_meta()
             else:
-                console.print(GradientColor.gen_gradient_text(text='当前没有使用代理!',
-                                                              gradient_color=GradientColor.new_life))
+                console.log(GradientColor.gen_gradient_text(text='当前没有使用代理!',
+                                                            gradient_color=GradientColor.new_life))
         except Exception as e:
             try:
                 logger.info(self.app.config)
@@ -123,7 +126,7 @@ class RestrictedMediaDownloader:
         if os.path.isdir(save_path):
             shutil.move(temp_save_path, save_path)
         else:
-            console.print(f'"{save_path}"不是一个目录,已将文件下载到默认目录。')
+            console.log(f'"{save_path}"不是一个目录,已将文件下载到默认目录。')
             if is_folder_empty(save_path):
                 os.rmdir(save_path)
             save_path = os.path.join(os.getcwd(), 'downloads')
@@ -174,23 +177,40 @@ class RestrictedMediaDownloader:
         return result, status
 
     def _get_temp_path(self, message: pyrogram.types.Message,
-                       mime_type: DownloadType) -> str:
+                       dtype: DownloadType.text) -> str:
         file_name = None
         os.makedirs(self.temp_folder, exist_ok=True)
-        if mime_type == DownloadType.video.text:
-            file_name = "{} - {}.{}".format(
-                message.id,
-                os.path.splitext(f'{message.video.file_name}')[0],
-                get_extension(file_id=message.video.file_id, mime_type=DownloadType.video.text, dot=False)
+
+        def _process_video(msg_obj: pyrogram.types, _dtype: DownloadType.text):
+            _meta_obj = getattr(msg_obj, _dtype)
+            _file_name = "{} - {}.{}".format(
+                getattr(msg_obj, 'id'),
+                os.path.splitext(getattr(_meta_obj, 'file_name'))[0],
+                get_extension(file_id=_meta_obj.file_id, mime_type=getattr(_meta_obj, 'mime_type'), dot=False)
             )
-            file_name = os.path.join(self.temp_folder, validate_title(file_name))
-        elif mime_type == DownloadType.photo.text:
-            file_name = "{} - {}.{}".format(
-                message.id,
-                message.photo.file_unique_id,
-                get_extension(file_id=message.photo.file_id, mime_type=DownloadType.photo.text, dot=False)
+            _file_name = os.path.join(self.temp_folder, validate_title(_file_name))
+            return _file_name
+
+        def _process_photo(msg_obj: pyrogram.types, _dtype: DownloadType.text):
+            _meta_obj = getattr(msg_obj, _dtype)
+            _file_name = "{} - {}.{}".format(
+                getattr(msg_obj, 'id'),
+                _meta_obj.file_unique_id,
+                get_extension(file_id=_meta_obj.file_id, mime_type=getattr(_meta_obj, 'mime_type'), dot=False)
             )
-            file_name = os.path.join(self.temp_folder, validate_title(file_name))
+            _file_name = os.path.join(self.temp_folder, validate_title(_file_name))
+            return _file_name
+
+        if dtype == DownloadType.video.text:
+            file_name = _process_video(msg_obj=message, _dtype=dtype)
+        elif dtype == DownloadType.photo.text:
+            file_name = _process_photo(msg_obj=message, _dtype=dtype)
+        elif dtype == DownloadType.document.text:
+            _mime_type = getattr(getattr(message, dtype), 'mime_type')
+            if 'video' in _mime_type:
+                file_name = _process_video(msg_obj=message, _dtype=dtype)
+            elif 'image' in _mime_type:
+                file_name = _process_photo(msg_obj=message, _dtype=dtype)
         return truncate_filename(file_name)
 
     def _check_download_finish(self, sever_size: int, download_path: str, save_directory: str) -> bool:
@@ -199,7 +219,7 @@ class RestrictedMediaDownloader:
         save_path: str = os.path.join(save_directory, split_path(download_path)[1])
         if sever_size == local_size:
             self._move_to_download_path(temp_save_path=download_path, save_path=save_directory)
-            console.print(
+            console.log(
                 f'{self.keyword_file}:"{save_path}",'
                 f'{self.keyword_size}:{format_local_size},'
                 f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=download_path, status=DownloadStatus.success)[0].text)},'
@@ -207,11 +227,11 @@ class RestrictedMediaDownloader:
             )
             return True
         else:
-            console.print(f'{self.keyword_file}:"{save_path}",'
-                          f'{self.keyword_error_size}:{format_local_size},'
-                          f'{self.keyword_actual_size}:{format_sever_size},'
-                          f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=download_path, status=DownloadStatus.failure)[0].text)},'
-                          f'{self.keyword_link_status}:{self.failure_download}。')
+            console.log(f'{self.keyword_file}:"{save_path}",'
+                        f'{self.keyword_error_size}:{format_local_size},'
+                        f'{self.keyword_actual_size}:{format_sever_size},'
+                        f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=download_path, status=DownloadStatus.failure)[0].text)},'
+                        f'{self.keyword_link_status}:{self.failure_download}。')
             os.remove(download_path)
             return False
 
@@ -251,36 +271,49 @@ class RestrictedMediaDownloader:
         except AttributeError:
             return None, None
 
+    def _get_media_meta(self, message, dtype) -> dict:
+        temp_save_path: str = self._get_temp_path(message, dtype)
+        _sever_meta = getattr(message, dtype)
+        sever_size: int = getattr(_sever_meta, 'file_size')
+        file_name: str = split_path(temp_save_path)[1]
+        console.log(file_name)
+        local_file_path: str = os.path.join(self.save_path, file_name)
+        format_file_size: str = suitable_units_display(sever_size)
+        return {'temp_save_path': temp_save_path,
+                'sever_size': sever_size,
+                'file_name': file_name,
+                'local_file_path': local_file_path,
+                'format_file_size': format_file_size}
+
     async def _get_download_task(self, msg_link: str) -> Set[asyncio.Task]:
         tasks = set()
 
         async def add_task(message, retry_count=0):
             # 判断消息类型
+            # message.document
             _task = None
-            mime_type = next((i for i in DownloadType.support_type() if getattr(message, i, None)), None)
+            valid_dtype = next((i for i in DownloadType.support_type() if getattr(message, i, None)),
+                               None)  # 判断该链接是否为视频或图片
             # 如果是匹配到的消息类型就创建任务
-            if mime_type:
-                _temp_save_path: str = self._get_temp_path(message, mime_type)
+            if valid_dtype:
                 while self.current_task_num >= self.max_download_task:  # v1.0.7 增加下载任务数限制
                     await self.event.wait()
                     self.event.clear()
-                sever_meta = getattr(message, mime_type)
-                sever_size: int = getattr(sever_meta, 'file_size')
-                file_name: str = split_path(_temp_save_path)[1]
-                local_file_path: str = os.path.join(self.save_path, file_name)
-                format_file_size: str = suitable_units_display(sever_size)
+                temp_save_path, sever_size, file_name, local_file_path, format_file_size = self._get_media_meta(
+                    message=message,
+                    dtype=valid_dtype).values()
                 if is_file_duplicate(local_file_path=local_file_path,
                                      sever_size=sever_size):  # 检测是否存在
-                    console.print(f'{self.keyword_file}:"{file_name}",'
-                                  f'{self.keyword_size}:{format_file_size},'
-                                  f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=file_name, status=DownloadStatus.skip)[0].text)},'
-                                  f'{self.keyword_already_exist}:"{local_file_path}",'
-                                  f'{self.keyword_link_status}:{self.skip_download}。', style='yellow')
+                    console.log(f'{self.keyword_file}:"{file_name}",'
+                                f'{self.keyword_size}:{format_file_size},'
+                                f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=file_name, status=DownloadStatus.skip)[0].text)},'
+                                f'{self.keyword_already_exist}:"{local_file_path}",'
+                                f'{self.keyword_link_status}:{self.skip_download}。', style='yellow')
                 else:
-                    console.print(f'{self.keyword_file}:"{file_name}",'
-                                  f'{self.keyword_size}:{format_file_size},'
-                                  f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=file_name, status=DownloadStatus.downloading)[0].text)},'
-                                  f'{self.keyword_link_status}:{self.downloading}。')
+                    console.log(f'{self.keyword_file}:"{file_name}",'
+                                f'{self.keyword_size}:{format_file_size},'
+                                f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=file_name, status=DownloadStatus.downloading)[0].text)},'
+                                f'{self.keyword_link_status}:{self.downloading}。')
                     task_id = self.progress.add_task(description='',
                                                      filename=file_name,
                                                      info=f'0.00B/{suitable_units_display(sever_size)}',
@@ -289,27 +322,27 @@ class RestrictedMediaDownloader:
                         self.client.download_media(message=message,
                                                    progress_args=(self.progress, task_id),
                                                    progress=self._download_bar,
-                                                   file_name=_temp_save_path))
-                    console.print(f'当前任务数:{self.current_task_num}。')
+                                                   file_name=temp_save_path))
+                    console.log(f'当前任务数:{self.current_task_num}。')
 
                     def call(_future):
                         self.current_task_num -= 1
                         if self._check_download_finish(sever_size=sever_size,
-                                                       download_path=_temp_save_path,
+                                                       download_path=temp_save_path,
                                                        save_directory=self.save_path):
-                            console.print(f'当前任务数:{self.current_task_num}。')
+                            console.log(f'当前任务数:{self.current_task_num}。')
                             self.event.set()
                         else:
                             if retry_count < self.max_retry_count:
-                                console.print(
+                                console.log(
                                     f'[重新下载]:"{file_name}",[重试次数]:{retry_count + 1}/{self.max_retry_count}。')
                                 asyncio.create_task(add_task(message, retry_count + 1))
                             else:
-                                console.print(f'{self.keyword_file}:"{file_name}"',
-                                              f'{self.keyword_size}:{format_file_size},'
-                                              f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=_temp_save_path, status=DownloadStatus.failure)[0].text)},'
-                                              f'{self.keyword_link_status}:{self.failure_download}'
-                                              f'(达到最大重试次数:{self.max_retry_count}次)。')
+                                console.log(f'{self.keyword_file}:"{file_name}"',
+                                            f'{self.keyword_size}:{format_file_size},'
+                                            f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=temp_save_path, status=DownloadStatus.failure)[0].text)},'
+                                            f'{self.keyword_link_status}:{self.failure_download}'
+                                            f'(达到最大重试次数:{self.max_retry_count}次)。')
                                 self.event.set()
 
                     _task.add_done_callback(lambda _future: call(_future))
@@ -327,7 +360,7 @@ class RestrictedMediaDownloader:
                         group = []
                         group.extend(is_download_comment)
                 link_type = LinkType.comment.text if is_download_comment else LinkType.group.text
-                console.print(
+                console.log(
                     f'{self.keyword_chanel}:"{chat_name}",'  # 频道名
                     f'{self.keyword_link}:"{msg_link}",'  # 链接
                     f'{self.keyword_link_type}:{LinkType.translate(link_type)}。')  # 链接类型
@@ -335,7 +368,7 @@ class RestrictedMediaDownloader:
 
             elif res is False and group is None:  # 单文件
                 link_type = LinkType.single.text
-                console.print(
+                console.log(
                     f'{self.keyword_chanel}:"{chat_name}",'  # 频道名
                     f'{self.keyword_link}:"{msg_link}",'  # 链接
                     f'{self.keyword_link_type}:{LinkType.translate(link_type)}。')  # 链接类型
@@ -343,24 +376,25 @@ class RestrictedMediaDownloader:
             elif res is None and group is None:
                 error = '消息不存在,频道已解散或未在频道中'
                 self.failure_link[msg_link] = error
-                console.print(
+                console.log(
                     f'{self.keyword_link}:"{msg_link}"{error},{self.skip_download}。', style='yellow')
             elif res is None and group == 0:
-                console.print(f'读取"{msg_link}"时出现未知错误,{self.skip_download}。', style='red')
+                console.log(f'读取"{msg_link}"时出现未知错误,{self.skip_download}。', style='red')
         except UnicodeEncodeError as e:
             error = '频道标题存在特殊字符,请移步终端下载'
             self.failure_link[msg_link] = e
-            console.print(f'{self.keyword_link}:"{msg_link}"{error},原因:"{e}"', style='red')
+            console.log(f'{self.keyword_link}:"{msg_link}"{error},原因:"{e}"', style='red')
         except MsgIdInvalid as e:
             self.failure_link[msg_link] = e
-            console.print(f'{self.keyword_link}:"{msg_link}"消息不存在,可能已删除,{self.skip_download}。原因:"{e}"',
-                          style='red')
+            console.log(f'{self.keyword_link}:"{msg_link}"消息不存在,可能已删除,{self.skip_download}。原因:"{e}"',
+                        style='red')
         except Exception as e:
             self.failure_link[msg_link] = e
             # todo 测试倘若频道中确实不存在的报错,进行判断提示,非该错误则不提示,并且注意区分错误在于未加入频道,还是已加入频道视频被删了,甚至是频道直接解散了
-            console.print(
+            console.log(
                 f'{self.keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{self.skip_download}。原因:"{e}"',
                 style='red')
+            traceback.print_exc()
         finally:
             return tasks
 

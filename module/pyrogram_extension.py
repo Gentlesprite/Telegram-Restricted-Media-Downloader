@@ -1,5 +1,5 @@
 # coding=UTF-8
-# Author:LZY/我不是盘神
+# Author:from Internet
 # Software:PyCharm
 # Time:2023/11/12 20:52:12
 # File:pyrogram_extension.py
@@ -15,12 +15,15 @@ from pyrogram.file_id import (
 import struct
 from module import mimetypes
 from module import Optional
+from module.enum_define import Extension
 
 _mimetypes = mimetypes.MimeTypes()
 
 
 def get_extension(file_id: str, mime_type: str, dot: bool = True) -> str:
-    """Get extension"""
+    """Get extension
+    更多扩展见:http://www.iana.org/assignments/media-types/media-types.xhtml
+    """
 
     if not file_id:
         if dot:
@@ -32,28 +35,34 @@ def get_extension(file_id: str, mime_type: str, dot: bool = True) -> str:
     guessed_extension = _guess_extension(mime_type)
 
     if file_type in PHOTO_TYPES:
-        extension = "jpg"
+        extension = Extension.photo.get(mime_type, 'jpg')
     elif file_type == FileType.VOICE:
-        extension = guessed_extension or "ogg"
+        extension = guessed_extension or 'ogg'
     elif file_type in (FileType.VIDEO, FileType.ANIMATION, FileType.VIDEO_NOTE):
-        extension = guessed_extension or "mp4"
+        extension = guessed_extension or Extension.video.get(mime_type, 'mp4')
     elif file_type == FileType.DOCUMENT:
-        extension = guessed_extension or "zip"
+        if 'video' in mime_type:
+            extension = guessed_extension or Extension.video.get(mime_type, 'mp4')
+        elif 'image' in mime_type:
+            extension = guessed_extension or Extension.video.get(mime_type, 'jpg')
+        else:
+            extension = guessed_extension or 'zip'
     elif file_type == FileType.STICKER:
-        extension = guessed_extension or "webp"
+        extension = guessed_extension or 'webp'
     elif file_type == FileType.AUDIO:
-        extension = guessed_extension or "mp3"
+        extension = guessed_extension or 'mp3'
     else:
-        extension = "unknown"
+        extension = 'unknown'
 
     if dot:
-        extension = "." + extension
+        extension = '.' + extension
     return extension
 
 
 def _guess_extension(mime_type: str) -> Optional[str]:
-    """Guess extension"""
-    return _mimetypes.guess_extension(mime_type)
+    """Guess the file extension from a MIME type return without dot if extension isn't None."""
+    extension = mimetypes.guess_extension(mime_type, strict=True)
+    return extension[1:] if extension and extension.startswith('.') else extension
 
 
 def _get_file_type(file_id: str):
