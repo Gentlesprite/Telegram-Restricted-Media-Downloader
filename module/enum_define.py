@@ -35,12 +35,14 @@ class LinkType(Enum):
 class DownloadType(Enum):
     video = 0
     photo = 1
+    document = 2
 
     @property
     def text(self):
         return {
             DownloadType.video: 'video',
-            DownloadType.photo: 'photo'
+            DownloadType.photo: 'photo',
+            DownloadType.document: 'document'
         }[self]
 
     @staticmethod
@@ -51,7 +53,8 @@ class DownloadType(Enum):
     def translate(text: 'DownloadType.text'):
         translation = {
             DownloadType.video.text: '视频',
-            DownloadType.photo.text: '图片'
+            DownloadType.photo.text: '图片',
+            DownloadType.document.text: '文档'
         }
         if text in translation:
             return translation[text]
@@ -151,6 +154,36 @@ class KeyWorld(Enum):
                 return translation[text]
         else:
             raise ValueError(f'Unsupported Keyword:{text}')
+
+
+class Extension:
+    photo = {'image/avif': 'avif',
+             'image/bmp': 'bmp',
+             'image/gif': 'gif',
+             'image/ief': 'ief',
+             'image/jpeg': 'jpeg',
+             'image/heic': 'heic',
+             'image/heif': 'heif',
+             'image/png': 'png',
+             'image/svg+xml': 'svg',
+             'image/tiff': 'tif',
+             'image/vnd.microsoft.icon': 'ico',
+             'image/x-cmu-raster': 'ras',
+             'image/x-portable-anymap': 'pnm',
+             'image/x-portable-bitmap': 'pbm',
+             'image/x-portable-graymap': 'pgm',
+             'image/x-portable-pixmap': 'ppm',
+             'image/x-rgb': 'rgb',
+             'image/x-xbitmap': 'xbm',
+             'image/x-xpixmap': 'xpm',
+             'image/x-xwindowdump': 'xwd'}
+    video = {'video/mp4': 'mp4',
+             'video/mpeg': 'mpg',
+             'video/quicktime': 'qt',
+             'video/webm': 'webm',
+             'video/x-msvideo': 'avi',
+             'video/x-sgi-movie': 'movie',
+             'video/x-matroska': 'mkv'}
 
 
 class GradientColor:

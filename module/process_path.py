@@ -3,6 +3,7 @@
 # Software:PyCharm
 # Time:2023/11/13 20:34:13
 # File:process_path.py
+# 部分代码源于作者:tangyoha
 import re
 import unicodedata
 from module import os
@@ -41,6 +42,7 @@ def validate_title(title: str) -> str:
 
 
 def truncate_filename(path: str, limit: int = 230) -> str:
+    #作者:tangyoha
     """将文件名截断到最大长度。
     Parameters
     ----------

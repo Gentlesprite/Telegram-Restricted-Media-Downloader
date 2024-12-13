@@ -178,12 +178,12 @@ class CustomDumper(yaml.Dumper):
         return self.represent_scalar('tag:yaml.org,2002:null', '~')
 
 
-console = Console()
+console = Console(log_path=False)
 utils.get_peer_type = get_peer_type_new
-__version__ = '1.2.1'
+__version__ = '1.2.2'
 __license__ = "MIT License"
-__copyright__ = "Copyright (C) 2024 Gentlesprite <https://github.com/Gentlesprite>"
-__update_date__ = '2024/12/08 17:34:13'
+__update_date__ = '2024/12/14 00:53:04'
+__copyright__ = f'Copyright (C) {__update_date__[:4]} Gentlesprite <https://github.com/Gentlesprite>'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_NAME = 'TRMD'
 author = 'Gentlesprite'
