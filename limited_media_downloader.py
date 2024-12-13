@@ -183,7 +183,7 @@ class RestrictedMediaDownloader:
 
         def _process_video(msg_obj: pyrogram.types, _dtype: DownloadType.text):
             _meta_obj = getattr(msg_obj, _dtype)
-            _file_name = "{} - {}.{}".format(
+            _file_name = '{} - {}.{}'.format(
                 getattr(msg_obj, 'id'),
                 os.path.splitext(getattr(_meta_obj, 'file_name'))[0],
                 get_extension(file_id=_meta_obj.file_id, mime_type=getattr(_meta_obj, 'mime_type'), dot=False)
@@ -193,10 +193,17 @@ class RestrictedMediaDownloader:
 
         def _process_photo(msg_obj: pyrogram.types, _dtype: DownloadType.text):
             _meta_obj = getattr(msg_obj, _dtype)
-            _file_name = "{} - {}.{}".format(
+            extension = 'unknown'
+            if _dtype == DownloadType.photo.text:
+                extension = get_extension(file_id=_meta_obj.file_id, mime_type='image',
+                                          dot=False)
+            elif _dtype == DownloadType.document.text:
+                extension = get_extension(file_id=_meta_obj.file_id, mime_type=getattr(_meta_obj, 'mime_type'),
+                                          dot=False)
+            _file_name = '{} - {}.{}'.format(
                 getattr(msg_obj, 'id'),
                 _meta_obj.file_unique_id,
-                get_extension(file_id=_meta_obj.file_id, mime_type=getattr(_meta_obj, 'mime_type'), dot=False)
+                extension
             )
             _file_name = os.path.join(self.temp_folder, validate_title(_file_name))
             return _file_name
