@@ -84,11 +84,11 @@ class RestrictedMediaDownloader:
     def _get_download_type(self):
         self.download_type: list = self.app.config.get('download_type', None)
         if self.download_type is not None:
-            self.record_dtype.update(self.download_type)
+            self.record_dtype.update(self.download_type)  # v1.2.4 修复特定情况结束后不显示表格问题
             self.download_type.append(DownloadType.document.text)
         else:
             self.download_type: list = DownloadType.support_type()
-            self.record_dtype: set = {DownloadType.video.text, DownloadType.photo.text}
+            self.record_dtype: set = {DownloadType.video.text, DownloadType.photo.text}  # v1.2.4 修复此处报错问题v1.2.3此处有致命错误
             console.log('读取配置文件失败,已使用默认下载类型:3.视频和图片。')
 
     def _config_table(self):
