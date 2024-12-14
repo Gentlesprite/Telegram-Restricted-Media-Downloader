@@ -10,15 +10,18 @@ import atexit
 import shutil
 import readline
 import pyrogram
-from pyrogram.errors import FloodWait
-from pyrogram.errors.exceptions.bad_request_400 import MsgIdInvalid
-from pyrogram.errors.exceptions.unauthorized_401 import SessionRevoked, AuthKeyUnregistered, SessionExpired
+import logging
 import datetime
 import mimetypes
+from pyrogram.errors import FloodWait
+from pyrogram.errors.exceptions.bad_request_400 import MsgIdInvalid, UsernameInvalid
+from pyrogram.errors.exceptions.unauthorized_401 import SessionRevoked, AuthKeyUnregistered, SessionExpired
 from ctypes import windll
-from loguru import logger
-from pyrogram import utils
 from rich.console import Console
+from rich.logging import RichHandler
+from logging import Formatter
+from logging.handlers import RotatingFileHandler
+from pyrogram import utils
 from typing import Tuple, List, Set, Dict, Any, Optional
 
 
@@ -47,7 +50,7 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
                         if confirm == 'y' or confirm == '':
                             break
                         else:
-                            logger.warning(f'意外的参数:"{confirm}",支持的参数 - 「y|n」(默认y)')
+                            log.warning(f'意外的参数:"{confirm}",支持的参数 - 「y|n」(默认y)')
                     if ":" in value:
                         self.bot_token = value
                         return await self.sign_in_bot(value)
@@ -180,19 +183,38 @@ class CustomDumper(yaml.Dumper):
 
 console = Console(log_path=False)
 utils.get_peer_type = get_peer_type_new
-__version__ = '1.2.2'
+__version__ = '1.2.3'
 __license__ = "MIT License"
-__update_date__ = '2024/12/14 01:44:35'
+__update_date__ = '2024/12/14 23:10:19'
 __copyright__ = f'Copyright (C) {__update_date__[:4]} Gentlesprite <https://github.com/Gentlesprite>'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_NAME = 'TRMD'
 author = 'Gentlesprite'
 APPDATA_PATH = os.path.join(os.environ['APPDATA'], SOFTWARE_NAME)
-LOG_PATH = os.path.join(APPDATA_PATH, f'{SOFTWARE_NAME}_LOG.log')
 INPUT_HISTORY_PATH = os.path.join(APPDATA_PATH, f'.{SOFTWARE_NAME}_HISTORY')
 MAX_RECORD_LENGTH = 1000
 read_input_history(history_path=INPUT_HISTORY_PATH, max_record_len=MAX_RECORD_LENGTH)
+
 # 配置日志输出到文件
-logger.add(sink=LOG_PATH, level='INFO', rotation='10 MB', retention='10 days', compression='zip', encoding='UTF-8',
-           enqueue=True)
+LOG_PATH = os.path.join(APPDATA_PATH, f'{SOFTWARE_NAME}_LOG.log')
+MAX_LOG_SIZE = 3 * 1024 * 1024  # 3 MB
+BACKUP_COUNT = 3  # 保留最近3个日志文件
+
+# 配置日志文件处理器（支持日志轮换）
+file_handler = RotatingFileHandler(
+    filename=LOG_PATH, maxBytes=MAX_LOG_SIZE, backupCount=BACKUP_COUNT
+)
+file_handler.setFormatter(logging.Formatter("%(message)s"))
+# 配置日志记录器
+logging.basicConfig(
+    level=logging.WARNING,
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[
+        RichHandler(rich_tracebacks=True),  # 终端输出
+        file_handler  # 文件输出
+    ]
+)
+log = logging.getLogger('rich')
+
 CustomDumper.add_representer(type(None), CustomDumper.represent_none)

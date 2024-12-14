@@ -2,6 +2,5 @@ tgcrypto
 PyYAML
 rich
 qrcode
-loguru
 pyreadline3
 https://github.com/Gentlesprite/pyrogram/archive/refs/heads/dev.zip#egg=pyrogram
