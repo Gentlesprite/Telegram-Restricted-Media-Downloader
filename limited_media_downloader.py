@@ -4,15 +4,12 @@
 # Time:2023/10/3 1:00:03
 # File:limited_media_downloader
 import asyncio
-import traceback
 from functools import wraps
-
 from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn, TransferSpeedColumn
-
 from module import List, Set, Any
-from module import SessionRevoked, AuthKeyUnregistered, SessionExpired, MsgIdInvalid
+from module import SessionRevoked, AuthKeyUnregistered, SessionExpired, MsgIdInvalid, UsernameInvalid
 from module import TelegramRestrictedMediaDownloaderClient
-from module import console, logger
+from module import console, log
 from module import mimetypes
 from module import os
 from module import pyrogram
@@ -50,6 +47,8 @@ class RestrictedMediaDownloader:
         self.app = Application()
         self.app.config_guide()
         self.temp_folder: str = self.app.TEMP_FOLDER
+        self.download_type: list = []
+        self._get_download_type()
         self.save_path: str = self.app.config.get('save_path')
         self.max_download_task: int = self.app.config.get('max_download_task')
         self.links: List[str] or str = self.app.config.get('links')
@@ -64,6 +63,7 @@ class RestrictedMediaDownloader:
                                                               workdir=os.path.join(os.getcwd(), 'sessions'))
         self.current_task_num: int = 0
         self.max_retry_count: int = 3
+        self.record_dtype: set = set()
         self.skip_video, self.skip_photo = set(), set()
         self.success_video, self.success_photo = set(), set()
         self.failure_video, self.failure_photo = set(), set()
@@ -79,6 +79,15 @@ class RestrictedMediaDownloader:
                                  TimeRemainingColumn(),
                                  console=console
                                  )
+
+    def _get_download_type(self):
+        self.download_type: list = self.app.config.get('download_type', None)
+        if self.download_type is not None:
+            self.download_type.append(DownloadType.document.text)
+        else:
+            self.download_type: list = DownloadType.support_type()
+            self.record_dtype: set = {DownloadType.video.text, DownloadType.photo.text}
+            console.log('读取配置文件失败,已使用默认下载类型:3.视频和图片。')
 
     def _config_table(self):
         try:
@@ -100,10 +109,10 @@ class RestrictedMediaDownloader:
                                                             gradient_color=GradientColor.new_life))
         except Exception as e:
             try:
-                logger.info(self.app.config)
+                console.log(msg=self.app.config)
             except Exception as _:
-                logger.error(f'配置信息打印错误!原因"{_}"')
-            logger.error(f'表格打印错误!原因"{e}"')
+                log.exception(_, exc_info=False)
+            log.exception(e, exc_info=False)
         file_path = self.app.config.get('links')
         try:
             # 展示链接内容表格
@@ -116,9 +125,20 @@ class RestrictedMediaDownloader:
                                     data=format_res)
             link_table.print_meta()
         except FileNotFoundError:  # v1.1.3 用户错误填写路径提示
-            logger.error(f'读取"{file_path}"时出错。')
+            console.log(f'读取"{file_path}"时出错。', style='red')
         except Exception as e:
-            logger.error(f'读取"{file_path}"时出错,原因:{e}')
+            console.log(f'读取"{file_path}"时出错,原因:{e}', style='red')
+        try:
+            _dtype = self.download_type.copy()  # 浅拷贝赋值给_dtype,避免传入函数后改变原数据
+            data = [[DownloadType.translate(DownloadType.video.text),
+                     self.app.get_dtype(_dtype).get('video')],
+                    [DownloadType.translate(DownloadType.photo.text),
+                     self.app.get_dtype(_dtype).get('photo')]]
+            download_type_table = PanelTable(title='下载类型', header=('类型', '是否下载'), data=data)
+            download_type_table.print_meta()
+
+        except Exception as e:
+            console.log(f'读取"{file_path}"时出错,原因:{e}', style='red')
 
     @staticmethod
     def _move_to_download_path(temp_save_path: str, save_path: str):
@@ -283,7 +303,6 @@ class RestrictedMediaDownloader:
         _sever_meta = getattr(message, dtype)
         sever_size: int = getattr(_sever_meta, 'file_size')
         file_name: str = split_path(temp_save_path)[1]
-        console.log(file_name)
         local_file_path: str = os.path.join(self.save_path, file_name)
         format_file_size: str = suitable_units_display(sever_size)
         return {'temp_save_path': temp_save_path,
@@ -297,12 +316,34 @@ class RestrictedMediaDownloader:
 
         async def add_task(message, retry_count=0):
             # 判断消息类型
-            # message.document
             _task = None
             valid_dtype = next((i for i in DownloadType.support_type() if getattr(message, i, None)),
-                               None)  # 判断该链接是否为视频或图片
-            # 如果是匹配到的消息类型就创建任务
-            if valid_dtype:
+                               None)  # 判断该链接是否为视频或图片,文档
+            is_document_type_valid = None
+            # 当媒体文件是文档形式的,需要根据配置需求将视频和图片过滤出来
+            if getattr(message, 'document'):
+                mime_type = message.document.mime_type  # 获取document的mime_type
+                # 只下载视频的情况
+                if DownloadType.video.text in self.download_type and DownloadType.photo.text not in self.download_type:
+                    if 'video' in mime_type:
+                        is_document_type_valid = True  # 允许下载视频
+                        self.record_dtype.add(DownloadType.video.text)
+                    elif 'image' in mime_type:
+                        is_document_type_valid = False  # 跳过下载图片
+                # 只下载图片的情况
+                elif DownloadType.photo.text in self.download_type and DownloadType.video.text not in self.download_type:
+                    if 'video' in mime_type:
+                        is_document_type_valid = False  # 跳过下载视频
+                    elif 'image' in mime_type:
+                        is_document_type_valid = True  # 允许下载图片
+                        self.record_dtype.add(DownloadType.photo.text)
+                else:
+                    is_document_type_valid = True
+                    self.record_dtype = {DownloadType.video.text, DownloadType.photo.text}
+            else:
+                is_document_type_valid = True
+            if valid_dtype in self.download_type and is_document_type_valid:
+                # 如果是匹配到的消息类型就创建任务
                 while self.current_task_num >= self.max_download_task:  # v1.0.7 增加下载任务数限制
                     await self.event.wait()
                     self.event.clear()
@@ -395,13 +436,15 @@ class RestrictedMediaDownloader:
             self.failure_link[msg_link] = e
             console.log(f'{self.keyword_link}:"{msg_link}"消息不存在,可能已删除,{self.skip_download}。原因:"{e}"',
                         style='red')
+        except UsernameInvalid as e:
+            self.failure_link[msg_link] = e
+            console.log(
+                f'{self.keyword_link}:"{msg_link}频道用户名无效,该链接的频道用户名可能已更改或频道已解散,{self.skip_download}。原因:"{e}"',
+                style='red')
         except Exception as e:
             self.failure_link[msg_link] = e
-            # todo 测试倘若频道中确实不存在的报错,进行判断提示,非该错误则不提示,并且注意区分错误在于未加入频道,还是已加入频道视频被删了,甚至是频道直接解散了
             console.log(
-                f'{self.keyword_link}:"{msg_link}"消息不存在,频道已解散或未在频道中,{self.skip_download}。原因:"{e}"',
-                style='red')
-            traceback.print_exc()
+                f'{self.keyword_link}:"{msg_link}"未收录到的错误,{self.skip_download}。原因:"{e}"', style='red')
         finally:
             return tasks
 
@@ -422,16 +465,18 @@ class RestrictedMediaDownloader:
                         if link.startswith(start_content):
                             msg_link_list.append(link)
                         else:
-                            logger.warning(f'"{link}"是一个非法链接,{self.keyword_link_status}:{self.skip_download}。')
+                            console.log(f'"{link}"是一个非法链接,{self.keyword_link_status}:{self.skip_download}。',
+                                        style='yellow')
             elif not os.path.isfile(links):  # v1.1.3 优化非文件时的提示和逻辑
                 if links.endswith('.txt'):
-                    logger.error(f'文件"{links}"不存在。')
+                    console.log(f'文件"{links}"不存在。', style='red')
                 else:
-                    logger.error(f'"{links}"是一个目录或其他未知内容,并非.txt结尾的文本文件,请更正配置文件后重试。')
+                    console.log(f'"{links}"是一个目录或其他未知内容,并非.txt结尾的文本文件,请更正配置文件后重试。',
+                                style='red')
         if len(msg_link_list) > 0:
             return msg_link_list
         else:
-            logger.info('没有找到有效链接,程序已退出。')
+            console.log('没有找到有效链接,程序已退出。')
             exit()
 
     async def _download_media_from_links(self):
@@ -447,22 +492,64 @@ class RestrictedMediaDownloader:
         record_error = False
 
         def _print_media_table():
+            header = ('种类&状态', '成功下载', '失败下载', '跳过下载', '合计')
+            if DownloadType.document.text in self.download_type:
+                self.download_type.remove(DownloadType.document.text)
             total_video = len(self.success_video) + len(self.failure_video) + len(self.skip_video)
             total_photo = len(self.success_photo) + len(self.failure_photo) + len(self.skip_photo)
-            media_table = PanelTable(title='媒体下载统计',
-                                     header=('种类&状态', '成功下载', '失败下载', '跳过下载', '合计'),
-                                     data=[
-                                         ['视频', len(self.success_video), len(self.failure_video),
-                                          len(self.skip_video),
-                                          total_video],
-                                         ['图片', len(self.success_photo), len(self.failure_photo),
-                                          len(self.skip_photo),
-                                          total_photo],
-                                         ['合计', len(self.success_video) + len(self.success_photo),
-                                          len(self.failure_video) + len(self.failure_photo),
-                                          len(self.skip_video) + len(self.skip_photo), total_video + total_photo]
-                                     ])
-            media_table.print_meta()
+            self.progress.stop()
+            if len(self.record_dtype) == 1:
+                _compare_dtype: list = list(self.record_dtype)[0]
+                if _compare_dtype == 'video':  # 只有视频的情况
+                    video_table = PanelTable(title='视频下载统计',
+                                             header=header,
+                                             data=[
+                                                 [DownloadType.translate(DownloadType.video.text),
+                                                  len(self.success_video),
+                                                  len(self.failure_video),
+                                                  len(self.skip_video),
+                                                  total_video],
+                                                 ['合计', len(self.success_video),
+                                                  len(self.failure_video),
+                                                  len(self.skip_video),
+                                                  total_video]
+                                             ]
+                                             )
+                    video_table.print_meta()
+                if _compare_dtype == 'photo':  # 只有图片的情况
+                    total_photo = len(self.success_photo) + len(self.failure_photo) + len(self.skip_photo)
+                    photo_table = PanelTable(title='图片下载统计',
+                                             header=header,
+                                             data=[
+                                                 [DownloadType.translate(DownloadType.photo.text),
+                                                  len(self.success_photo),
+                                                  len(self.failure_photo),
+                                                  len(self.skip_photo),
+                                                  total_photo],
+                                                 ['合计', len(self.success_photo),
+                                                  len(self.failure_photo),
+                                                  len(self.skip_photo),
+                                                  total_photo]
+                                             ]
+                                             )
+                    photo_table.print_meta()
+            elif len(self.record_dtype) == 2:
+                media_table = PanelTable(title='媒体下载统计',
+                                         header=header,
+                                         data=[
+                                             [DownloadType.translate(DownloadType.video.text), len(self.success_video),
+                                              len(self.failure_video),
+                                              len(self.skip_video),
+                                              total_video],
+                                             [DownloadType.translate(DownloadType.photo.text), len(self.success_photo),
+                                              len(self.failure_photo),
+                                              len(self.skip_photo),
+                                              total_photo],
+                                             ['合计', len(self.success_video) + len(self.success_photo),
+                                              len(self.failure_video) + len(self.failure_photo),
+                                              len(self.skip_video) + len(self.skip_photo), total_video + total_photo]
+                                         ])
+                media_table.print_meta()
 
         def _print_failure_table():
             format_failure_info: list = []
@@ -484,16 +571,16 @@ class RestrictedMediaDownloader:
         except (SessionRevoked, AuthKeyUnregistered, SessionExpired, ConnectionError):
             res = safe_delete(file_path=os.path.join(self.app.DIR_NAME, 'sessions'))
             if res:
-                logger.warning('账号已失效请重新登录!')
+                console.log('账号已失效请重新登录!', style='yellow')
             else:
-                logger.error('账号已失效请手动删除软件目录下的sessions文件并重新登录!')
+                console.log('账号已失效请手动删除软件目录下的sessions文件并重新登录!', style='red')
         except KeyboardInterrupt:
             self.progress.stop()
-            logger.info('用户手动终止下载任务。')
+            console.log('用户手动终止下载任务。')
         except Exception as e:
             self.progress.stop()
             record_error = True
-            logger.error(f'运行出错,原因:"{e}"')
+            log.exception(msg=f'运行出错,原因:"{e}"', exc_info=True)
         finally:
             if self.client.is_connected:
                 self.client.stop()
