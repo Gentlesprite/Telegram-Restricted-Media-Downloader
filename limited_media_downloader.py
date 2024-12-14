@@ -6,7 +6,7 @@
 import asyncio
 from functools import wraps
 from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn, TransferSpeedColumn
-from module import List, Set, Any
+from module import List, Any
 from module import SessionRevoked, AuthKeyUnregistered, SessionExpired, MsgIdInvalid, UsernameInvalid
 from module import TelegramRestrictedMediaDownloaderClient
 from module import console, log
@@ -44,9 +44,11 @@ class RestrictedMediaDownloader:
 
     def __init__(self):
         print_helper()
+        self.queue = asyncio.Queue()
         self.app = Application()
         self.app.config_guide()
         self.temp_folder: str = self.app.TEMP_FOLDER
+        self.record_dtype: set = set()
         self.download_type: list = []
         self._get_download_type()
         self.save_path: str = self.app.config.get('save_path')
@@ -63,7 +65,6 @@ class RestrictedMediaDownloader:
                                                               workdir=os.path.join(os.getcwd(), 'sessions'))
         self.current_task_num: int = 0
         self.max_retry_count: int = 3
-        self.record_dtype: set = set()
         self.skip_video, self.skip_photo = set(), set()
         self.success_video, self.success_photo = set(), set()
         self.failure_video, self.failure_photo = set(), set()
@@ -83,6 +84,7 @@ class RestrictedMediaDownloader:
     def _get_download_type(self):
         self.download_type: list = self.app.config.get('download_type', None)
         if self.download_type is not None:
+            self.record_dtype.update(self.download_type)
             self.download_type.append(DownloadType.document.text)
         else:
             self.download_type: list = DownloadType.support_type()
@@ -311,18 +313,18 @@ class RestrictedMediaDownloader:
                 'local_file_path': local_file_path,
                 'format_file_size': format_file_size}
 
-    async def _get_download_task(self, msg_link: str) -> Set[asyncio.Task]:
-        tasks = set()
-
-        async def add_task(message, retry_count=0):
-            # 判断消息类型
+    async def _get_download_task(self,
+                                 msg_link: str = None,
+                                 message=None,
+                                 retry_count=0):
+        async def add_task(_message, _retry_count=0):
             _task = None
-            valid_dtype = next((i for i in DownloadType.support_type() if getattr(message, i, None)),
+            valid_dtype = next((i for i in DownloadType.support_type() if getattr(_message, i, None)),
                                None)  # 判断该链接是否为视频或图片,文档
             is_document_type_valid = None
             # 当媒体文件是文档形式的,需要根据配置需求将视频和图片过滤出来
-            if getattr(message, 'document'):
-                mime_type = message.document.mime_type  # 获取document的mime_type
+            if getattr(_message, 'document'):
+                mime_type = _message.document.mime_type  # 获取document的mime_type
                 # 只下载视频的情况
                 if DownloadType.video.text in self.download_type and DownloadType.photo.text not in self.download_type:
                     if 'video' in mime_type:
@@ -348,7 +350,7 @@ class RestrictedMediaDownloader:
                     await self.event.wait()
                     self.event.clear()
                 temp_save_path, sever_size, file_name, local_file_path, format_file_size = self._get_media_meta(
-                    message=message,
+                    message=_message,
                     dtype=valid_dtype).values()
                 if is_file_duplicate(local_file_path=local_file_path,
                                      sever_size=sever_size):  # 检测是否存在
@@ -367,7 +369,7 @@ class RestrictedMediaDownloader:
                                                      info=f'0.00B/{suitable_units_display(sever_size)}',
                                                      total=sever_size)
                     _task = asyncio.create_task(
-                        self.client.download_media(message=message,
+                        self.client.download_media(message=_message,
                                                    progress_args=(self.progress, task_id),
                                                    progress=self._download_bar,
                                                    file_name=temp_save_path))
@@ -381,72 +383,76 @@ class RestrictedMediaDownloader:
                             console.log(f'当前任务数:{self.current_task_num}。')
                             self.event.set()
                         else:
-                            if retry_count < self.max_retry_count:
+                            if _retry_count < self.max_retry_count:
                                 console.log(
-                                    f'[重新下载]:"{file_name}",[重试次数]:{retry_count + 1}/{self.max_retry_count}。')
-                                asyncio.create_task(add_task(message, retry_count + 1))
+                                    f'[重新下载]:"{file_name}",[重试次数]:{_retry_count + 1}/{self.max_retry_count}。')
+                                self.queue.put_nowait((msg_link, _message, _retry_count + 1))
                             else:
+                                _error = f'(达到最大重试次数:{self.max_retry_count}次)。'
                                 console.log(f'{self.keyword_file}:"{file_name}"',
                                             f'{self.keyword_size}:{format_file_size},'
                                             f'{self.keyword_type}:{DownloadType.translate(self._guess_file_type(file_name=temp_save_path, status=DownloadStatus.failure)[0].text)},'
                                             f'{self.keyword_link_status}:{self.failure_download}'
-                                            f'(达到最大重试次数:{self.max_retry_count}次)。')
+                                            f'{_error}')
+                                self.failure_link[msg_link] = _error
                                 self.event.set()
 
                     _task.add_done_callback(lambda _future: call(_future))
-            tasks.add(_task) if _task else 0
+            if _task:
+                self.queue.put_nowait(_task)
 
-        try:
-            chat_name, msg_id, is_download_comment = await self._extract_link_content(msg_link)
-            msg = await self.client.get_messages(chat_name, msg_id)  # 该消息的信息
-            res, group = await self._is_group(msg)
-            if res or is_download_comment:  # 组或评论区
-                try:  # v1.1.2解决当group返回None时出现comment无法下载的问题
-                    group.extend(is_download_comment) if is_download_comment else 0
-                except AttributeError:
-                    if is_download_comment and group is None:
-                        group = []
-                        group.extend(is_download_comment)
-                link_type = LinkType.comment.text if is_download_comment else LinkType.group.text
-                console.log(
-                    f'{self.keyword_chanel}:"{chat_name}",'  # 频道名
-                    f'{self.keyword_link}:"{msg_link}",'  # 链接
-                    f'{self.keyword_link_type}:{LinkType.translate(link_type)}。')  # 链接类型
-                [await add_task(msg_group) for msg_group in group]
+        if msg_link:
+            try:
+                chat_name, msg_id, is_download_comment = await self._extract_link_content(msg_link)
+                msg = await self.client.get_messages(chat_name, msg_id)  # 该消息的信息
+                res, group = await self._is_group(msg)
+                if res or is_download_comment:  # 组或评论区
+                    try:  # v1.1.2解决当group返回None时出现comment无法下载的问题
+                        group.extend(is_download_comment) if is_download_comment else 0
+                    except AttributeError:
+                        if is_download_comment and group is None:
+                            group = []
+                            group.extend(is_download_comment)
+                    link_type = LinkType.comment.text if is_download_comment else LinkType.group.text
+                    console.log(
+                        f'{self.keyword_chanel}:"{chat_name}",'  # 频道名
+                        f'{self.keyword_link}:"{msg_link}",'  # 链接
+                        f'{self.keyword_link_type}:{LinkType.translate(link_type)}。')  # 链接类型
+                    [await add_task(msg_group, retry_count) for msg_group in group]
 
-            elif res is False and group is None:  # 单文件
-                link_type = LinkType.single.text
+                elif res is False and group is None:  # 单文件
+                    link_type = LinkType.single.text
+                    console.log(
+                        f'{self.keyword_chanel}:"{chat_name}",'  # 频道名
+                        f'{self.keyword_link}:"{msg_link}",'  # 链接
+                        f'{self.keyword_link_type}:{LinkType.translate(link_type)}。')  # 链接类型
+                    await add_task(msg, retry_count)
+                elif res is None and group is None:
+                    error = '消息不存在,频道已解散或未在频道中'
+                    self.failure_link[msg_link] = error
+                    console.log(
+                        f'{self.keyword_link}:"{msg_link}"{error},{self.skip_download}。', style='yellow')
+                elif res is None and group == 0:
+                    console.log(f'读取"{msg_link}"时出现未知错误,{self.skip_download}。', style='red')
+            except UnicodeEncodeError as e:
+                error = '频道标题存在特殊字符,请移步终端下载'
+                self.failure_link[msg_link] = e
+                console.log(f'{self.keyword_link}:"{msg_link}"{error},原因:"{e}"', style='red')
+            except MsgIdInvalid as e:
+                self.failure_link[msg_link] = e
+                console.log(f'{self.keyword_link}:"{msg_link}"消息不存在,可能已删除,{self.skip_download}。原因:"{e}"',
+                            style='red')
+            except UsernameInvalid as e:
+                self.failure_link[msg_link] = e
                 console.log(
-                    f'{self.keyword_chanel}:"{chat_name}",'  # 频道名
-                    f'{self.keyword_link}:"{msg_link}",'  # 链接
-                    f'{self.keyword_link_type}:{LinkType.translate(link_type)}。')  # 链接类型
-                await add_task(msg)
-            elif res is None and group is None:
-                error = '消息不存在,频道已解散或未在频道中'
-                self.failure_link[msg_link] = error
+                    f'{self.keyword_link}:"{msg_link}频道用户名无效,该链接的频道用户名可能已更改或频道已解散,{self.skip_download}。原因:"{e}"',
+                    style='red')
+            except Exception as e:
+                self.failure_link[msg_link] = e
                 console.log(
-                    f'{self.keyword_link}:"{msg_link}"{error},{self.skip_download}。', style='yellow')
-            elif res is None and group == 0:
-                console.log(f'读取"{msg_link}"时出现未知错误,{self.skip_download}。', style='red')
-        except UnicodeEncodeError as e:
-            error = '频道标题存在特殊字符,请移步终端下载'
-            self.failure_link[msg_link] = e
-            console.log(f'{self.keyword_link}:"{msg_link}"{error},原因:"{e}"', style='red')
-        except MsgIdInvalid as e:
-            self.failure_link[msg_link] = e
-            console.log(f'{self.keyword_link}:"{msg_link}"消息不存在,可能已删除,{self.skip_download}。原因:"{e}"',
-                        style='red')
-        except UsernameInvalid as e:
-            self.failure_link[msg_link] = e
-            console.log(
-                f'{self.keyword_link}:"{msg_link}频道用户名无效,该链接的频道用户名可能已更改或频道已解散,{self.skip_download}。原因:"{e}"',
-                style='red')
-        except Exception as e:
-            self.failure_link[msg_link] = e
-            console.log(
-                f'{self.keyword_link}:"{msg_link}"未收录到的错误,{self.skip_download}。原因:"{e}"', style='red')
-        finally:
-            return tasks
+                    f'{self.keyword_link}:"{msg_link}"未收录到的错误,{self.skip_download}。原因:"{e}"', style='red')
+        else:
+            await add_task(message, retry_count)
 
     @staticmethod
     def _download_bar(current, total, progress, task_id):
@@ -482,11 +488,22 @@ class RestrictedMediaDownloader:
     async def _download_media_from_links(self):
         await self.client.start()
         self.progress.start()  # v1.1.8修复登录输入手机号不显示文本问题
-        tasks = set()
+        # 将初始任务添加到队列中
         for link in self._process_links(links=self.links):
-            res = await self._get_download_task(msg_link=link)
-            tasks.update(res)  # v1.1.0修复同一链接若第一次未下载完整,在第二次补全时,任务创建了但不等待该下载完成就结束程序,导致下载不完全的的致命性问题
-        await asyncio.gather(*tasks)
+            await self._get_download_task(msg_link=link)
+
+        # 处理队列中的任务
+        while not self.queue.empty():
+            task = await self.queue.get()
+            if isinstance(task, tuple):
+                msg_link, message, retry_count = task
+                await self._get_download_task(msg_link=msg_link, message=message, retry_count=retry_count)
+            else:
+                await task
+            self.queue.task_done()
+
+        # 等待所有任务完成
+        await self.queue.join()
 
     def run(self):
         record_error = False
@@ -497,7 +514,6 @@ class RestrictedMediaDownloader:
                 self.download_type.remove(DownloadType.document.text)
             total_video = len(self.success_video) + len(self.failure_video) + len(self.skip_video)
             total_photo = len(self.success_photo) + len(self.failure_photo) + len(self.skip_photo)
-            self.progress.stop()
             if len(self.record_dtype) == 1:
                 _compare_dtype: list = list(self.record_dtype)[0]
                 if _compare_dtype == 'video':  # 只有视频的情况
