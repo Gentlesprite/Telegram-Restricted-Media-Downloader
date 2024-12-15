@@ -373,14 +373,14 @@ class RestrictedMediaDownloader:
                                                    progress_args=(self.progress, task_id),
                                                    progress=self._download_bar,
                                                    file_name=temp_save_path))
-                    console.log(f'当前任务数:{self.current_task_num}。')
+                    console.log(f'[当前任务数]:{self.current_task_num}。', justify='right')
 
                     def call(_future):
                         self.current_task_num -= 1
                         if self._check_download_finish(sever_size=sever_size,
                                                        download_path=temp_save_path,
                                                        save_directory=self.save_path):
-                            console.log(f'当前任务数:{self.current_task_num}。')
+                            console.log(f'[当前任务数]:{self.current_task_num}。', justify='right')
                             self.event.set()
                         else:
                             if _retry_count < self.max_retry_count:
