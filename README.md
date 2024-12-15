@@ -84,10 +84,10 @@ Github:[点击跳转下载](https://github.com/Gentlesprite/Telegram-Restricted-
 
 ```yaml
 # 下载完成直接打开软件即可,软件会一步一步引导你输入的!这里只是介绍每个参数的含义。
-# 填入第一步教你申请的api_hash和api_id
+# 填入第一步教你申请的api_hash和api_id。
 # 如果是按照软件的提示填,不需要加引号,如果是手动打开config.yaml修改配置,请仔细阅读下面内容。
-# 手动填写注意区分冒号类型,例如 - 是:不是：
-# 手动填写的时候还请注意参数冒号不加空格会报错 后面有一个空格,例如 - api_hash: xxx而不是api_hash:xxx
+# 手动填写注意区分冒号类型,例如 - 是:不是：。
+# 手动填写的时候还请注意参数冒号不加空格会报错,后面有一个空格,例如 - api_hash: xxx而不是api_hash:xxx。
 api_hash: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx #api_hash没有引号。
 api_id: 'xxxxxxxx' #注意配置文件中只有api_id有引号。
 # download_type是指定下载的类型,只支持video和photo写其他会报错。
@@ -105,10 +105,10 @@ proxy: # 代理部分,如不使用请全部填null注意冒号后面有空格,�
   enable_proxy: true # 是否开启代理 true为开启 false为关闭。
   hostname: 127.0.0.1 # 代理的ip地址。
   is_notice: false # 是否开启代理提示, true为每次打开询问你是否开启代理, false则为关闭。
-  scheme: socks5 # 代理的类型,支持http,socks4,socks5
+  scheme: socks5 # 代理的类型,支持http,socks4,socks5。
   port: 10808 # 代理ip的端口。
-  username: null # 代理的账号,有就填,没有请都填null!
-  password: null # 代理的密码,有就填,没有请都填null!
+  username: null # 代理的账号,有就填,没有请都填null。
+  password: null # 代理的密码,有就填,没有请都填null。
 save_path: F:\path\the\media\where\you\save # 下载的媒体保存的地址,没有引号,不要存在中文或特殊字符。
 # 再次提醒,由于nuitka打包的性质决定,中文路径无法被打包好的二进制文件识别。
 # 故在配置文件时无论是链接路径还是媒体保存路径都请使用英文命名。
