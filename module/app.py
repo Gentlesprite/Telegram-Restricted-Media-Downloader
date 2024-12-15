@@ -2,7 +2,7 @@
 # Author:Gentlesprite
 # Software:PyCharm
 # Time:2024/7/25 12:32
-# File:app
+# File:app.py
 import ipaddress
 import subprocess
 import time
@@ -13,12 +13,13 @@ from rich.table import Table
 from module import CustomDumper
 from module import SOFTWARE_FULL_NAME, __version__, __copyright__, __license__
 from module import check_run_env
-from module import console
+from module import console, log
 from module import datetime
 from module import os
 from module import qrterm
 from module import sys
 from module import yaml
+from module import readme
 from module.enum_define import GradientColor, ArtFont, DownloadType
 from module.process_path import gen_backup_config
 
@@ -31,13 +32,13 @@ class Validator:
                 if api_id.isdigit():
                     return True
                 else:
-                    console.log(f'意外的参数:"{api_id}",不是「纯数字」请重新输入!', style='yellow')
+                    log.warning(f'意外的参数:"{api_id}",不是「纯数字」请重新输入!')
                     return False
             else:
-                console.log(f'意外的参数,填写的"{api_id}"可能是「api_hash」,请填入正确的「api_id」!', style='yellow')
+                log.warning(f'意外的参数,填写的"{api_id}"可能是「api_hash」,请填入正确的「api_id」!')
                 return False
         except (AttributeError, TypeError):
-            console.log('手动编辑config.yaml时,api_id需要有引号!', style='red')
+            log.error('手动编辑config.yaml时,api_id需要有引号!')
             return False
 
     @staticmethod
@@ -62,9 +63,9 @@ class Validator:
                     elif question == 'n':
                         break
                     else:
-                        console.log(f'意外的参数:"{question}",支持的参数 - 「y|n」', style='yellow')
+                        log.warning(f'意外的参数:"{question}",支持的参数 - 「y|n」')
                 except Exception as e:
-                    console.log(f'意外的错误,原因:"{e}"', style='red')
+                    log.error(f'意外的错误,原因:"{e}"')
                     break
         return os.path.isdir(save_path)
 
@@ -75,7 +76,7 @@ class Validator:
         except ValueError:
             return False
         except Exception as e:
-            console.log(f'意外的错误,原因:"{e}"', style='red')
+            log.error(f'意外的错误,原因:"{e}"')
 
     @staticmethod
     def is_valid_enable_proxy(enable_proxy: str or bool) -> bool:
@@ -104,7 +105,7 @@ class Validator:
         except TypeError:  # 处理传入非数字类型的情况
             return False
         except Exception as e:
-            console.log(f'意外的错误,原因:"{e}"', style='red')
+            log.error(f'意外的错误,原因:"{e}"')
             return False
 
     @staticmethod
@@ -116,7 +117,7 @@ class Validator:
         except TypeError:  # 处理传入非数字类型的情况
             return False
         except Exception as e:
-            console.log(f'意外的错误,原因:"{e}"', style='red')
+            log.error(f'意外的错误,原因:"{e}"')
             return False
 
 
@@ -214,7 +215,7 @@ class Application:
             backup_path = gen_backup_config(old_path=self.config_path,
                                             absolute_backup_dir=Application.ABSOLUTE_BACKUP_DIR,
                                             error_config=error_config)
-            console.log(f'原来的配置文件已备份至"{backup_path}"')
+            console.log(f'原来的配置文件已备份至"{backup_path}"', style='green')
         else:
             console.log('配置文件与模板文件完全一致,无需备份。')
 
@@ -231,18 +232,17 @@ class Application:
         except UnicodeDecodeError as e:  # v1.1.3加入配置文件路径是中文或特殊字符时的错误提示,由于nuitka打包的性质决定,
             # 中文路径无法被打包好的二进制文件识别,故在配置文件时无论是链接路径还是媒体保存路径都请使用英文命名。
             error_config: bool = True
-            console.log(
-                f'读取配置文件遇到编码错误,可能保存路径中包含中文或特殊字符的文件夹。已生成新的模板文件...原因:"{e}"',
-                style='yellow')
+            log.warning(
+                f'读取配置文件遇到编码错误,可能保存路径中包含中文或特殊字符的文件夹。已生成新的模板文件...原因:"{e}"')
             self.backup_config(config, error_config=error_config)
         except Exception as e:
             error_config: bool = True
             console.print('「注意」链接路径和保存路径不能有引号!', style='red')
-            console.log(f'检测到无效或损坏的配置文件。已生成新的模板文件...原因:"{e}"', style='yellow')
+            log.warning(f'检测到无效或损坏的配置文件。已生成新的模板文件...原因:"{e}"')
             self.backup_config(config, error_config=error_config)
         finally:
             if config is None:
-                console.log('检测到空的配置文件。已生成新的模板文件...', style='yellow')
+                log.warning('检测到空的配置文件。已生成新的模板文件...')
                 config = Application.CONFIG_TEMPLATE.copy()
             if error_config:  # 如果遇到报错或者全部参数都是空的
                 return config
@@ -256,13 +256,13 @@ class Application:
                             backup_path = gen_backup_config(old_path=self.config_path,
                                                             absolute_backup_dir=Application.ABSOLUTE_BACKUP_DIR)
                             console.log(
-                                f'原来的配置文件已备份至"{backup_path}"')
+                                f'原来的配置文件已备份至"{backup_path}"', style='green')
                             self.history_record()  # 更新到上次填写的记录
                             break
                         elif question == 'n' or question == '':
                             break
                         else:
-                            console.log(f'意外的参数:"{question}",支持的参数 - 「y|n」(默认n)', style='yellow')
+                            log.warning(f'意外的参数:"{question}",支持的参数 - 「y|n」(默认n)')
                     except KeyboardInterrupt:
                         self._keyboard_interrupt()
             return config
@@ -330,7 +330,7 @@ class Application:
             console.print('请配置代理!', style=self.stdio_style('config_proxy'))
             result = True
         if any(advance_account_truth_table) and all(advance_account_truth_table) is False:
-            console.log('代理账号或密码未输入!', style='yellow')
+            log.warning('代理账号或密码未输入!')
             result = True
         return result
 
@@ -349,7 +349,7 @@ class Application:
                         console.log('不保存当前填写参数。')
                         break
                     else:
-                        console.log(f'意外的参数:"{question}",支持的参数 - 「y|n」', style='yellow')
+                        log.warning(f'意外的参数:"{question}",支持的参数 - 「y|n」')
             else:
                 exit()
         except KeyboardInterrupt:
@@ -398,7 +398,7 @@ class Application:
         except FileNotFoundError:
             return
         except Exception as e:
-            console.log(f'读取历史文件时发生错误,原因:"{e}"', style='red')
+            log.error(f'读取历史文件时发生错误,原因:"{e}"')
             return
         file_start: str = 'history_'
         file_end: str = '_config.yaml'
@@ -457,8 +457,7 @@ class Application:
                         self.record_flag = True
                         break
                     else:
-                        console.log(f'意外的参数:"{api_hash}",不是一个「{_valid_length}位」的「值」!请重新输入!',
-                                    style='yellow')
+                        log.warning(f'意外的参数:"{api_hash}",不是一个「{_valid_length}位」的「值」!请重新输入!')
                 except KeyboardInterrupt:
                     self._keyboard_interrupt()
 
@@ -478,16 +477,14 @@ class Application:
                         self.record_flag = True
                         break
                     elif not os.path.normpath(links_file).endswith('.txt'):
-                        console.log(f'意外的参数:"{links_file}",文件路径必须以「{_valid_format}」结尾,请重新输入!',
-                                    style='yellow')
+                        log.warning(f'意外的参数:"{links_file}",文件路径必须以「{_valid_format}」结尾,请重新输入!')
                     else:
-                        console.log(
-                            f'意外的参数:"{links_file}",文件路径必须以「{_valid_format}」结尾,并且「必须存在」,请重新输入!',
-                            style='yellow')
+                        log.warning(
+                            f'意外的参数:"{links_file}",文件路径必须以「{_valid_format}」结尾,并且「必须存在」,请重新输入!')
                 except KeyboardInterrupt:
                     self._keyboard_interrupt()
                 except Exception as e:
-                    console.log(f'意外的参数:"{links_file}",请重新输入!原因:"{e}"', style='red')
+                    log.error(f'意外的参数:"{links_file}",请重新输入!原因:"{e}"')
 
         def get_save_path(_last_record):
             # 输入媒体保存路径,确保是一个有效的目录路径
@@ -503,11 +500,9 @@ class Application:
                         self.record_flag = True
                         break
                     elif os.path.isfile(save_path):
-                        console.log(f'意外的参数:"{save_path}",指定的路径是一个文件并非目录,请重新输入!',
-                                    style='yellow')
+                        log.warning(f'意外的参数:"{save_path}",指定的路径是一个文件并非目录,请重新输入!')
                     else:
-                        console.log(f'意外的参数:"{save_path}",指定的路径无效或不是一个目录,请重新输入!',
-                                    style='yellow')
+                        log.warning(f'意外的参数:"{save_path}",指定的路径无效或不是一个目录,请重新输入!')
                 except KeyboardInterrupt:
                     self._keyboard_interrupt()
 
@@ -529,11 +524,11 @@ class Application:
                         self.record_flag = True
                         break
                     else:
-                        console.log(f'意外的参数:"{max_tasks}",任务数必须是「正整数」,请重新输入!', style='yellow')
+                        log.warning(f'意外的参数:"{max_tasks}",任务数必须是「正整数」,请重新输入!')
                 except KeyboardInterrupt:
                     self._keyboard_interrupt()
                 except Exception as e:
-                    console.log(f'意外的错误,原因:"{e}"', style='red')
+                    log.error(f'意外的错误,原因:"{e}"')
 
         def get_is_shutdown(_last_record, _valid_format):
             if _last_record:
@@ -571,11 +566,11 @@ class Application:
                         self.record_flag = True
                         break
                     else:
-                        console.log(f'意外的参数:"{question}",支持的参数 - 「{_valid_format}」', style='yellow')
+                        log.warning(f'意外的参数:"{question}",支持的参数 - 「{_valid_format}」')
                 except KeyboardInterrupt:
                     self._keyboard_interrupt()
                 except Exception as e:
-                    console.log(f'意外的错误,原因:"{e}"', style='red')
+                    log.error(f'意外的错误,原因:"{e}"')
                     break
 
         def get_download_type(_last_record: list):
@@ -617,7 +612,7 @@ class Application:
                         self.record_flag = True
                         break
                     else:
-                        console.log(f'意外的参数:"{download_type}",支持的参数 - 「1或2或3」', style='yellow')
+                        log.warning(f'意外的参数:"{download_type}",支持的参数 - 「1或2或3」')
                 except KeyboardInterrupt:
                     self._keyboard_interrupt()
 
@@ -711,8 +706,7 @@ class Application:
                         self.record_flag = True
                         break
                     else:
-                        console.log(f'意外的参数:"{enable_proxy}",请输入有效参数!支持的参数 - 「{valid_format}」!',
-                                    style='red')
+                        log.error(f'意外的参数:"{enable_proxy}",请输入有效参数!支持的参数 - 「{valid_format}」!')
                 while True:
                     # 是否记住选项
                     is_notice = console.input(
@@ -735,8 +729,7 @@ class Application:
                         self.record_flag = True
                         break
                     else:
-                        console.log(f'意外的参数:"{is_notice}",请输入有效参数!支持的参数 - 「{valid_format}」!',
-                                    style='red')
+                        log.error(f'意外的参数:"{is_notice}",请输入有效参数!支持的参数 - 「{valid_format}」!')
 
             except KeyboardInterrupt:
                 self._keyboard_interrupt()
@@ -764,9 +757,8 @@ class Application:
                                 console.print(f'已设置「scheme」为:「{scheme}」', style=self.stdio_style('scheme'))
                                 break
                             else:
-                                console.log(
-                                    f'意外的参数:"{scheme}",请输入有效的代理类型!支持的参数 - 「{"|".join(valid_format)}」!',
-                                    style='yellow')
+                                log.warning(
+                                    f'意外的参数:"{scheme}",请输入有效的代理类型!支持的参数 - 「{"|".join(valid_format)}」!')
                         except KeyboardInterrupt:
                             self._keyboard_interrupt()
                 if not proxy_config.get('hostname'):
@@ -787,9 +779,8 @@ class Application:
                                 console.print(f'已设置「hostname」为:「{hostname}」', style=self.stdio_style('hostname'))
                                 break
                         except ValueError:
-                            console.log(
-                                f'"{hostname}"不是一个「ip地址」,请输入有效的ipv4地址!支持的参数 - 「{valid_format}」!',
-                                style='yellow')
+                            log.warning(
+                                f'"{hostname}"不是一个「ip地址」,请输入有效的ipv4地址!支持的参数 - 「{valid_format}」!')
                         except KeyboardInterrupt:
                             self._keyboard_interrupt()
                 if not proxy_config.get('port'):
@@ -810,14 +801,13 @@ class Application:
                                 console.print(f'已设置「port」为:「{port}」', style=self.stdio_style('port'))
                                 break
                             else:
-                                console.log(f'意外的参数:"{port}",端口号必须在「{valid_port}」之间!', style='yellow')
+                                log.warning(f'意外的参数:"{port}",端口号必须在「{valid_port}」之间!')
                         except ValueError:
-                            console.log(f'意外的参数:"{port}",请输入一个有效的整数!支持的参数 - 「{valid_port}」',
-                                        style='yellow')
+                            log.warning(f'意外的参数:"{port}",请输入一个有效的整数!支持的参数 - 「{valid_port}」')
                         except KeyboardInterrupt:
                             self._keyboard_interrupt()
                         except Exception as e:
-                            console.log(f'意外的错误,原因:"{e}"', style='red')
+                            log.error(f'意外的错误,原因:"{e}"')
                 if not all([proxy_config.get('username'), proxy_config.get('password')]):
                     # 是否需要认证
                     style = self.stdio_style('proxy_authentication')
@@ -842,7 +832,7 @@ class Application:
                                 console.print(f'已设置为:「代理不需要认证」', style=style)
                                 break
                             else:
-                                console.log(f'意外的参数:"{is_proxy}",支持的参数 - 「{valid_format}」!', style='yellow')
+                                log.warning(f'意外的参数:"{is_proxy}",支持的参数 - 「{valid_format}」!')
                         except KeyboardInterrupt:
                             self._keyboard_interrupt()
         self.save_config()
@@ -894,42 +884,28 @@ class MetaData:
         console.print(GradientColor.gen_gradient_text('\t软件免费使用!并且在GitHub开源,如果你付费那就是被骗了。',
                                                       gradient_color=GradientColor.blue_to_purple))
 
+    @staticmethod
+    def suitable_units_display(number: int) -> str:
+        result = MetaData._determine_suitable_units(number)
+        return result.get('number') + result.get('unit')
 
-def print_helper():
-    config_helper = r'''
-# 配置文件说明
-```yaml
-# 下载完成直接打开软件即可,软件会一步一步引导你输入的!这里只是介绍每个参数的含义。
-# 填入第一步教你申请的api_hash和api_id
-# 如果是按照软件的提示填,不需要加引号,如果是手动打开config.yaml修改配置,请仔细阅读下面内容。
-# 手动填写注意区分冒号类型,例如 - 是:不是：
-# 手动填写的时候还请注意参数冒号不加空格会报错 后面有一个空格,例如 - api_hash: xxx而不是api_hash:xxx
-api_hash: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx #api_hash没有引号。
-api_id: 'xxxxxxxx' #注意配置文件中只有api_id有引号。
-# download_type是指定下载的类型,只支持video和photo写其他会报错。
-# 
-download_type: 
-- video 
-- photo
-is_shutdown: true # 是否下载完成后自动关机 true为下载完成后自动关机 false为下载完成后不关机。
-links: D:\path\where\your\link\txt\save\content.txt # 链接地址写法如下:
-# 新建txt文本,一个链接为一行,将路径填入即可请不要加引号,在软件运行前就准备好。
-# D:\path\where\your\link\txt\save\content.txt 请注意一个链接一行。
-# 列表写法已在v1.1.0版本中弃用,目前只有上述唯一写法。
-# 不要存在中文或特殊字符。
-max_download_task: 3 # 最大的同时下载任务数 注意:如果你不是Telegram会员,那么最大同时下载数只有1。
-proxy: # 代理部分,如不使用请全部填null注意冒号后面有空格,否则不生效导致报错。
-  enable_proxy: true # 是否开启代理 true为开启 false为关闭。
-  hostname: 127.0.0.1 # 代理的ip地址。
-  is_notice: false # 是否开启代理提示, true为每次打开询问你是否开启代理, false则为关闭。
-  scheme: socks5 # 代理的类型,支持http,socks4,socks5
-  port: 10808 # 代理ip的端口。
-  username: null # 代理的账号,有就填,没有请都填null!
-  password: null # 代理的密码,有就填,没有请都填null!
-save_path: F:\path\the\media\where\you\save # 下载的媒体保存的地址,没有引号,不要存在中文或特殊字符。
-# 再次提醒,由于nuitka打包的性质决定,中文路径无法被打包好的二进制文件识别。
-# 故在配置文件时无论是链接路径还是媒体保存路径都请使用英文命名。
-```
-'''
-    markdown = Markdown(config_helper)
-    console.print(markdown)
+    @staticmethod
+    def _determine_suitable_units(number, unit=None):
+        units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+        if unit in units:
+            index = units.index(unit)
+            value = number / (1024 ** index)
+            return float("{:.2f}".format(value)), unit
+        else:
+            values = [number]
+            for i in range(len(units) - 1):
+                if values[i] >= 1024:
+                    values.append(values[i] / 1024)
+                else:
+                    break
+            return {'number': '{:.2f}'.format(values[-1]), 'unit': units[len(values) - 1]}
+
+    @staticmethod
+    def print_helper():
+        markdown = Markdown(readme)
+        console.print(markdown)

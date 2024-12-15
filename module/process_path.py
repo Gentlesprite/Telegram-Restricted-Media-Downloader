@@ -1,5 +1,5 @@
 # coding=UTF-8
-# Author:LZY/我不是盘神
+# Author:Gentlesprite
 # Software:PyCharm
 # Time:2023/11/13 20:34:13
 # File:process_path.py
@@ -11,12 +11,12 @@ from module import datetime
 from module import shutil
 
 
-def split_path(path):
+def split_path(path) -> dict:
     directory, file_name = os.path.split(path)
-    return directory, file_name
+    return {'directory': directory, 'file_name': file_name}
 
 
-def is_folder_empty(folder_path):
+def _is_folder_empty(folder_path) -> bool:
     if len(os.listdir(folder_path)) == 0:
         return True
     else:
@@ -31,7 +31,7 @@ def _compare_file_size(local_size, sever_size) -> bool:
     return local_size == sever_size
 
 
-def is_file_duplicate(local_file_path, sever_size):
+def is_file_duplicate(local_file_path, sever_size) -> bool:
     return _is_exist(local_file_path) and _compare_file_size(os.path.getsize(local_file_path), sever_size)
 
 
@@ -42,7 +42,7 @@ def validate_title(title: str) -> str:
 
 
 def truncate_filename(path: str, limit: int = 230) -> str:
-    #作者:tangyoha
+    # 作者:tangyoha
     """将文件名截断到最大长度。
     Parameters
     ----------
@@ -73,7 +73,7 @@ def gen_backup_config(old_path: str, absolute_backup_dir: str, error_config: boo
     return new_path
 
 
-def safe_delete(file_path):
+def safe_delete(file_path) -> bool:
     try:
         if os.path.isdir(file_path):
             shutil.rmtree(file_path)
@@ -84,3 +84,17 @@ def safe_delete(file_path):
         return False
     except Exception:
         return False
+
+
+def move_to_download_path(temp_save_path: str, save_path: str) -> dict:
+    os.makedirs(save_path, exist_ok=True)
+    if os.path.isdir(save_path):
+        shutil.move(temp_save_path, save_path)
+        return {'e_code': None}
+    else:
+        if _is_folder_empty(save_path):
+            os.rmdir(save_path)
+        save_path = os.path.join(os.getcwd(), 'downloads')
+        os.makedirs(save_path, exist_ok=True)
+        shutil.move(temp_save_path, save_path)
+        return {'e_code': f'"{save_path}"不是一个目录,已将文件下载到默认目录。'}
