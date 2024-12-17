@@ -182,14 +182,15 @@ class CustomDumper(yaml.Dumper):
 
 console = Console(log_path=False)
 utils.get_peer_type = get_peer_type_new
-__version__ = '1.2.5'
+__version__ = '1.2.6'
 __license__ = "MIT License"
-__update_date__ = '2024/12/15 19:32:48'
+__update_date__ = '2024/12/17 09:05:13'
 __copyright__ = f'Copyright (C) {__update_date__[:4]} Gentlesprite <https://github.com/Gentlesprite>'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_NAME = 'TRMD'
 author = 'Gentlesprite'
 APPDATA_PATH = os.path.join(os.environ['APPDATA'], SOFTWARE_NAME)
+os.makedirs(APPDATA_PATH, exist_ok=True)  # v1.2.6修复初次运行打开报错问题。
 INPUT_HISTORY_PATH = os.path.join(APPDATA_PATH, f'.{SOFTWARE_NAME}_HISTORY')
 MAX_RECORD_LENGTH = 1000
 read_input_history(history_path=INPUT_HISTORY_PATH, max_record_len=MAX_RECORD_LENGTH)
