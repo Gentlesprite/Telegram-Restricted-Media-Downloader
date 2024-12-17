@@ -448,7 +448,7 @@ class RestrictedMediaDownloader:
             except UsernameInvalid as e:
                 self.failure_link[msg_link] = e
                 log.error(
-                    f'{self.keyword_link}:"{msg_link}频道用户名无效,该链接的频道用户名可能已更改或频道已解散,{self.skip_download}。原因:"{e}"')
+                    f'{self.keyword_link}:"{msg_link}"频道用户名无效,该链接的频道用户名可能已更改或频道已解散,{self.skip_download}。原因:"{e}"')
             except Exception as e:
                 self.failure_link[msg_link] = e
                 log.error(
