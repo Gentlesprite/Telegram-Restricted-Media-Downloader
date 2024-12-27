@@ -3,4 +3,4 @@ PyYAML
 rich
 qrcode
 pyreadline3
-https://github.com/Gentlesprite/pyrogram/archive/refs/heads/dev.zip#egg=pyrogram
+https://github.com/Gentlesprite/pyrogram/archive/refs/tags/v2.1.35.zip#egg=kurigram
