@@ -82,7 +82,7 @@ def safe_delete(file_path) -> bool:
         return True
     except PermissionError:
         return False
-    except Exception:
+    except Exception as _:
         return False
 
 

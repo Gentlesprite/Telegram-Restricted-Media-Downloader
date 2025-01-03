@@ -14,7 +14,7 @@ output = 'output'
 main = 'main.py'
 years = __update_date__[:4]
 include_module = '--include-module=pygments.lexers.data'
-copy_right = f'Copyright (C) {years} {author}.'
+copy_right = f'Copyright (C) 2024-{years} {author}.All rights reserved.'
 build_command = f'nuitka --standalone --show-memory --show-progress --onefile {include_module} '
 build_command += f'--output-dir={output} --file-version={file_version} '
 build_command += f'--windows-icon-from-ico="{ico_path}" '

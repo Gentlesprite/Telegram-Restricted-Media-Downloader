@@ -506,7 +506,7 @@ class RestrictedMediaDownloader:
         await self.queue.join()
 
     def run(self):
-        record_error = False
+        record_error: bool = False
 
         def _print_media_table():
             header = ('种类&状态', '成功下载', '失败下载', '跳过下载', '合计')
@@ -585,7 +585,8 @@ class RestrictedMediaDownloader:
             self._print_config_table()
             self.client.run(self._download_media_from_links())
         except (SessionRevoked, AuthKeyUnregistered, SessionExpired, ConnectionError):
-            res = safe_delete(file_path=os.path.join(self.app.DIR_NAME, 'sessions'))
+            res: bool = safe_delete(file_path=os.path.join(self.app.DIR_NAME, 'sessions'))
+            record_error = True
             if res:
                 log.warning('账号已失效请重新登录!')
             else:

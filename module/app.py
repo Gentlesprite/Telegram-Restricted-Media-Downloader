@@ -886,16 +886,16 @@ class MetaData:
 
     @staticmethod
     def suitable_units_display(number: int) -> str:
-        result = MetaData._determine_suitable_units(number)
+        result: dict = MetaData._determine_suitable_units(number)
         return result.get('number') + result.get('unit')
 
     @staticmethod
-    def _determine_suitable_units(number, unit=None):
+    def _determine_suitable_units(number, unit=None) -> dict:
         units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
         if unit in units:
             index = units.index(unit)
             value = number / (1024 ** index)
-            return float("{:.2f}".format(value)), unit
+            return {'number': float("{:.2f}".format(value)), 'unit': unit}
         else:
             values = [number]
             for i in range(len(units) - 1):

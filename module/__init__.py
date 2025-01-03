@@ -150,12 +150,12 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
 # v1.1.2 解决链接若附带/c字段即私密频道无法下载的问题,是由于pyrogram的问题:https://github.com/pyrogram/pyrogram/issues/1314
 def get_peer_type_new(peer_id: int) -> str:
     peer_id_str = str(peer_id)
-    if not peer_id_str.startswith("-"):
-        return "user"
-    elif peer_id_str.startswith("-100"):
-        return "channel"
+    if not peer_id_str.startswith('-'):
+        return 'user'
+    elif peer_id_str.startswith('-100'):
+        return 'channel'
     else:
-        return "chat"
+        return 'chat'
 
 
 def read_input_history(history_path: str, max_record_len: int):
@@ -182,10 +182,10 @@ class CustomDumper(yaml.Dumper):
 
 console = Console(log_path=False)
 utils.get_peer_type = get_peer_type_new
-__version__ = '1.2.7'
+__version__ = '1.2.8'
 __license__ = 'MIT License'
-__update_date__ = '2024/12/27 13:37:34'
-__copyright__ = f'Copyright (C) {__update_date__[:4]} Gentlesprite <https://github.com/Gentlesprite>'
+__update_date__ = '2025/01/04 00:01:23'
+__copyright__ = f'Copyright (C) 2024-{__update_date__[:4]} Gentlesprite <https://github.com/Gentlesprite>'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_NAME = 'TRMD'
 author = 'Gentlesprite'
