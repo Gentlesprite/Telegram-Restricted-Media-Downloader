@@ -10,6 +10,7 @@ import atexit
 import shutil
 import logging
 import readline
+import platform
 import datetime
 import pyrogram
 import mimetypes
@@ -174,6 +175,15 @@ def check_run_env():  # 检测是控制台运行还是IDE运行
     return windll.kernel32.SetConsoleTextAttribute(windll.kernel32.GetStdHandle(-0xb), 0x7)
 
 
+def get_platform() -> str:
+    if platform.system() == 'Windows':
+        return 'Windows'
+    elif platform.system() == 'Linux':
+        return 'Linux'
+    else:
+        return 'Unknown'
+
+
 # 自定义 yaml文件中 None 的表示
 class CustomDumper(yaml.Dumper):
     def represent_none(self, data):
@@ -184,7 +194,7 @@ console = Console(log_path=False)
 utils.get_peer_type = get_peer_type_new
 __version__ = '1.2.8'
 __license__ = 'MIT License'
-__update_date__ = '2025/01/04 00:01:23'
+__update_date__ = '2025/01/04 16:36:41'
 __copyright__ = f'Copyright (C) 2024-{__update_date__[:4]} Gentlesprite <https://github.com/Gentlesprite>'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_NAME = 'TRMD'

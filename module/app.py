@@ -20,6 +20,7 @@ from module import qrterm
 from module import sys
 from module import yaml
 from module import readme
+from module import get_platform
 from module.enum_define import GradientColor, ArtFont, DownloadType
 from module.process_path import gen_backup_config
 
@@ -150,6 +151,7 @@ class Application:
     ABSOLUTE_BACKUP_DIR = os.path.join(DIR_NAME, BACKUP_DIR)
 
     def __init__(self):
+        self.platform: str = get_platform()
         self.color: list = GradientColor.blue_to_purple
         self.history_timestamp: dict = {}
         self.input_link: list = []
