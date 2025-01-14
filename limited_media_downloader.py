@@ -202,28 +202,41 @@ class RestrictedMediaDownloader:
         os.makedirs(self.temp_folder, exist_ok=True)
 
         def _process_video(msg_obj: pyrogram.types, _dtype: DownloadType.text):
+            _default_mtype: str = 'video/mp4'  # v1.2.8 健全获取文件名逻辑。
             _meta_obj = getattr(msg_obj, _dtype)
+            _title = getattr(_meta_obj, 'file_name', None)  # v1.2.8 修复当文件名不存在时,下载报错问题。
+            try:
+                if _title is None:
+                    _title = 'None'
+                else:
+                    _title = os.path.splitext(_title)[0]
+            except Exception as e:
+                _title = 'None'
+                log.warning(f'获取文件名时出错,已重命名为:"{_title}",原因:"{e}"')
             _file_name = '{} - {}.{}'.format(
-                getattr(msg_obj, 'id'),
-                os.path.splitext(getattr(_meta_obj, 'file_name'))[0],
-                get_extension(file_id=_meta_obj.file_id, mime_type=getattr(_meta_obj, 'mime_type'), dot=False)
+                getattr(msg_obj, 'id', 'None'),
+                _title,
+                get_extension(file_id=_meta_obj.file_id, mime_type=getattr(_meta_obj, 'mime_type', _default_mtype),
+                              dot=False)
             )
             _file_name = os.path.join(self.temp_folder, validate_title(_file_name))
             return _file_name
 
         def _process_photo(msg_obj: pyrogram.types, _dtype: DownloadType.text):
+            _default_mtype: str = 'image/jpg'  # v1.2.8 健全获取文件名逻辑。
             _meta_obj = getattr(msg_obj, _dtype)
-            extension = 'unknown'
+            _extension: str = 'unknown'
             if _dtype == DownloadType.photo.text:
-                extension = get_extension(file_id=_meta_obj.file_id, mime_type='image',
-                                          dot=False)
+                _extension = get_extension(file_id=_meta_obj.file_id, mime_type=_default_mtype,
+                                           dot=False)
             elif _dtype == DownloadType.document.text:
-                extension = get_extension(file_id=_meta_obj.file_id, mime_type=getattr(_meta_obj, 'mime_type'),
-                                          dot=False)
+                _extension = get_extension(file_id=_meta_obj.file_id,
+                                           mime_type=getattr(_meta_obj, 'mime_type', _default_mtype),
+                                           dot=False)
             _file_name = '{} - {}.{}'.format(
                 getattr(msg_obj, 'id'),
-                _meta_obj.file_unique_id,
-                extension
+                getattr(_meta_obj, 'file_unique_id', 'None'),
+                _extension
             )
             _file_name = os.path.join(self.temp_folder, validate_title(_file_name))
             return _file_name
