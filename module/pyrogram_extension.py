@@ -44,7 +44,7 @@ def get_extension(file_id: str, mime_type: str, dot: bool = True) -> str:
         if 'video' in mime_type:
             extension = guessed_extension or Extension.video.get(mime_type, 'mp4')
         elif 'image' in mime_type:
-            extension = guessed_extension or Extension.video.get(mime_type, 'jpg')
+            extension = guessed_extension or Extension.photo.get(mime_type, 'jpg')  # v1.2.8 修复获取图片格式时,实际指向为视频字典的错误。
         else:
             extension = guessed_extension or 'zip'
     elif file_type == FileType.STICKER:
