@@ -225,7 +225,7 @@ class Application:
                 subprocess.Popen('shutdown -c', shell=True)
             console.print('\n关机已被用户取消!', style='#4bd898')
         except Exception as e:
-            log.error(f'执行关机任务失败! 原因: "{e}"')
+            log.error(f'执行关机任务失败! 原因:"{e}"')
 
     def backup_config(self, backup_config: str, error_config: bool = False):
         if backup_config != Application.ABSOLUTE_BACKUP_DIR:
