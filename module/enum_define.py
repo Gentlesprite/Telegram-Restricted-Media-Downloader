@@ -161,6 +161,7 @@ class Extension:
              'image/bmp': 'bmp',
              'image/gif': 'gif',
              'image/ief': 'ief',
+             'image/jpg': 'jpg',
              'image/jpeg': 'jpeg',
              'image/heic': 'heic',
              'image/heif': 'heif',
