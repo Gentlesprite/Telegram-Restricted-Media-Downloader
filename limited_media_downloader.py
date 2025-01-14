@@ -507,6 +507,7 @@ class RestrictedMediaDownloader:
 
     def run(self):
         record_error: bool = False
+        was_client_ran: bool = False
 
         def _print_media_table():
             header = ('种类&状态', '成功下载', '失败下载', '跳过下载', '合计')
@@ -584,6 +585,7 @@ class RestrictedMediaDownloader:
             MetaData.print_meta()
             self._print_config_table()
             self.client.run(self._download_media_from_links())
+            was_client_ran = True
         except (SessionRevoked, AuthKeyUnregistered, SessionExpired, ConnectionError):
             res: bool = safe_delete(file_path=os.path.join(self.app.DIR_NAME, 'sessions'))
             record_error = True
@@ -600,14 +602,15 @@ class RestrictedMediaDownloader:
             log.exception(msg=f'运行出错,原因:"{e}"', exc_info=True)
         finally:
             if self.client.is_connected:
+                was_client_ran = True
                 self.client.stop()
             self.progress.stop()
             if not record_error:
                 _print_media_table()
-                _print_failure_table() if self.failure_link else 0  # v1.1.2 增加下载失败的链接统计,但如果没有失败的链接将不会显示
+                _print_failure_table() if self.failure_link else 0  # v1.1.2 增加下载失败的链接统计,但如果没有失败的链接将不会显示。
                 MetaData.pay()
-                _process_shutdown()
+                _process_shutdown() if was_client_ran else 0  # v1.2.8如果并未打开客户端执行任何下载,则不执行关机。
             if self.app.platform == 'Windows':
-                os.system('pause')
+                MetaData.ctrl_c()
             else:
-                console.input('请按Enter键继续. . .')
+                console.input('请按「Enter」键继续. . .')

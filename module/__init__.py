@@ -41,11 +41,12 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
                 if not self.phone_number:
                     while True:
                         value = console.input('请输入「电话号码」或「bot token」([#6a2c70]电话号码[/#6a2c70]需以[#b83b5e]「+地区」'
-                                              '[/#b83b5e]开头!如:[#f08a5d]+86[/#f08a5d][#f9ed69]15000000000[/#f9ed69]):')
+                                              '[/#b83b5e]开头!如:[#f08a5d]+86[/#f08a5d][#f9ed69]15000000000[/#f9ed69]):').strip()
                         if not value:
                             continue
 
-                        confirm = console.input(f'所输入的「{value}」是否[green]正确[/green]? - 「y|n」(默认y): ').lower()
+                        confirm = console.input(
+                            f'所输入的「{value}」是否[green]正确[/green]? - 「y|n」(默认y): ').strip().lower()
 
                         if confirm == 'y' or confirm == '':
                             break
@@ -78,7 +79,7 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
 
         while True:
             if not self.phone_code:
-                self.phone_code = console.input('请输入收到的「验证码」:')
+                self.phone_code = console.input('请输入收到的「验证码」:').strip()
 
             try:
                 signed_in = await self.sign_in(self.phone_number, sent_code.phone_code_hash, self.phone_code)
@@ -92,18 +93,18 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
                     console.print('密码提示:{}'.format(await self.get_password_hint()))
 
                     if not self.password:
-                        self.password = console.input('输入「密码」(为空代表恢复密码):', password=self.hide_password)
+                        self.password = console.input('输入「密码」(为空代表恢复密码):', password=self.hide_password).strip()
 
                     try:
                         if not self.password:
-                            confirm = console.input('确认「恢复密码」? - 「y|n」(默认y):').lower()
+                            confirm = console.input('确认「恢复密码」? - 「y|n」(默认y):').strip().lower()
 
                             if confirm == 'y' or confirm == '':
                                 email_pattern = await self.send_recovery_code()
                                 console.print(f'「恢复代码」已发送到「{email_pattern}」。')
 
                                 while True:
-                                    recovery_code = console.input('请输入「恢复代码」:')
+                                    recovery_code = console.input('请输入「恢复代码」:').strip()
 
                                     try:
                                         return await self.recover_password(recovery_code)
@@ -126,8 +127,8 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
             return signed_in
 
         while True:
-            first_name = console.input('输入「名字」:')
-            last_name = console.input('输入「姓氏」(为空代表跳过): ')
+            first_name = console.input('输入「名字」:').strip()
+            last_name = console.input('输入「姓氏」(为空代表跳过): ').strip()
 
             try:
                 signed_up = await self.sign_up(
@@ -159,7 +160,7 @@ def get_peer_type_new(peer_id: int) -> str:
         return 'chat'
 
 
-def read_input_history(history_path: str, max_record_len: int):
+def read_input_history(history_path: str, max_record_len: int) -> None:
     # 尝试读取历史记录文件
     try:
         readline.read_history_file(history_path)
@@ -171,7 +172,7 @@ def read_input_history(history_path: str, max_record_len: int):
     atexit.register(readline.write_history_file, history_path)
 
 
-def check_run_env():  # 检测是控制台运行还是IDE运行
+def check_run_env() -> bool:  # 检测是控制台运行还是IDE运行
     return windll.kernel32.SetConsoleTextAttribute(windll.kernel32.GetStdHandle(-0xb), 0x7)
 
 
@@ -194,7 +195,7 @@ console = Console(log_path=False)
 utils.get_peer_type = get_peer_type_new
 __version__ = '1.2.8'
 __license__ = 'MIT License'
-__update_date__ = '2025/01/04 16:36:41'
+__update_date__ = '2025/01/14 19:53:46'
 __copyright__ = f'Copyright (C) 2024-{__update_date__[:4]} Gentlesprite <https://github.com/Gentlesprite>'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_NAME = 'TRMD'

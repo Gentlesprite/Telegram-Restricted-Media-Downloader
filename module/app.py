@@ -56,7 +56,7 @@ class Validator:
         if not os.path.exists(save_path):
             while True:
                 try:
-                    question = console.input(f'目录:"{save_path}"不存在,是否创建? - 「y|n」(默认y):')
+                    question = console.input(f'目录:"{save_path}"不存在,是否创建? - 「y|n」(默认y):').strip().lower()
                     if question == 'y' or question == '':
                         os.makedirs(save_path, exist_ok=True)
                         console.log(f'成功创建目录:"{save_path}"')
@@ -110,9 +110,10 @@ class Validator:
             return False
 
     @staticmethod
-    def is_valid_download_type(dtype: int) -> bool:
+    def is_valid_download_type(dtype: int or str) -> bool:
         try:
-            return 0 < int(dtype) < 4
+            _dtype = int(dtype) if isinstance(dtype, str) else dtype
+            return 0 < _dtype < 4
         except ValueError:  # 处理非整数字符串的情况
             return False
         except TypeError:  # 处理传入非数字类型的情况
@@ -125,10 +126,10 @@ class Validator:
 class Application:
     # 将 None 的表示注册到 Dumper 中
 
-    DIR_NAME = os.path.dirname(os.path.abspath(sys.argv[0]))  # 获取软件工作绝对目录
-    CONFIG_NAME = 'config.yaml'  # 配置文件名
-    CONFIG_PATH = os.path.join(DIR_NAME, CONFIG_NAME)
-    CONFIG_TEMPLATE = {
+    DIR_NAME: str = os.path.dirname(os.path.abspath(sys.argv[0]))  # 获取软件工作绝对目录
+    CONFIG_NAME: str = 'config.yaml'  # 配置文件名
+    CONFIG_PATH: str = os.path.join(DIR_NAME, CONFIG_NAME)
+    CONFIG_TEMPLATE: dict = {
         'api_id': None,
         'api_hash': None,
         'proxy': {
@@ -146,9 +147,10 @@ class Application:
         'is_shutdown': None,
         'download_type': None
     }
-    TEMP_FOLDER = os.path.join(os.getcwd(), 'temp')
-    BACKUP_DIR = 'ConfigBackup'
-    ABSOLUTE_BACKUP_DIR = os.path.join(DIR_NAME, BACKUP_DIR)
+    TEMP_FOLDER: str = os.path.join(os.getcwd(), 'temp')
+    BACKUP_DIR: str = 'ConfigBackup'
+    ABSOLUTE_BACKUP_DIR: str = os.path.join(DIR_NAME, BACKUP_DIR)
+    SUPPORT_SYSTEM: list = ['Windows', 'Linux', 'Darwin']
 
     def __init__(self):
         self.platform: str = get_platform()
@@ -196,21 +198,34 @@ class Application:
                         }
         return self.color[_stdio_queue.get(key)]
 
-    @staticmethod
-    def shutdown_task(second: int):
+    def shutdown_task(self, second: int):
         try:
-            # 启动关机命令
-            shutdown_command = f'shutdown -s -t {second}'
-            subprocess.Popen(shutdown_command, shell=True)  # 异步执行关机
-            # 实时显示倒计时
-            for remaining in range(second, 0, -1):
-                console.print(f'即将在{remaining}秒后关机, 按「CTRL+C」可取消。', end='\r', style='#ff4805')
-                time.sleep(1)
-            console.print('\n关机即将执行!', style='#f6ad00')
+            if self.platform in Application.SUPPORT_SYSTEM:
+                if self.platform == 'Windows':
+                    # 启动关机命令 目前只支持对 Windows 系统的关机
+                    shutdown_command = f'shutdown -s -t {second}'
+                    subprocess.Popen(shutdown_command, shell=True)  # 异步执行关机
+                elif self.platform == 'Linux' or self.platform == 'Darwin':
+                    # Linux 或 macOS 使用 shutdown 命令
+                    shutdown_command = f'shutdown -h +{second // 60}'
+                    subprocess.Popen(shutdown_command, shell=True)  # 异步执行关机
+                # 实时显示倒计时
+                for remaining in range(second, 0, -1):
+                    console.print(f'即将在{remaining}秒后关机, 按「CTRL+C」可取消。', end='\r', style='#ff4805')
+                    time.sleep(1)
+                console.print('\n关机即将执行!', style='#f6ad00')
+            else:
+                log.warning(f'执行关机任务失败, 可能是当前系统不支持自动关机!')
         except KeyboardInterrupt:
-            subprocess.Popen('shutdown -a', shell=True)
-            console.print('\n关机已被用户取消!', style='#19ac18')
-            os.system('pause')
+            # 如果用户按下 CTRL+C，取消关机
+            if self.platform == 'Windows':
+                subprocess.Popen('shutdown -a', shell=True)  # 取消关机
+            else:
+                # Linux/macOS 取消关机命令
+                subprocess.Popen('shutdown -c', shell=True)
+            console.print('\n关机已被用户取消!', style='#4bd898')
+        except Exception as e:
+            log.error(f'执行关机任务失败! 原因: "{e}"')
 
     def backup_config(self, backup_config: str, error_config: bool = False):
         if backup_config != Application.ABSOLUTE_BACKUP_DIR:
@@ -252,7 +267,7 @@ class Application:
                 while True:
                     try:
                         question = console.input(
-                            '检测到已配置完成的配置文件,是否需要重新配置?(之前的配置文件将为你备份到当前目录下) - 「y|n」(默认n):').lower()
+                            '检测到已配置完成的配置文件,是否需要重新配置?(之前的配置文件将为你备份到当前目录下) - 「y|n」(默认n):').strip().lower()
                         if question == 'y':
                             config = Application.CONFIG_TEMPLATE.copy()
                             backup_path = gen_backup_config(old_path=self.config_path,
@@ -342,7 +357,7 @@ class Application:
             if self.record_flag:
                 print('\n')
                 while True:
-                    question = console.input('「退出提示」是否需要保存当前已填写的参数? - 「y|n」:').lower()
+                    question = console.input('「退出提示」是否需要保存当前已填写的参数? - 「y|n」:').strip().lower()
                     if question == 'y':
                         console.log('配置已保存!')
                         self.save_config()
@@ -362,7 +377,7 @@ class Application:
             if new_line is True:
                 print('\n')
                 console.log('用户手动终止配置参数。')
-            os.system('pause')
+            MetaData.ctrl_c()
             exit()
 
     def _find_history_config(self):
@@ -435,7 +450,7 @@ class Application:
             while True:
                 try:
                     api_id = console.input(
-                        f'请输入「api_id」上一次的记录是:「{_last_record if _last_record else undefined}」:')
+                        f'请输入「api_id」上一次的记录是:「{_last_record if _last_record else undefined}」:').strip()
                     if api_id == '' and _last_record is not None:
                         api_id = _last_record
                     if Validator.is_valid_api_id(api_id):
@@ -450,7 +465,7 @@ class Application:
             while True:
                 try:
                     api_hash = console.input(
-                        f'请输入「api_hash」上一次的记录是:「{_last_record if _last_record else undefined}」:')
+                        f'请输入「api_hash」上一次的记录是:「{_last_record if _last_record else undefined}」:').strip().lower()
                     if api_hash == '' and _last_record is not None:
                         api_hash = _last_record
                     if Validator.is_valid_api_hash(api_hash, _valid_length):
@@ -544,7 +559,7 @@ class Application:
                 try:
                     question = console.input(
                         f'下载完成后是否「自动关机」。上一次的记录是:「{_last_record}」 - 「{_valid_format}」'
-                        f'{"(默认n)" if _last_record == undefined else ""}:').strip()
+                        f'{"(默认n)" if _last_record == undefined else ""}:').strip().lower()
                     if question == '' and _last_record != undefined:
                         if _last_record == 'y':
                             self.config['is_shutdown'] = True
@@ -602,7 +617,7 @@ class Application:
                 try:
                     download_type = console.input(
                         f'输入需要下载的「媒体类型」。上一次的记录是:「{_last_record if _last_record else undefined}」'
-                        f'格式 - 「1.视频 2.图片 3.视频和图片」{"(默认3)" if _last_record is None else ""}:')
+                        f'格式 - 「1.视频 2.图片 3.视频和图片」{"(默认3)" if _last_record is None else ""}:').strip()
                     if download_type == '' and _last_record is not None:
                         download_type = _last_record
                     if download_type == '':
@@ -690,7 +705,7 @@ class Application:
                 while True:
                     enable_proxy = console.input(
                         f'是否需要使用「代理」。上一次的记录是:「{ep_notice}」'
-                        f'格式 - 「{valid_format}」{"(默认n)" if ep_notice == undefined else ""}:').lower()  # 询问是否开启代理
+                        f'格式 - 「{valid_format}」{"(默认n)" if ep_notice == undefined else ""}:').strip().lower()  # 询问是否开启代理
                     if enable_proxy == '' and ep_last_record is not None:
                         if ep_last_record is True:
                             enable_proxy = 'y'
@@ -713,7 +728,7 @@ class Application:
                     # 是否记住选项
                     is_notice = console.input(
                         f'下次是否「不再询问使用代理」。上一次的记录是:「{in_notice}」'
-                        f'格式 - 「{valid_format}」{("(默认n)" if in_notice == undefined else "")}:').lower()
+                        f'格式 - 「{valid_format}」{("(默认n)" if in_notice == undefined else "")}:').strip().lower()
                     if is_notice == '' and in_last_record is not None:
                         if in_last_record is True:
                             is_notice = 'y'
@@ -911,3 +926,10 @@ class MetaData:
     def print_helper():
         markdown = Markdown(readme)
         console.print(markdown)
+
+    @staticmethod
+    def ctrl_c():
+        try:
+            os.system('pause')
+        except KeyboardInterrupt:
+            ...
