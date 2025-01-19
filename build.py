@@ -3,7 +3,6 @@
 # Software:PyCharm
 # Time:2024/7/22 22:37
 # File:build.py
-"""pip install nuitka==2.4.8"""
 import os
 from module import author, __version__, __update_date__, SOFTWARE_FULL_NAME
 
@@ -22,5 +21,8 @@ build_command += f'--output-filename="{app_name}.exe" --copyright="{copy_right}"
 build_command += f'--remove-output '
 build_command += main
 if __name__ == '__main__':
-    print(build_command)
-    os.system(build_command)
+    try:
+        print(build_command)
+        os.system(build_command)
+    except ImportError:
+        print('请先安装使用命令:"pip install nuitka==2.4.8"安装Nuitka后重试。')
