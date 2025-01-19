@@ -3,7 +3,11 @@
 # Software:PyCharm
 # Time:2024/7/2 0:59
 # File:enum_define.py
+import ipaddress
 from enum import Enum
+
+from module import os
+from module import console, log
 
 
 class LinkType(Enum):
@@ -332,3 +336,175 @@ MM.    `7MMF'8M""""""  MM    MM  MM     MM 8M"""""" `YMMMa.   MM    M8  MM      
                                                               MM                                       
                                                             .JMML.                                     
     '''
+
+
+class Validator:
+    @staticmethod
+    def is_valid_api_id(api_id: str, valid_length: int = 32) -> bool:
+        try:
+            if len(api_id) < valid_length:
+                if api_id.isdigit():
+                    return True
+                else:
+                    log.warning(f'意外的参数:"{api_id}",不是「纯数字」请重新输入!')
+                    return False
+            else:
+                log.warning(f'意外的参数,填写的"{api_id}"可能是「api_hash」,请填入正确的「api_id」!')
+                return False
+        except (AttributeError, TypeError):
+            log.error('手动编辑config.yaml时,api_id需要有引号!')
+            return False
+
+    @staticmethod
+    def is_valid_api_hash(api_hash: str, valid_length: int = 32) -> bool:
+        return len(str(api_hash)) == valid_length
+
+    @staticmethod
+    def is_valid_links_file(file_path: str, valid_format: str = '.txt') -> bool:
+        file_path = os.path.normpath(file_path)
+        return os.path.isfile(file_path) and file_path.endswith(valid_format)
+
+    @staticmethod
+    def is_valid_save_path(save_path: str) -> bool:
+        if not os.path.exists(save_path):
+            while True:
+                try:
+                    question = console.input(f'目录:"{save_path}"不存在,是否创建? - 「y|n」(默认y):').strip().lower()
+                    if question == 'y' or question == '':
+                        os.makedirs(save_path, exist_ok=True)
+                        console.log(f'成功创建目录:"{save_path}"')
+                        break
+                    elif question == 'n':
+                        break
+                    else:
+                        log.warning(f'意外的参数:"{question}",支持的参数 - 「y|n」')
+                except Exception as e:
+                    log.error(f'意外的错误,原因:"{e}"')
+                    break
+        return os.path.isdir(save_path)
+
+    @staticmethod
+    def is_valid_max_download_task(max_tasks: int) -> bool:
+        try:
+            return int(max_tasks) > 0
+        except ValueError:
+            return False
+        except Exception as e:
+            log.error(f'意外的错误,原因:"{e}"')
+
+    @staticmethod
+    def is_valid_enable_proxy(enable_proxy: str or bool) -> bool:
+        if enable_proxy == 'y' or enable_proxy == 'n':
+            return True
+
+    @staticmethod
+    def is_valid_is_notice(is_notice: str) -> bool:
+        if is_notice == 'y' or is_notice == 'n':
+            return True
+
+    @staticmethod
+    def is_valid_scheme(scheme: str, valid_format: list) -> bool:
+        return scheme in valid_format
+
+    @staticmethod
+    def is_valid_hostname(hostname: str) -> bool:
+        return isinstance(ipaddress.ip_address(hostname), ipaddress.IPv4Address)
+
+    @staticmethod
+    def is_valid_port(port: int) -> bool:
+        try:
+            return 0 < int(port) <= 65535
+        except ValueError:  # 处理非整数字符串的情况
+            return False
+        except TypeError:  # 处理传入非数字类型的情况
+            return False
+        except Exception as e:
+            log.error(f'意外的错误,原因:"{e}"')
+            return False
+
+    @staticmethod
+    def is_valid_download_type(dtype: int or str) -> bool:
+        try:
+            _dtype = int(dtype) if isinstance(dtype, str) else dtype
+            return 0 < _dtype < 4
+        except ValueError:  # 处理非整数字符串的情况
+            return False
+        except TypeError:  # 处理传入非数字类型的情况
+            return False
+        except Exception as e:
+            log.error(f'意外的错误,原因:"{e}"')
+            return False
+
+
+class QrcodeRender:
+    @staticmethod
+    def render_2by1(qr_map) -> str:
+        blocks_2by1: list = ['█', '▀', '▄', ' ']
+        output: str = ''
+        for row in range(0, len(qr_map), 2):
+            for col in range(0, len(qr_map[0])):
+                pixel_cur = qr_map[row][col]
+                pixel_below = 1
+                if row < len(qr_map) - 1:
+                    pixel_below = qr_map[row + 1][col]
+                pixel_encode = pixel_cur << 1 | pixel_below
+                output += blocks_2by1[pixel_encode]
+            output += '\n'
+        return output[:-1]
+
+    @staticmethod
+    def render_3by2(qr_map) -> str:
+        blocks_3by2: list = [
+            '█', '🬝', '🬬', '🬎', '🬴', '🬕', '🬥', '🬆',
+
+            '🬸', '🬙', '🬨', '🬊', '🬰', '🬒', '🬡', '🬂',
+
+            '🬺', '🬛', '🬪', '🬌', '🬲', '▌', '🬣', '🬄',
+
+            '🬶', '🬗', '🬧', '🬈', '🬮', '🬐', '🬟', '🬀',
+
+            '🬻', '🬜', '🬫', '🬍', '🬳', '🬔', '🬤', '🬅',
+
+            '🬷', '🬘', '▐', '🬉', '🬯', '🬑', '🬠', '🬁',
+
+            '🬹', '🬚', '🬩', '🬋', '🬱', '🬓', '🬢', '🬃',
+
+            '🬵', '🬖', '🬦', '🬇', '🬭', '🬏', '🬞', ' ',
+        ]
+
+        output: str = ''
+
+        def get_qr_map(r, c):
+            return 1 if r >= len(qr_map) or c >= len(qr_map[0]) else qr_map[r][c]
+
+        for row in range(0, len(qr_map), 3):
+            for col in range(0, len(qr_map[0]), 2):
+                pixel5 = qr_map[row][col]
+                pixel4 = get_qr_map(row, col + 1)
+                pixel3 = get_qr_map(row + 1, col)
+                pixel2 = get_qr_map(row + 1, col + 1)
+                pixel1 = get_qr_map(row + 2, col)
+                pixel0 = get_qr_map(row + 2, col + 1)
+                pixel_encode = pixel5 << 5 | pixel4 << 4 | pixel3 << 3 | pixel2 << 2 | pixel1 << 1 | pixel0
+                output += blocks_3by2[pixel_encode]
+            output += '\n'
+
+        return output[:-1]
+
+
+downloading = DownloadStatus.translate(DownloadStatus.downloading.text)
+success_download = DownloadStatus.translate(DownloadStatus.success.text)
+failure_download = DownloadStatus.translate(DownloadStatus.failure.text)
+skip_download = DownloadStatus.translate(DownloadStatus.skip.text)
+keyword_link = KeyWorld.translate(KeyWorld.link.text, True)
+keyword_link_type = KeyWorld.translate(KeyWorld.link_type.text, True)
+keyword_id = KeyWorld.translate(KeyWorld.id.text, True)
+keyword_size = KeyWorld.translate(KeyWorld.size.text, True)
+keyword_link_status = KeyWorld.translate(KeyWorld.status.text, True)
+keyword_file = KeyWorld.translate(KeyWorld.file.text, True)
+keyword_error_size = KeyWorld.translate(KeyWorld.error_size.text, True)
+keyword_actual_size = KeyWorld.translate(KeyWorld.actual_size.text, True)
+keyword_already_exist = KeyWorld.translate(KeyWorld.already_exist.text, True)
+keyword_chanel = KeyWorld.translate(KeyWorld.chanel.text, True)
+keyword_type = KeyWorld.translate(KeyWorld.type.text, True)
+keyword_download_task_error = KeyWorld.translate(KeyWorld.download_task_error.text, True)
