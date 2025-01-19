@@ -1304,7 +1304,7 @@ class MetaData:
         try:
             from ctypes import windll  # v1.2.9 避免非Windows平台运行时报错。
             return windll.kernel32.SetConsoleTextAttribute(windll.kernel32.GetStdHandle(-0xb), 0x7)
-        except Exception as _:
+        except ImportError:  # v1.2.9 抛出错误代表非Windows平台。
             return True
 
     @staticmethod
