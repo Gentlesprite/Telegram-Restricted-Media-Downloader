@@ -14,6 +14,7 @@ test_download/test/
 *.exe
 *.yaml
 *.xml
+*.lock
 tests.py
 test.py
 TESTS.py
