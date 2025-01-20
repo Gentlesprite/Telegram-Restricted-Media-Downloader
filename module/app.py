@@ -3,27 +3,25 @@
 # Software:PyCharm
 # Time:2024/7/25 12:32
 # File:app.py
+import os
+import sys
 import time
 import qrcode
 import platform
+import mimetypes
+import datetime
 import subprocess
+import pyrogram
 
+from typing import Dict
 from functools import wraps
 from pyrogram.errors import FloodWait
 from rich.markdown import Markdown
-from rich.table import Table
-from rich.table import Style
+from rich.table import Table, Style
 from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn, TransferSpeedColumn
 
-from module import os
-from module import sys
 from module import yaml
-from module import datetime
-from module import pyrogram
-from module import mimetypes
 from module import CustomDumper
-
-from module import Dict
 from module import readme
 from module import console, log
 from module import SOFTWARE_FULL_NAME, __version__, __copyright__, __license__

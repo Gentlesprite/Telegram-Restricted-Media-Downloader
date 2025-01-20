@@ -3,14 +3,14 @@
 # Software:PyCharm
 # Time:2023/10/3 1:00:03
 # File:downloader.py
+import os
 import asyncio
 
 from pyrogram.errors.exceptions.bad_request_400 import MsgIdInvalid, UsernameInvalid
+from pyrogram.errors.exceptions.unauthorized_401 import SessionRevoked, AuthKeyUnregistered, SessionExpired
 
-from module import os
-from module import Set, Any
+from typing import Set, Any
 from module import console, log
-from module import SessionRevoked, AuthKeyUnregistered, SessionExpired
 from module.app import Application, MetaData
 from module.process_path import is_file_duplicate, safe_delete
 from module.enum_define import LinkType, DownloadStatus, DownloadType

@@ -4,24 +4,15 @@
 # Time:2023/11/18 12:28:18
 # File:__init__.py
 import os
-import sys
 import yaml
 import atexit
-import shutil
 import logging
 import readline
-import platform
-import datetime
-import pyrogram
-import mimetypes
 
 from pyrogram import utils
-from typing import Set, Dict, Any, Optional
-
 from rich.console import Console
 from rich.logging import RichHandler
 from logging.handlers import RotatingFileHandler
-from pyrogram.errors.exceptions.unauthorized_401 import SessionRevoked, AuthKeyUnregistered, SessionExpired
 
 
 # v1.1.2 解决链接若附带/c字段即私密频道无法下载的问题,是由于pyrogram的问题:https://github.com/pyrogram/pyrogram/issues/1314
@@ -57,7 +48,7 @@ console = Console(log_path=False)
 utils.get_peer_type = get_peer_type_new
 __version__ = '1.2.9'
 __license__ = 'MIT License'
-__update_date__ = '2025/01/20 15:49:44'
+__update_date__ = '2025/01/20 16:43:24'
 __copyright__ = f'Copyright (C) 2024-{__update_date__[:4]} Gentlesprite <https://github.com/Gentlesprite>'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_NAME = 'TRMD'

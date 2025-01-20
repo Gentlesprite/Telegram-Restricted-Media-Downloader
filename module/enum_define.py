@@ -3,10 +3,10 @@
 # Software:PyCharm
 # Time:2024/7/2 0:59
 # File:enum_define.py
+import os
 import ipaddress
 from enum import Enum
 
-from module import os
 from module import console, log
 
 

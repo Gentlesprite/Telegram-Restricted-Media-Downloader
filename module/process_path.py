@@ -4,8 +4,12 @@
 # Time:2023/11/13 20:34:13
 # File:process_path.py
 # 部分代码源于作者:tangyoha
+import os
 import re
 import struct
+import shutil
+import datetime
+import mimetypes
 import unicodedata
 
 from io import BytesIO
@@ -17,11 +21,6 @@ from pyrogram.file_id import (
     b64_decode,
     rle_decode,
 )
-
-from module import os
-from module import shutil
-from module import datetime
-from module import mimetypes
 
 from module import Optional
 
