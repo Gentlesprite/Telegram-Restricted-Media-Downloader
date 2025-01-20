@@ -36,15 +36,17 @@ B站视频教程:[点击观看](https://www.bilibili.com/video/BV1nCp8evEwv)
 
 Github:[点击跳转下载](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/releases)
 
-## 1.1.推荐终端:
+## 1.1.推荐终端（选看）:
 
-1. 推荐使用**Winodws Terminal**作为**默认终端**，避免出现**文字显示**乱码。
+1. 对于Windows11用户，**Winodws Terminal**默认已**经安装好**，可直接**跳过**此步骤。
+
+2. 对于Windows10用户，推荐使用**Winodws Terminal**作为**默认终端**，仅作为推荐安装，无论安装与否**不会影响本软件的使用**，**Winodws Terminal**能提供更出色的显示、交互、体验效果，以及避免出现**文字显示**乱码。
 
    Winodws Terminal 微软商店:[点击跳转下载](https://apps.microsoft.com/detail/9n0dx20hk701?launch=true&mode=full&hl=zh-cn&gl=cn&ocid=bingwebsearch)
 
    Winodws Terminal Github:[点击跳转下载](https://github.com/microsoft/terminal/releases)
 
-2. 下载完成完成后**win+r**输入**wt**回车打开，然后将**Winodws Terminal**设为**默认终端**再启动软件，教程如下:
+3. 下载完成完成后**win+r**输入**wt**回车打开，然后将**Winodws Terminal**设为**默认终端**再启动软件，教程如下:
 
    ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/1_1_1.png)
 
