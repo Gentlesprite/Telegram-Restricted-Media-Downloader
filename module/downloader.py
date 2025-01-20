@@ -2,7 +2,7 @@
 # Author:Gentlesprite
 # Software:PyCharm
 # Time:2023/10/3 1:00:03
-# File:limited_media_downloader.py
+# File:downloader.py
 import asyncio
 
 from pyrogram.errors.exceptions.bad_request_400 import MsgIdInvalid, UsernameInvalid
@@ -18,11 +18,11 @@ from module.enum_define import downloading, failure_download, skip_download, key
     keyword_size, keyword_link_status, keyword_file, keyword_already_exist, keyword_chanel, keyword_type
 
 
-class RestrictedMediaDownloader:
-    event = asyncio.Event()
+class TelegramRestrictedMediaDownloader:
 
     def __init__(self):
         MetaData.print_helper()
+        self.event = asyncio.Event()
         self.queue = asyncio.Queue()
         self.app = Application()
         self.client = self.app.build_client()
