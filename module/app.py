@@ -27,7 +27,7 @@ from module import pyrogram
 from module import readme
 from module import sys
 from module import yaml
-from module.process_path import split_path, validate_title, truncate_filename, move_to_download_path, \
+from module.process_path import split_path, validate_title, truncate_filename, move_to_save_path, \
     gen_backup_config, get_extension
 from module.enum_define import GradientColor, ArtFont, DownloadType, DownloadStatus, Validator, QrcodeRender, \
     failure_download, keyword_size, keyword_link_status, keyword_file, keyword_type, keyword_error_size, \
@@ -332,12 +332,17 @@ class Application:
 
     def check_download_finish(self, sever_size: int, download_path: str, save_directory: str) -> bool:
         """检测文件是否下完。"""
-        local_size: int = os.path.getsize(download_path)
+        temp_ext: str = '.temp'
+        try:
+            local_size: int = os.path.getsize(download_path)
+        except FileNotFoundError:
+            local_size: int = os.path.getsize(download_path + temp_ext)  # v1.2.9 修复临时文件大小获取失败的问题。
         format_local_size: str = MetaData.suitable_units_display(local_size)
         format_sever_size: str = MetaData.suitable_units_display(sever_size)
-        save_path: str = os.path.join(save_directory, split_path(download_path).get('file_name'))
+        _save_path: str = os.path.join(save_directory, split_path(download_path).get('file_name'))
+        save_path: str = _save_path[:-len(temp_ext)] if _save_path.endswith(temp_ext) else _save_path
         if sever_size == local_size:
-            result: dict = move_to_download_path(temp_save_path=download_path, save_path=save_directory).get('e_code')
+            result: str = move_to_save_path(temp_save_path=download_path, save_path=save_directory).get('e_code')
             console.warning(result) if result is not None else 0
             console.log(
                 f'{keyword_file}:"{save_path}",'
