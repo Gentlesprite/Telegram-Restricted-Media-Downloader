@@ -261,7 +261,7 @@ class GradientColor:
 
     @staticmethod
     def gen_gradient_text(text: str, gradient_color: list) -> str:
-        """当渐变色列表小于文字长度时,翻转并扩展当前列表"""
+        """当渐变色列表小于文字长度时,翻转并扩展当前列表。"""
         text_lst: list = [i for i in text]
         text_lst_len: int = len(text_lst)
         gradient_color_len: int = len(gradient_color)
@@ -275,18 +275,18 @@ class GradientColor:
 
     @staticmethod
     def __hex_to_rgb(hex_color: str) -> tuple:
-        """将十六进制颜色值转换为RGB元组"""
+        """将十六进制颜色值转换为RGB元组。"""
         hex_color = hex_color.lstrip('#')
         return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
 
     @staticmethod
     def __rgb_to_hex(r: int, g: int, b: int) -> str:
-        """将RGB元组转换为十六进制颜色值"""
+        """将RGB元组转换为十六进制颜色值。"""
         return f"#{r:02x}{g:02x}{b:02x}"
 
     @staticmethod
     def generate_gradient(start_color: str, end_color: str, steps: int) -> list:
-        """根据起始和结束颜色生成颜色渐变列表"""
+        """根据起始和结束颜色生成颜色渐变列表。"""
         steps = 2 if steps <= 1 else steps
         # 转换起始和结束颜色为RGB
         start_rgb = GradientColor.__hex_to_rgb(start_color)

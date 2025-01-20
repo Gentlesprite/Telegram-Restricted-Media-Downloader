@@ -29,7 +29,8 @@ from module.enum_define import Extension
 _mimetypes = mimetypes.MimeTypes()
 
 
-def split_path(path) -> dict:
+def split_path(path: str) -> dict:
+    """将传入路径拆分为目录名和文件名并以字典形式返回。"""
     directory, file_name = os.path.split(path)
     return {'directory': directory, 'file_name': file_name}
 
@@ -47,12 +48,12 @@ def _is_exist(file_path: str) -> bool:
     return not os.path.isdir(file_path) and os.path.exists(file_path)
 
 
-def _compare_file_size(local_size, sever_size) -> bool:
+def _compare_file_size(local_size: int, sever_size: int) -> bool:
     """比较文件的大小是否一致。"""
     return local_size == sever_size
 
 
-def is_file_duplicate(local_file_path, sever_size) -> bool:
+def is_file_duplicate(local_file_path: str, sever_size: int) -> bool:
     """判断文件是否重复。"""
     return _is_exist(local_file_path) and _compare_file_size(os.path.getsize(local_file_path), sever_size)
 
