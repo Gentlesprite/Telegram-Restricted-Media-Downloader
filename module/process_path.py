@@ -23,7 +23,7 @@ from module import datetime
 from module import shutil
 from module import Optional
 from module import mimetypes
-from module.enum_define import Extension
+from module.enum_define import Extension, PathType
 
 _mimetypes = mimetypes.MimeTypes()
 
@@ -94,8 +94,11 @@ def safe_delete(file_path) -> bool:
     try:
         if os.path.isdir(file_path):
             shutil.rmtree(file_path)
-        else:
+            return True
+        elif os.path.isfile(file_path):
             os.remove(file_path)
+            return True
+    except FileNotFoundError:
         return True
     except PermissionError:
         return False
