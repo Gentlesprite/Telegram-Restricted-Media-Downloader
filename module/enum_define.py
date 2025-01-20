@@ -302,7 +302,7 @@ class GradientColor:
         return gradient_color
 
 
-class ArtFont:
+class ArtFont(Enum):
     author_art_1 = r'''
        ______           __  __                     _ __          
       / ____/__  ____  / /_/ /__  _________  _____(_) /____      
