@@ -103,7 +103,7 @@ def safe_delete(file_path) -> bool:
         return False
 
 
-def move_to_download_path(temp_save_path: str, save_path: str) -> dict:
+def move_to_save_path(temp_save_path: str, save_path: str) -> dict:
     try:
         os.makedirs(save_path, exist_ok=True)
         if os.path.isdir(save_path):
