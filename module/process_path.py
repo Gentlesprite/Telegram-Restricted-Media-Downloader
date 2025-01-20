@@ -23,7 +23,7 @@ from module import datetime
 from module import shutil
 from module import Optional
 from module import mimetypes
-from module.enum_define import Extension, PathType
+from module.enum_define import Extension
 
 _mimetypes = mimetypes.MimeTypes()
 
@@ -33,26 +33,31 @@ def split_path(path) -> dict:
     return {'directory': directory, 'file_name': file_name}
 
 
-def _is_folder_empty(folder_path) -> bool:
-    if len(os.listdir(folder_path)) == 0:
+def _is_directory_empty(directory_path: str) -> bool:
+    """判断目录是否为空。"""
+    if len(os.listdir(directory_path)) == 0:
         return True
     else:
         return False
 
 
 def _is_exist(file_path: str) -> bool:
+    """判断文件路径是否存在。"""
     return not os.path.isdir(file_path) and os.path.exists(file_path)
 
 
 def _compare_file_size(local_size, sever_size) -> bool:
+    """比较文件的大小是否一致。"""
     return local_size == sever_size
 
 
 def is_file_duplicate(local_file_path, sever_size) -> bool:
+    """判断文件是否重复。"""
     return _is_exist(local_file_path) and _compare_file_size(os.path.getsize(local_file_path), sever_size)
 
 
 def validate_title(title: str) -> str:
+    """验证并修改(如果不合法)标题的合法性。"""
     r_str = r"[/\\:*?\"<>|\n]"  # '/ \ : * ? " < > |'
     new_title = re.sub(r_str, "_", title)
     return new_title
@@ -83,6 +88,7 @@ def truncate_filename(path: str, limit: int = 230) -> str:
 
 
 def gen_backup_config(old_path: str, absolute_backup_dir: str, error_config: bool = False) -> str:
+    """备份配置文件。"""
     os.makedirs(absolute_backup_dir, exist_ok=True)
     new_path = os.path.join(absolute_backup_dir,
                             f'{"error_" if error_config else ""}history_{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_config.yaml')
@@ -90,7 +96,8 @@ def gen_backup_config(old_path: str, absolute_backup_dir: str, error_config: boo
     return new_path
 
 
-def safe_delete(file_path) -> bool:
+def safe_delete(file_path: str) -> bool:
+    """删除文件或目录。"""
     try:
         if os.path.isdir(file_path):
             shutil.rmtree(file_path)
@@ -107,13 +114,14 @@ def safe_delete(file_path) -> bool:
 
 
 def move_to_save_path(temp_save_path: str, save_path: str) -> dict:
+    """移动文件到指定路径。"""
     try:
         os.makedirs(save_path, exist_ok=True)
         if os.path.isdir(save_path):
             shutil.move(temp_save_path, save_path)
             return {'e_code': None}
         else:
-            if _is_folder_empty(save_path):
+            if _is_directory_empty(save_path):
                 os.rmdir(save_path)
             save_path = os.path.join(os.getcwd(), 'downloads')
             os.makedirs(save_path, exist_ok=True)
@@ -126,8 +134,8 @@ def move_to_save_path(temp_save_path: str, save_path: str) -> dict:
 
 
 def get_extension(file_id: str, mime_type: str, dot: bool = True) -> str:
-    """Get extension
-    更多扩展见:http://www.iana.org/assignments/media-types/media-types.xhtml
+    """获取文件的扩展名。
+    更多扩展名见:http://www.iana.org/assignments/media-types/media-types.xhtml
     """
 
     if not file_id:
@@ -165,13 +173,13 @@ def get_extension(file_id: str, mime_type: str, dot: bool = True) -> str:
 
 
 def _guess_extension(mime_type: str) -> Optional[str]:
-    """Guess the file extension from a MIME type return without dot if extension isn't None."""
+    """如果扩展名不是None，则从没有点的MIME类型返回中猜测文件扩展名。"""
     extension = mimetypes.guess_extension(mime_type, strict=True)
     return extension[1:] if extension and extension.startswith('.') else extension
 
 
 def _get_file_type(file_id: str):
-    """Get file type"""
+    """获取文件类型。"""
     decoded = rle_decode(b64_decode(file_id))
 
     # File id versioning. Major versions lower than 4 don't have a minor version
