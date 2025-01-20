@@ -15,18 +15,19 @@ from rich.table import Table
 from rich.table import Style
 from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn, TransferSpeedColumn
 
-from module import Dict
-from module import mimetypes
-from module import CustomDumper
-from module import SOFTWARE_FULL_NAME, __version__, __copyright__, __license__
-from module import console, log
-from module import datetime
-
 from module import os
-from module import pyrogram
-from module import readme
 from module import sys
 from module import yaml
+from module import datetime
+from module import pyrogram
+from module import mimetypes
+from module import CustomDumper
+
+from module import Dict
+from module import readme
+from module import console, log
+from module import SOFTWARE_FULL_NAME, __version__, __copyright__, __license__
+
 from module.process_path import split_path, validate_title, truncate_filename, move_to_save_path, \
     gen_backup_config, get_extension, safe_delete
 from module.enum_define import GradientColor, ArtFont, DownloadType, DownloadStatus, Validator, QrcodeRender
