@@ -28,10 +28,10 @@ from module import readme
 from module import sys
 from module import yaml
 from module.process_path import split_path, validate_title, truncate_filename, move_to_save_path, \
-    gen_backup_config, get_extension
-from module.enum_define import GradientColor, ArtFont, DownloadType, DownloadStatus, Validator, QrcodeRender, \
-    failure_download, keyword_size, keyword_link_status, keyword_file, keyword_type, keyword_error_size, \
-    keyword_actual_size
+    gen_backup_config, get_extension, safe_delete
+from module.enum_define import GradientColor, ArtFont, DownloadType, DownloadStatus, Validator, QrcodeRender
+from module.enum_define import failure_download, keyword_size, keyword_link_status, keyword_file, keyword_type, \
+    keyword_error_size, keyword_actual_size
 
 
 class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
@@ -333,10 +333,13 @@ class Application:
     def check_download_finish(self, sever_size: int, download_path: str, save_directory: str) -> bool:
         """检测文件是否下完。"""
         temp_ext: str = '.temp'
-        try:
-            local_size: int = os.path.getsize(download_path)
-        except FileNotFoundError:
-            local_size: int = os.path.getsize(download_path + temp_ext)  # v1.2.9 修复临时文件大小获取失败的问题。
+        if os.path.exists(download_path) or os.path.exists(download_path + temp_ext):
+            try:
+                local_size: int = os.path.getsize(download_path)
+            except FileNotFoundError:
+                local_size: int = os.path.getsize(download_path + temp_ext)  # v1.2.9 修复临时文件大小获取失败的问题。
+        else:
+            local_size: int = 0  # 仍然找不到则直接为0
         format_local_size: str = MetaData.suitable_units_display(local_size)
         format_sever_size: str = MetaData.suitable_units_display(sever_size)
         _save_path: str = os.path.join(save_directory, split_path(download_path).get('file_name'))
@@ -358,7 +361,7 @@ class Application:
                 f'{keyword_actual_size}:{format_sever_size},'
                 f'{keyword_type}:{DownloadType.translate(self.guess_file_type(file_name=download_path, status=DownloadStatus.failure)[0].text)},'
                 f'{keyword_link_status}:{failure_download}。')
-            os.remove(download_path)
+            safe_delete(file_path=download_path)  # v1.2.9 修复临时文件删除失败的问题。
             return False
 
     def get_media_meta(self, message, dtype) -> dict:
