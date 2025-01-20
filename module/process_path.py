@@ -22,7 +22,7 @@ from pyrogram.file_id import (
     rle_decode,
 )
 
-from module import Optional
+from typing import Optional
 
 from module.enum_define import Extension
 
