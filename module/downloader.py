@@ -106,8 +106,8 @@ class TelegramRestrictedMediaDownloader:
                         console.log(f'[当前任务数]:{self.app.current_task_num}。', justify='right')
                         self.event.set()
                     else:
+                        self.app.progress.remove_task(task_id=task_id)  # v1.2.9 更正下载失败时,删除下载失败的进度条。
                         if retry_count < self.app.max_retry_count:
-                            self.app.progress.remove_task(task_id=task_id)  # v1.2.9 下载失败时,删除下载失败的进度条。
                             console.log(
                                 f'[重新下载]:"{file_name}",[重试次数]:{retry_count + 1}/{self.app.max_retry_count}。')
                             self.queue.put_nowait((msg_link, message, retry_count + 1))
