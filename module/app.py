@@ -83,43 +83,48 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
             pyrogram.enums.SentCodeType.EMAIL_CODE: 'email code'
         }
 
-        console.print(f'「验证码」已通过「{sent_code_descriptions[sent_code.type]}」发送。')
+        console.print(
+            f'[#f08a5d]「验证码」[/#f08a5d]已通过[#f9ed69]「{sent_code_descriptions[sent_code.type]}」[/#f9ed69]发送。')
 
         while True:
             if not self.phone_code:
-                self.phone_code = console.input('请输入收到的「验证码」:').strip()
+                self.phone_code = console.input('请输入收到的[#f08a5d]「验证码」[/#f08a5d]:').strip()
 
             try:
                 signed_in = await self.sign_in(self.phone_number, sent_code.phone_code_hash, self.phone_code)
             except pyrogram.errors.BadRequest as e:
                 console.print(e.MESSAGE)
                 self.phone_code = None
-            except pyrogram.errors.SessionPasswordNeeded as e:
-                console.print(e.MESSAGE)
+            except pyrogram.errors.SessionPasswordNeeded as _:
+                console.print(
+                    '当前登录账号设置了[#f08a5d]「两步验证」[/#f08a5d],需要提供两步验证的[#f9ed69]「密码」[/#f9ed69]。')
 
                 while True:
                     console.print('密码提示:{}'.format(await self.get_password_hint()))
 
                     if not self.password:
-                        self.password = console.input('输入「密码」(为空代表恢复密码):',
-                                                      password=self.hide_password).strip()
+                        self.password = console.input(
+                            '输入[#f08a5d]「两步验证」[/#f08a5d]的[#f9ed69]「密码」[/#f9ed69](为空代表忘记密码):',
+                            password=self.hide_password).strip()
 
                     try:
                         if not self.password:
-                            confirm = console.input('确认「恢复密码」? - 「y|n」(默认y):').strip().lower()
+                            confirm = console.input(
+                                '确认[#f08a5d]「恢复密码」[/#f08a5d]? - 「y|n」(默认y):').strip().lower()
 
                             if confirm == 'y' or confirm == '':
                                 email_pattern = await self.send_recovery_code()
-                                console.print(f'「恢复代码」已发送到「{email_pattern}」。')
+                                console.print(
+                                    f'[#f08a5d]「恢复代码」[/#f08a5d]已发送到邮箱[#f9ed69]「{email_pattern}」[/#f9ed69]。')
 
                                 while True:
-                                    recovery_code = console.input('请输入「恢复代码」:').strip()
+                                    recovery_code = console.input('请输入[#f08a5d]「恢复代码」[/#f08a5d]:').strip()
 
                                     try:
                                         return await self.recover_password(recovery_code)
                                     except pyrogram.errors.BadRequest as e:
                                         console.print(e.MESSAGE)
-                                    except Exception as e:
+                                    except Exception as _:
                                         console.print_exception()
                                         raise
                             else:
@@ -136,8 +141,8 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
             return signed_in
 
         while True:
-            first_name = console.input('输入「名字」:').strip()
-            last_name = console.input('输入「姓氏」(为空代表跳过): ').strip()
+            first_name = console.input('输入[#f08a5d]「名字」[/#f08a5d]:').strip()
+            last_name = console.input('输入[#f9ed69]「姓氏」[/#f9ed69](为空代表跳过): ').strip()
 
             try:
                 signed_up = await self.sign_up(
@@ -214,7 +219,7 @@ class Application:
         self.is_shutdown: bool = self.config.get('is_shutdown')
         self.links: str = self.config.get('links')
         self.max_download_task: int = self.config.get('max_download_task')
-        self.proxy = self.config.get('proxy', {})
+        self.proxy: dict = self.config.get('proxy', {})
         self.enable_proxy = self.proxy if self.proxy.get('enable_proxy') else None
         self.save_path: str = self.config.get('save_path')
         self._get_download_type()
@@ -254,64 +259,69 @@ class Application:
 
     def print_media_table(self):
         """打印统计的下载信息的表格。"""
-        header = ('种类&状态', '成功下载', '失败下载', '跳过下载', '合计')
-        if DownloadType.document.text in self.download_type:
-            self.download_type.remove(DownloadType.document.text)
-        total_video = len(self.success_video) + len(self.failure_video) + len(self.skip_video)
-        total_photo = len(self.success_photo) + len(self.failure_photo) + len(self.skip_photo)
-        if len(self.record_dtype) == 1:
+        header: tuple = ('种类&状态', '成功下载', '失败下载', '跳过下载', '合计')
+        self.download_type.remove(DownloadType.document.text) if DownloadType.document.text in self.download_type else 0
+        success_video: int = len(self.success_video)
+        failure_video: int = len(self.failure_video)
+        skip_video: int = len(self.skip_video)
+        success_photo: int = len(self.success_photo)
+        failure_photo: int = len(self.failure_photo)
+        skip_photo: int = len(self.skip_photo)
+        total_video: int = sum([success_video, failure_video, skip_video])
+        total_photo: int = sum([success_photo, failure_photo, skip_photo])
+        rdt_length: int = len(self.record_dtype)
+        if rdt_length == 1:
             _compare_dtype: list = list(self.record_dtype)[0]
-            if _compare_dtype == 'video':  # 只有视频的情况。
+            if _compare_dtype == DownloadType.video.text:  # 只有视频的情况。
                 video_table = PanelTable(title='视频下载统计',
                                          header=header,
                                          data=[
                                              [DownloadType.translate(DownloadType.video.text),
-                                              len(self.success_video),
-                                              len(self.failure_video),
-                                              len(self.skip_video),
+                                              success_video,
+                                              failure_video,
+                                              skip_video,
                                               total_video],
-                                             ['合计', len(self.success_video),
-                                              len(self.failure_video),
-                                              len(self.skip_video),
+                                             ['合计', success_video,
+                                              failure_video,
+                                              skip_video,
                                               total_video]
                                          ]
                                          )
                 video_table.print_meta()
-            if _compare_dtype == 'photo':  # 只有图片的情况。
-                total_photo = len(self.success_photo) + len(self.failure_photo) + len(self.skip_photo)
+            if _compare_dtype == DownloadType.photo.text:  # 只有图片的情况。
                 photo_table = PanelTable(title='图片下载统计',
                                          header=header,
                                          data=[
                                              [DownloadType.translate(DownloadType.photo.text),
-                                              len(self.success_photo),
-                                              len(self.failure_photo),
-                                              len(self.skip_photo),
+                                              success_photo,
+                                              failure_photo,
+                                              skip_photo,
                                               total_photo],
-                                             ['合计', len(self.success_photo),
-                                              len(self.failure_photo),
-                                              len(self.skip_photo),
+                                             ['合计', success_photo,
+                                              failure_photo,
+                                              skip_photo,
                                               total_photo]
                                          ]
                                          )
                 photo_table.print_meta()
-        elif len(self.record_dtype) == 2:
+        elif rdt_length == 2:
             media_table = PanelTable(title='媒体下载统计',
                                      header=header,
                                      data=[
                                          [DownloadType.translate(DownloadType.video.text),
-                                          len(self.success_video),
-                                          len(self.failure_video),
-                                          len(self.skip_video),
+                                          success_video,
+                                          failure_video,
+                                          skip_video,
                                           total_video],
                                          [DownloadType.translate(DownloadType.photo.text),
-                                          len(self.success_photo),
-                                          len(self.failure_photo),
-                                          len(self.skip_photo),
+                                          success_photo,
+                                          failure_photo,
+                                          skip_photo,
                                           total_photo],
-                                         ['合计', len(self.success_video) + len(self.success_photo),
-                                          len(self.failure_video) + len(self.failure_photo),
-                                          len(self.skip_video) + len(self.skip_photo),
-                                          total_video + total_photo]
+                                         ['合计', sum([success_video, success_photo]),
+                                          sum([failure_video, failure_photo]),
+                                          sum([skip_video, skip_photo]),
+                                          sum([total_video, total_photo])]
                                      ])
             media_table.print_meta()
 
@@ -325,9 +335,9 @@ class Application:
                                         data=format_failure_info)
         failure_link_table.print_meta()
 
-    def process_shutdown(self):
+    def process_shutdown(self, second: int):
         """处理关机逻辑。"""
-        self.shutdown_task(second=60) if self.is_shutdown else 0
+        self.shutdown_task(second=second) if self.is_shutdown else 0
 
     def check_download_finish(self, sever_size: int, download_path: str, save_directory: str) -> bool:
         """检测文件是否下完。"""
@@ -722,7 +732,7 @@ class Application:
             config = {}
 
         def add_missing_keys(target, template, log_message):
-            """添加缺失的字段并记录日志"""
+            """添加缺失的配置文件参数。"""
             for key, value in template.items():
                 if key not in target:
                     target[key] = value
@@ -732,7 +742,7 @@ class Application:
                         self.record_flag = True
 
         def remove_extra_keys(target, template, log_message):
-            """删除多余的字段并记录日志"""
+            """删除多余的配置文件参数。"""
             keys_to_remove: list = [key for key in target.keys() if key not in template]
             for key in keys_to_remove:
                 target.pop(key)
@@ -761,7 +771,7 @@ class Application:
         return config
 
     def _is_proxy_input(self, config: dict):
-        """检测代理配置是否需要用户输入"""
+        """检测代理配置是否需要用户输入。"""
         result = False
         basic_truth_table: list = []
         advance_account_truth_table: list = []
@@ -835,7 +845,7 @@ class Application:
                 return self._find_history_config()
             else:
                 return last_record
-        except Exception:
+        except Exception as _:
             return {}
 
     def get_last_history_record(self):
@@ -862,7 +872,7 @@ class Application:
                         self.history_timestamp[timestamp] = i
                 except ValueError:
                     pass
-                except Exception:
+                except Exception as _:
                     pass
             for i in self.history_timestamp.keys():
                 self.difference_timestamp[now_timestamp - i] = i
@@ -877,6 +887,13 @@ class Application:
         # input user to input necessary configurations
         # v1.1.0 更替api_id和api_hash位置,与telegram申请的api位置对应以免输错。
         undefined = '无'
+        _api_id = self._config.get('api_id')
+        _api_hash = self._config.get('api_hash')
+        _links = self._config.get('links')
+        _save_path = self._config.get('save_path')
+        _max_download_task = self._config.get('max_download_task')
+        _download_type = self._config.get('download_type')
+        _proxy = self._config.get('proxy')
 
         def get_api_id(_last_record):
             while True:
@@ -932,8 +949,8 @@ class Application:
                             f'意外的参数:"{links_file}",文件路径必须以「{_valid_format}」结尾,并且「必须存在」,请重新输入!')
                 except KeyboardInterrupt:
                     self._keyboard_interrupt()
-                except Exception as e:
-                    log.error(f'意外的参数:"{links_file}",请重新输入!原因:"{e}"')
+                except Exception as _e:
+                    log.error(f'意外的参数:"{links_file}",请重新输入!原因:"{_e}"')
 
         def get_save_path(_last_record):
             # 输入媒体保存路径,确保是一个有效的目录路径。
@@ -976,8 +993,8 @@ class Application:
                         log.warning(f'意外的参数:"{max_tasks}",任务数必须是「正整数」,请重新输入!')
                 except KeyboardInterrupt:
                     self._keyboard_interrupt()
-                except Exception as e:
-                    log.error(f'意外的错误,原因:"{e}"')
+                except Exception as _e:
+                    log.error(f'意外的错误,原因:"{_e}"')
 
         def get_is_shutdown(_last_record, _valid_format):
             if _last_record:
@@ -1018,8 +1035,8 @@ class Application:
                         log.warning(f'意外的参数:"{question}",支持的参数 - 「{_valid_format}」')
                 except KeyboardInterrupt:
                     self._keyboard_interrupt()
-                except Exception as e:
-                    log.error(f'意外的错误,原因:"{e}"')
+                except Exception as _e:
+                    log.error(f'意外的错误,原因:"{_e}"')
                     break
 
         def get_download_type(_last_record: list):
@@ -1066,13 +1083,13 @@ class Application:
                     self._keyboard_interrupt()
 
         if any([
-            not self._config.get('api_id'),
-            not self._config.get('api_hash'),
-            not self._config.get('links'),
-            not self._config.get('save_path'),
-            not self._config.get('max_download_task'),
-            not self._config.get('download_type'),
-            not self._config.get('proxy'),
+            not _api_id,
+            not _api_hash,
+            not _links,
+            not _save_path,
+            not _max_download_task,
+            not _download_type,
+            not _proxy,
             not (self._config.get('proxy') or {}).get('enable_proxy', False),
             not (self._config.get('proxy') or {}).get('hostname', False),
             not (self._config.get('proxy') or {}).get('is_notice', False),
@@ -1082,23 +1099,23 @@ class Application:
         ]):
             console.print('「注意」直接回车代表使用上次的记录。', style='red')
 
-        if not self._config.get('api_id'):
+        if not _api_id:
             last_record = self.last_record.get('api_id')
             get_api_id(_last_record=last_record)
-        if not self._config.get('api_hash'):
+        if not _api_hash:
             last_record = self.last_record.get('api_hash')
             get_api_hash(_last_record=last_record, _valid_length=32)
-        if not self._config.get('links'):
+        if not _links:
             last_record = self.last_record.get('links')
             get_links(_last_record=last_record, _valid_format='.txt')
-        if not self._config.get('save_path'):
+        if not _save_path:
             last_record = self.last_record.get('save_path')
             get_save_path(_last_record=last_record)
-        if not self._config.get('max_download_task'):
+        if not _max_download_task:
             last_record = self.last_record.get('max_download_task') if self.last_record.get(
                 'max_download_task') else None
             get_max_download_task(_last_record=last_record)
-        if not self._config.get('download_type'):
+        if not _download_type:
             last_record = self.last_record.get('download_type') if self.last_record.get(
                 'download_type') else None
             get_download_type(_last_record=last_record)
