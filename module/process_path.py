@@ -176,7 +176,7 @@ def get_extension(file_id: str, mime_type: str, dot: bool = True) -> str:
 
 def _guess_extension(mime_type: str) -> Optional[str]:
     """如果扩展名不是None，则从没有点的MIME类型返回中猜测文件扩展名。"""
-    extension = mimetypes.guess_extension(mime_type, strict=True)
+    extension = _mimetypes.guess_extension(mime_type, strict=True)
     return extension[1:] if extension and extension.startswith('.') else extension
 
 
