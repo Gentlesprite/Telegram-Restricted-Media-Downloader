@@ -5,11 +5,11 @@
 # File:downloader.py
 import os
 import asyncio
+from typing import Set, Tuple
 
 from pyrogram.errors.exceptions.bad_request_400 import MsgIdInvalid, UsernameInvalid
 from pyrogram.errors.exceptions.unauthorized_401 import SessionRevoked, AuthKeyUnregistered, SessionExpired
 
-from typing import Set, Any
 from module import console, log
 from module.app import Application, MetaData
 from module.process_path import is_file_duplicate, safe_delete
@@ -27,7 +27,7 @@ class TelegramRestrictedMediaDownloader:
         self.app = Application()
         self.client = self.app.build_client()
 
-    async def _extract_link_content(self, msg_link):
+    async def _extract_link_content(self, msg_link) -> Tuple[str, int, list]:
         comment_message = []
         is_comment = False
         if '?single&comment' in msg_link:  # v1.1.0修复讨论组中附带?single时不下载的问题，
@@ -54,16 +54,16 @@ class TelegramRestrictedMediaDownloader:
         return chat_name, msg_id, comment_message
 
     @staticmethod
-    async def _is_group(message) -> Any:
+    async def _is_group(message) -> Tuple[bool or None, bool or None]:
         try:
             return True, await message.get_media_group()
-        except ValueError as e:
-            return False, None if str(e) == "The message doesn't belong to a media group" else 0
+        except ValueError:
+            return False, None
             # v1.0.4 修改单文件无法下载问题return False, [] if str(e) == "The message doesn't belong to a media group" else 0
         except AttributeError:
             return None, None
 
-    async def _add_task(self, msg_link, message, retry_count=0):
+    async def _add_task(self, msg_link, message, retry_count=0) -> None:
         _task = None
         valid_dtype, is_document_type_valid = self.app.get_valid_dtype(message).values()
         if valid_dtype in self.app.download_type and is_document_type_valid:
@@ -98,7 +98,7 @@ class TelegramRestrictedMediaDownloader:
                                                file_name=temp_save_path))
                 console.log(f'[当前任务数]:{self.app.current_task_num}。', justify='right')
 
-                def call(_future):
+                def call(_future) -> None:
                     self.app.current_task_num -= 1
                     if self.app.check_download_finish(sever_size=sever_size,
                                                       download_path=temp_save_path,
@@ -122,12 +122,12 @@ class TelegramRestrictedMediaDownloader:
                             self.event.set()
 
                 _task.add_done_callback(lambda _future: call(_future))
-        self.queue.put_nowait(_task) if _task else 0
+        self.queue.put_nowait(_task) if _task else None
 
     async def _get_download_task(self,
                                  msg_link: str = None,
                                  message=None,
-                                 retry_count=0):
+                                 retry_count=0) -> None:
 
         if msg_link:
             try:
@@ -136,7 +136,7 @@ class TelegramRestrictedMediaDownloader:
                 res, group = await self._is_group(msg)
                 if res or is_download_comment:  # 组或评论区。
                     try:  # v1.1.2解决当group返回None时出现comment无法下载的问题。
-                        group.extend(is_download_comment) if is_download_comment else 0
+                        group.extend(is_download_comment) if is_download_comment else None
                     except AttributeError:
                         if is_download_comment and group is None:
                             group = []
@@ -203,7 +203,7 @@ class TelegramRestrictedMediaDownloader:
             console.log('没有找到有效链接,程序已退出。')
             exit()
 
-    async def _download_media_from_links(self):
+    async def _download_media_from_links(self) -> None:
         await self.client.start()
         self.app.progress.start()  # v1.1.8修复登录输入手机号不显示文本问题。
         # 将初始任务添加到队列中。
@@ -223,7 +223,7 @@ class TelegramRestrictedMediaDownloader:
         # 等待所有任务完成。
         await self.queue.join()
 
-    def run(self):
+    def run(self) -> None:
         record_error: bool = False
         was_client_run: bool = False
 
@@ -231,10 +231,10 @@ class TelegramRestrictedMediaDownloader:
             MetaData.print_meta()
             self.app.print_config_table()
             self.client.run(self._download_media_from_links())
-            was_client_run = True
+            was_client_run: bool = True
         except (SessionRevoked, AuthKeyUnregistered, SessionExpired, ConnectionError):
             res: bool = safe_delete(file_path=os.path.join(self.app.DIR_NAME, 'sessions'))
-            record_error = True
+            record_error: bool = True
             if res:
                 log.warning('账号已失效请在关闭后,再次打开软件并重新登录!')
             else:
@@ -244,18 +244,18 @@ class TelegramRestrictedMediaDownloader:
             console.log('用户手动终止下载任务。')
         except Exception as e:
             self.app.progress.stop()
-            record_error = True
+            record_error: bool = True
             log.exception(msg=f'运行出错,原因:"{e}"', exc_info=True)
         finally:
             if self.client.is_connected:
-                was_client_run = True
+                was_client_run: bool = True
                 self.client.stop()
             self.app.progress.stop()
             if not record_error:
                 self.app.print_media_table()
-                self.app.print_failure_table() if self.app.failure_link else 0  # v1.1.2 增加下载失败的链接统计,但如果没有失败的链接将不会显示。
+                self.app.print_failure_table() if self.app.failure_link else None  # v1.1.2 增加下载失败的链接统计,但如果没有失败的链接将不会显示。
                 MetaData.pay()
-                self.app.process_shutdown(60) if was_client_run else 0  # v1.2.8如果并未打开客户端执行任何下载,则不执行关机。
+                self.app.process_shutdown(60) if was_client_run else None  # v1.2.8如果并未打开客户端执行任何下载,则不执行关机。
             if self.app.platform == 'Windows':
                 self.app.ctrl_c()
             else:

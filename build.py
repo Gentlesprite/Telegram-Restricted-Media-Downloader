@@ -4,7 +4,7 @@
 # Time:2024/7/22 22:37
 # File:build.py
 import os
-from module import author, __version__, __update_date__, SOFTWARE_FULL_NAME
+from module import AUTHOR, __version__, __update_date__, SOFTWARE_FULL_NAME
 
 app_name = SOFTWARE_FULL_NAME
 file_version = __version__
@@ -13,7 +13,7 @@ output = 'output'
 main = 'main.py'
 years = __update_date__[:4]
 include_module = '--include-module=pygments.lexers.data'
-copy_right = f'Copyright (C) 2024-{years} {author}.All rights reserved.'
+copy_right = f'Copyright (C) 2024-{years} {AUTHOR}.All rights reserved.'
 build_command = f'nuitka --standalone --show-memory --show-progress --onefile {include_module} '
 build_command += f'--output-dir={output} --file-version={file_version} '
 build_command += f'--windows-icon-from-ico="{ico_path}" '

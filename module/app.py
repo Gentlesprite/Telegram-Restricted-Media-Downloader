@@ -6,15 +6,15 @@
 import os
 import sys
 import time
-import qrcode
+import datetime
 import platform
 import mimetypes
-import datetime
 import subprocess
-import pyrogram
-
-from typing import Dict
+from typing import Dict, Tuple
 from functools import wraps
+
+import qrcode
+import pyrogram
 from pyrogram.errors import FloodWait
 from rich.markdown import Markdown
 from rich.table import Table, Style
@@ -22,7 +22,7 @@ from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn, 
 
 from module import yaml
 from module import CustomDumper
-from module import readme
+from module import README
 from module import console, log
 from module import SOFTWARE_FULL_NAME, __version__, __copyright__, __license__
 
@@ -55,8 +55,7 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
 
                         confirm = console.input(
                             f'所输入的「{value}」是否[green]正确[/green]? - 「y|n」(默认y): ').strip().lower()
-
-                        if confirm == 'y' or confirm == '':
+                        if confirm in ('y', ''):
                             break
                         else:
                             log.warning(f'意外的参数:"{confirm}",支持的参数 - 「y|n」(默认y)')
@@ -111,8 +110,7 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
                         if not self.password:
                             confirm = console.input(
                                 '确认[#f08a5d]「恢复密码」[/#f08a5d]? - 「y|n」(默认y):').strip().lower()
-
-                            if confirm == 'y' or confirm == '':
+                            if confirm in ('y', ''):
                                 email_pattern = await self.send_recovery_code()
                                 console.print(
                                     f'[#f08a5d]「恢复代码」[/#f08a5d]已发送到邮箱[#f9ed69]「{email_pattern}」[/#f9ed69]。')
@@ -164,8 +162,6 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
 
 
 class Application:
-    # 将 None 的表示注册到 Dumper 中。
-
     DIR_NAME: str = os.path.dirname(os.path.abspath(sys.argv[0]))  # 获取软件工作绝对目录。
     CONFIG_NAME: str = 'config.yaml'  # 配置文件名。
     CONFIG_PATH: str = os.path.join(DIR_NAME, CONFIG_NAME)
@@ -196,7 +192,7 @@ class Application:
                  client_obj: callable = TelegramRestrictedMediaDownloaderClient,
                  guide: bool = True):
         self.client_obj: callable = client_obj
-        self.platform: str = MetaData.get_platform().get('system')
+        self.platform: str = platform.system()
         self.color: list = GradientColor.blue_to_purple
         self.history_timestamp: dict = {}
         self.input_link: list = []
@@ -211,7 +207,7 @@ class Application:
         self.modified: bool = False
         self.get_last_history_record()
         self._config = self.load_config()  # v1.2.9 重新调整配置文件加载逻辑。
-        self.config_guide() if guide else 0
+        self.config_guide() if guide else None
         self.config = self.load_config()
         self.api_hash = self.config.get('api_hash')
         self.api_id = self.config.get('api_id')
@@ -242,7 +238,7 @@ class Application:
                                  )
 
     @staticmethod
-    def download_bar(current, total, progress, task_id):
+    def download_bar(current, total, progress, task_id) -> None:
         progress.update(task_id,
                         completed=current,
                         info=f'{MetaData.suitable_units_display(current)}/{MetaData.suitable_units_display(total)}',
@@ -257,10 +253,11 @@ class Application:
                                proxy=self.enable_proxy,
                                workdir=self.work_dir)
 
-    def print_media_table(self):
+    def print_media_table(self) -> None:
         """打印统计的下载信息的表格。"""
         header: tuple = ('种类&状态', '成功下载', '失败下载', '跳过下载', '合计')
-        self.download_type.remove(DownloadType.document.text) if DownloadType.document.text in self.download_type else 0
+        self.download_type.remove(
+            DownloadType.document.text) if DownloadType.document.text in self.download_type else None
         success_video: int = len(self.success_video)
         failure_video: int = len(self.failure_video)
         skip_video: int = len(self.skip_video)
@@ -325,7 +322,7 @@ class Application:
                                      ])
             media_table.print_meta()
 
-    def print_failure_table(self):
+    def print_failure_table(self) -> None:
         """打印统计的下载过程中失败信息的表格。"""
         format_failure_info: list = []
         for index, (key, value) in enumerate(self.failure_link.items(), start=1):
@@ -335,9 +332,9 @@ class Application:
                                         data=format_failure_info)
         failure_link_table.print_meta()
 
-    def process_shutdown(self, second: int):
+    def process_shutdown(self, second: int) -> None:
         """处理关机逻辑。"""
-        self.shutdown_task(second=second) if self.is_shutdown else 0
+        self.shutdown_task(second=second) if self.is_shutdown else None
 
     def check_download_finish(self, sever_size: int, download_path: str, save_directory: str) -> bool:
         """检测文件是否下完。"""
@@ -355,7 +352,7 @@ class Application:
         save_path: str = _save_path[:-len(temp_ext)] if _save_path.endswith(temp_ext) else _save_path
         if sever_size == local_size:
             result: str = move_to_save_path(temp_save_path=download_path, save_path=save_directory).get('e_code')
-            console.warning(result) if result is not None else 0
+            console.warning(result) if result is not None else None
             console.log(
                 f'{keyword_file}:"{save_path}",'
                 f'{keyword_size}:{format_local_size},'
@@ -420,58 +417,58 @@ class Application:
         file_name = None
         os.makedirs(self.temp_folder, exist_ok=True)
 
-        def _process_video(msg_obj: pyrogram.types, _dtype: DownloadType.text):
+        def _process_video(msg_obj: pyrogram.types, _dtype: DownloadType.text) -> str:
             """处理视频文件的逻辑。"""
             _default_mtype: str = 'video/mp4'  # v1.2.8 健全获取文件名逻辑。
             _meta_obj = getattr(msg_obj, _dtype)
-            _title = getattr(_meta_obj, 'file_name', None)  # v1.2.8 修复当文件名不存在时,下载报错问题。
+            _title: str or None = getattr(_meta_obj, 'file_name', None)  # v1.2.8 修复当文件名不存在时,下载报错问题。
             try:
                 if _title is None:
-                    _title = 'None'
+                    _title: str = 'None'
                 else:
-                    _title = os.path.splitext(_title)[0]
+                    _title: str = os.path.splitext(_title)[0]
             except Exception as e:
-                _title = 'None'
+                _title: str = 'None'
                 log.warning(f'获取文件名时出错,已重命名为:"{_title}",原因:"{e}"')
-            _file_name = '{} - {}.{}'.format(
+            _file_name: str = '{} - {}.{}'.format(
                 getattr(msg_obj, 'id', 'None'),
                 _title,
                 get_extension(file_id=_meta_obj.file_id, mime_type=getattr(_meta_obj, 'mime_type', _default_mtype),
                               dot=False)
             )
-            _file_name = os.path.join(self.temp_folder, validate_title(_file_name))
+            _file_name: str = os.path.join(self.temp_folder, validate_title(_file_name))
             return _file_name
 
-        def _process_photo(msg_obj: pyrogram.types, _dtype: DownloadType.text):
+        def _process_photo(msg_obj: pyrogram.types, _dtype: DownloadType.text) -> str:
             """处理视频图片的逻辑。"""
             _default_mtype: str = 'image/jpg'  # v1.2.8 健全获取文件名逻辑。
             _meta_obj = getattr(msg_obj, _dtype)
             _extension: str = 'unknown'
             if _dtype == DownloadType.photo.text:
-                _extension = get_extension(file_id=_meta_obj.file_id, mime_type=_default_mtype,
-                                           dot=False)
+                _extension: str = get_extension(file_id=_meta_obj.file_id, mime_type=_default_mtype,
+                                                dot=False)
             elif _dtype == DownloadType.document.text:
-                _extension = get_extension(file_id=_meta_obj.file_id,
-                                           mime_type=getattr(_meta_obj, 'mime_type', _default_mtype),
-                                           dot=False)
-            _file_name = '{} - {}.{}'.format(
+                _extension: str = get_extension(file_id=_meta_obj.file_id,
+                                                mime_type=getattr(_meta_obj, 'mime_type', _default_mtype),
+                                                dot=False)
+            _file_name: str = '{} - {}.{}'.format(
                 getattr(msg_obj, 'id'),
                 getattr(_meta_obj, 'file_unique_id', 'None'),
                 _extension
             )
-            _file_name = os.path.join(self.temp_folder, validate_title(_file_name))
+            _file_name: str = os.path.join(self.temp_folder, validate_title(_file_name))
             return _file_name
 
         if dtype == DownloadType.video.text:
-            file_name = _process_video(msg_obj=message, _dtype=dtype)
+            file_name: str = _process_video(msg_obj=message, _dtype=dtype)
         elif dtype == DownloadType.photo.text:
-            file_name = _process_photo(msg_obj=message, _dtype=dtype)
+            file_name: str = _process_photo(msg_obj=message, _dtype=dtype)
         elif dtype == DownloadType.document.text:
             _mime_type = getattr(getattr(message, dtype), 'mime_type')
             if 'video' in _mime_type:
-                file_name = _process_video(msg_obj=message, _dtype=dtype)
+                file_name: str = _process_video(msg_obj=message, _dtype=dtype)
             elif 'image' in _mime_type:
-                file_name = _process_photo(msg_obj=message, _dtype=dtype)
+                file_name: str = _process_photo(msg_obj=message, _dtype=dtype)
         return truncate_filename(file_name)
 
     def _media_counter(func):
@@ -509,7 +506,7 @@ class Application:
         return wrapper
 
     @_media_counter
-    def guess_file_type(self, file_name, status):
+    def guess_file_type(self, file_name: str, status: DownloadStatus) -> Tuple[DownloadType:int, DownloadStatus:int]:
         """预测文件类型。"""
         result = ''
         file_type, _ = mimetypes.guess_type(file_name)
@@ -521,7 +518,7 @@ class Application:
                 result = DownloadType.video
         return result, status
 
-    def _get_download_type(self):
+    def _get_download_type(self) -> None:
         """获取需要下载的文件类型。"""
         if self.download_type is not None and (
                 DownloadType.video.text in self.download_type or DownloadType.photo.text in self.download_type):
@@ -531,9 +528,9 @@ class Application:
             self.download_type: list = DownloadType.support_type()
             self.record_dtype: set = {DownloadType.video.text,
                                       DownloadType.photo.text}  # v1.2.4 修复此处报错问题v1.2.3此处有致命错误。
-            console.log(f'已使用默认下载类型:3.视频和图片。')
+            console.log('已使用[#f08a5d]「默认」[/#f08a5d]下载类型:3.视频和图片。')
 
-    def print_config_table(self):
+    def print_config_table(self) -> None:
         """打印用户所填写配置文件的表格。"""
         try:
             if self.enable_proxy:
@@ -561,7 +558,7 @@ class Application:
         try:
             # 展示链接内容表格。
             with open(file=self.links, mode='r', encoding='UTF-8') as _:
-                res = [content.strip() for content in _.readlines()]
+                res: list = [content.strip() for content in _.readlines()]
             format_res: list = []
             for i in enumerate(res, start=1):
                 format_res.append(list(i))
@@ -573,11 +570,11 @@ class Application:
         except Exception as e:
             log.error(f'读取"{self.links}"时出错,原因:"{e}"')
         try:
-            _dtype = self.download_type.copy()  # 浅拷贝赋值给_dtype,避免传入函数后改变原数据。
-            data = [[DownloadType.translate(DownloadType.video.text),
-                     self._get_dtype(_dtype).get('video')],
-                    [DownloadType.translate(DownloadType.photo.text),
-                     self._get_dtype(_dtype).get('photo')]]
+            _dtype: list = self.download_type.copy()  # 浅拷贝赋值给_dtype,避免传入函数后改变原数据。
+            data: list = [[DownloadType.translate(DownloadType.video.text),
+                           self._get_dtype(_dtype).get('video')],
+                          [DownloadType.translate(DownloadType.photo.text),
+                           self._get_dtype(_dtype).get('photo')]]
             download_type_table = PanelTable(title='下载类型', header=('类型', '是否下载'), data=data)
             download_type_table.print_meta()
 
@@ -585,7 +582,7 @@ class Application:
             log.error(f'读取"{self.links}"时出错,原因:"{e}"')
 
     @staticmethod
-    def ctrl_c():
+    def ctrl_c() -> None:
         """处理Windows用户的按键中断。"""
         try:
             os.system('pause')
@@ -597,46 +594,46 @@ class Application:
         """获取所需下载文件的类型。"""
         if DownloadType.document.text in download_dtype:
             download_dtype.remove(DownloadType.document.text)
-        if len(download_dtype) == 1:
-            dtype = download_dtype[0]
+        dt_length = len(download_dtype)
+        if dt_length == 1:
+            dtype: str = download_dtype[0]
             if dtype == DownloadType.video.text:
                 return {'video': True, 'photo': False}
             elif dtype == DownloadType.photo.text:
                 return {'video': False, 'photo': True}
-        elif len(download_dtype) == 2:
+        elif dt_length == 2:
             return {'video': True, 'photo': True}
         else:
             return {'error': True}
 
     def _stdio_style(self, key: str) -> str:
         """控制用户交互时打印出不同的颜色(渐变)。"""
-        _stdio_queue = {'api_id': 0,
-                        'api_hash': 1,
-                        'links': 2,
-                        'save_path': 3,
-                        'max_download_task': 4,
-                        'download_type': 5,
-                        'is_shutdown': 6,
-                        'enable_proxy': 7,
-                        'is_notice': 8,
-                        'config_proxy': 9,
-                        'scheme': 10,
-                        'hostname': 11,
-                        'port': 12,
-                        'proxy_authentication': 13
-                        }
+        _stdio_queue: dict = {'api_id': 0,
+                              'api_hash': 1,
+                              'links': 2,
+                              'save_path': 3,
+                              'max_download_task': 4,
+                              'download_type': 5,
+                              'is_shutdown': 6,
+                              'enable_proxy': 7,
+                              'is_notice': 8,
+                              'config_proxy': 9,
+                              'scheme': 10,
+                              'hostname': 11,
+                              'port': 12,
+                              'proxy_authentication': 13
+                              }
         return self.color[_stdio_queue.get(key)]
 
-    def shutdown_task(self, second: int):
+    def shutdown_task(self, second: int) -> None:
         """下载完成后自动关机的功能。"""
         try:
             if self.platform == 'Windows':
                 # 启动关机命令 目前只支持对 Windows 系统的关机。
-                shutdown_command = f'shutdown -s -t {second}'
+                shutdown_command: str = f'shutdown -s -t {second}'
                 subprocess.Popen(shutdown_command, shell=True)  # 异步执行关机。
-            elif self.platform == 'Linux' or self.platform == 'Darwin':
-                # Linux 或 macOS 使用 shutdown 命令。
-                shutdown_command = f'shutdown -h +{second // 60}'
+            else:
+                shutdown_command: str = f'shutdown -h +{second // 60}'
                 subprocess.Popen(shutdown_command, shell=True)  # 异步执行关机。
             # 实时显示倒计时。
             for remaining in range(second, 0, -1):
@@ -648,24 +645,24 @@ class Application:
             # 如果用户按下 CTRL+C，取消关机。
             if self.platform == 'Windows':
                 subprocess.Popen('shutdown -a', shell=True)  # 取消关机。
-                cancel_flag = True
+                cancel_flag: bool = True
             else:
                 try:
                     # Linux/macOS 取消关机命令。
                     subprocess.Popen('shutdown -c', shell=True)
-                    cancel_flag = True
+                    cancel_flag: bool = True
                 except Exception as e:
                     log.warning(f'取消关机任务失败,可能是当前系统不支持,原因:"{e}"')
             console.print('\n关机已被用户取消!', style='#4bd898') if cancel_flag else 0
         except Exception as e:
             log.error(f'执行关机任务失败,可能是当前系统不支持自动关机,原因:"{e}"')
 
-    def backup_config(self, backup_config: dict, error_config: bool = False):  # v1.2.9 更正backup_config参数类型。
+    def backup_config(self, backup_config: dict, error_config: bool = False) -> None:  # v1.2.9 更正backup_config参数类型。
         """备份当前的配置文件。"""
         if backup_config != Application.CONFIG_TEMPLATE:  # v1.2.9 修复比较变量错误的问题。
-            backup_path = gen_backup_config(old_path=self.config_path,
-                                            absolute_backup_dir=Application.ABSOLUTE_BACKUP_DIR,
-                                            error_config=error_config)
+            backup_path: str = gen_backup_config(old_path=self.config_path,
+                                                 absolute_backup_dir=Application.ABSOLUTE_BACKUP_DIR,
+                                                 error_config=error_config)
             console.log(f'原来的配置文件已备份至"{backup_path}"', style='green')
         else:
             console.log('配置文件与模板文件完全一致,无需备份。')
@@ -679,18 +676,18 @@ class Application:
                     yaml.dump(Application.CONFIG_TEMPLATE, f, Dumper=CustomDumper)
                 console.log('未找到配置文件,已生成新的模板文件...')
             with open(self.config_path, 'r') as f:
-                config = yaml.safe_load(f)  # v1.1.4 加入对每个字段的完整性检测。
-            config = self._check_params(config)  # 检查所有字段是否完整,modified代表是否有修改记录(只记录缺少的)
+                config: dict = yaml.safe_load(f)  # v1.1.4 加入对每个字段的完整性检测。
+            config: dict = self._check_params(config)  # 检查所有字段是否完整,modified代表是否有修改记录(只记录缺少的)
         except UnicodeDecodeError as e:  # v1.1.3 加入配置文件路径是中文或特殊字符时的错误提示,由于nuitka打包的性质决定,
             # 中文路径无法被打包好的二进制文件识别,故在配置文件时无论是链接路径还是媒体保存路径都请使用英文命名。
             error_config: bool = True
-            log.warning(
+            log.error(
                 f'读取配置文件遇到编码错误,可能保存路径中包含中文或特殊字符的文件夹。已生成新的模板文件...原因:"{e}"')
             self.backup_config(config, error_config=error_config)
         except Exception as e:
             error_config: bool = True
             console.print('「注意」链接路径和保存路径不能有引号!', style='red')
-            log.warning(f'检测到无效或损坏的配置文件。已生成新的模板文件...原因:"{e}"')
+            log.error(f'检测到无效或损坏的配置文件。已生成新的模板文件...原因:"{e}"')
             self.backup_config(config, error_config=error_config)
         finally:
             if config is None:
@@ -702,7 +699,7 @@ class Application:
             elif not self.modified and config != Application.CONFIG_TEMPLATE:
                 while True:
                     try:
-                        question = console.input(
+                        question: str = console.input(
                             '检测到已配置完成的配置文件,是否需要重新配置?(之前的配置文件将为你备份到当前目录下) - 「y|n」(默认n):').strip().lower()
                         if question == 'y':
                             config: dict = Application.CONFIG_TEMPLATE.copy()
@@ -712,7 +709,7 @@ class Application:
                                 f'原来的配置文件已备份至"{backup_path}"', style='green')
                             self.get_last_history_record()  # 更新到上次填写的记录。
                             break
-                        elif question == 'n' or question == '':
+                        elif question in ('n', ''):
                             break
                         else:
                             log.warning(f'意外的参数:"{question}",支持的参数 - 「y|n」(默认n)')
@@ -720,18 +717,18 @@ class Application:
                         self._keyboard_interrupt()
             return config
 
-    def save_config(self):
+    def save_config(self) -> None:
         """保存配置文件。"""
         with open(self.config_path, 'w') as f:
             yaml.dump(self._config, f)
 
-    def _check_params(self, config: dict, history=False):
+    def _check_params(self, config: dict, history=False) -> dict:
         """检查配置文件的参数是否完整。"""
         # 如果 config 为 None，初始化为一个空字典。
         if config is None:
             config = {}
 
-        def add_missing_keys(target, template, log_message):
+        def add_missing_keys(target, template, log_message) -> None:
             """添加缺失的配置文件参数。"""
             for key, value in template.items():
                 if key not in target:
@@ -741,7 +738,7 @@ class Application:
                         self.modified = True
                         self.record_flag = True
 
-        def remove_extra_keys(target, template, log_message):
+        def remove_extra_keys(target, template, log_message) -> None:
             """删除多余的配置文件参数。"""
             keys_to_remove: list = [key for key in target.keys() if key not in template]
             for key in keys_to_remove:
@@ -754,8 +751,8 @@ class Application:
         add_missing_keys(target=config, template=Application.CONFIG_TEMPLATE, log_message='"{}"不在配置文件中,已添加。')
         # 特殊处理 proxy 参数。
         if 'proxy' in config:
-            proxy_template = Application.CONFIG_TEMPLATE['proxy']
-            proxy_config = config['proxy']
+            proxy_template = Application.CONFIG_TEMPLATE.get('proxy')
+            proxy_config = config.get('proxy')
 
             # 确保 proxy_config 是字典。
             if not isinstance(proxy_config, dict):
@@ -770,9 +767,9 @@ class Application:
 
         return config
 
-    def _is_proxy_input(self, config: dict):
+    def _is_proxy_input(self, config: dict) -> bool:
         """检测代理配置是否需要用户输入。"""
-        result = False
+        result: bool = False
         basic_truth_table: list = []
         advance_account_truth_table: list = []
         if config.get('enable_proxy') is False:  # 检测打开了代理但是代理配置错误。
@@ -784,20 +781,20 @@ class Application:
                 advance_account_truth_table.append(_[1])
         if all(basic_truth_table) is False:
             console.print('请配置代理!', style=self._stdio_style('config_proxy'))
-            result = True
+            result: bool = True
         if any(advance_account_truth_table) and all(advance_account_truth_table) is False:
             log.warning('代理账号或密码未输入!')
-            result = True
+            result: bool = True
         return result
 
-    def _keyboard_interrupt(self):
+    def _keyboard_interrupt(self) -> None:
         """处理配置文件交互时,当已配置了任意部分时的用户键盘中断。"""
-        new_line = True
+        new_line: bool = True
         try:
             if self.record_flag:
                 print('\n')
                 while True:
-                    question = console.input('「退出提示」是否需要保存当前已填写的参数? - 「y|n」:').strip().lower()
+                    question: str = console.input('「退出提示」是否需要保存当前已填写的参数? - 「y|n」:').strip().lower()
                     if question == 'y':
                         console.log('配置已保存!')
                         self.save_config()
@@ -808,9 +805,9 @@ class Application:
                     else:
                         log.warning(f'意外的参数:"{question}",支持的参数 - 「y|n」')
             else:
-                exit()
+                sys.exit()
         except KeyboardInterrupt:
-            new_line = False
+            new_line: bool = False
             print('\n')
             console.log('用户放弃保存,手动终止配置参数。')
         finally:
@@ -818,9 +815,9 @@ class Application:
                 print('\n')
                 console.log('用户手动终止配置参数。')
             self.ctrl_c()
-            exit()
+            sys.exit()
 
-    def _find_history_config(self):
+    def _find_history_config(self) -> dict:
         """找到历史配置文件。"""
         if not self.history_timestamp:
             return {}
@@ -832,10 +829,10 @@ class Application:
             min_config_file: str = self.history_timestamp.get(min_diff_timestamp)
             if not min_config_file:
                 return {}
-            last_config_file = os.path.join(Application.ABSOLUTE_BACKUP_DIR, min_config_file)  # 拼接文件路径。
+            last_config_file: str = os.path.join(Application.ABSOLUTE_BACKUP_DIR, min_config_file)  # 拼接文件路径。
             with open(file=last_config_file, mode='r', encoding='UTF-8') as f:
-                config = yaml.safe_load(f)
-            last_record = self._check_params(config, history=True)  # v1.1.6修复读取历史如果缺失字段使得flag置True。
+                config: dict = yaml.safe_load(f)
+            last_record: dict = self._check_params(config, history=True)  # v1.1.6修复读取历史如果缺失字段使得flag置True。
 
             if last_record == Application.CONFIG_TEMPLATE:
                 # 从字典中删除当前文件。
@@ -848,7 +845,7 @@ class Application:
         except Exception as _:
             return {}
 
-    def get_last_history_record(self):
+    def get_last_history_record(self) -> None:
         """获取最近一次保存的历史配置文件。"""
         # 首先判断是否存在目录文件。
         try:
@@ -861,7 +858,7 @@ class Application:
         file_start: str = 'history_'
         file_end: str = '_config.yaml'
 
-        now_timestamp = datetime.datetime.now().timestamp()  # 获取当前的时间戳。
+        now_timestamp: float = datetime.datetime.now().timestamp()  # 获取当前的时间戳。
         if res:
             for i in res:  # 找出离当前时间最近的配置文件。
                 try:
@@ -877,25 +874,25 @@ class Application:
             for i in self.history_timestamp.keys():
                 self.difference_timestamp[now_timestamp - i] = i
             if self.history_timestamp:  # 如果有符合条件的历史配置文件。
-                self.last_record = self._find_history_config()
+                self.last_record: dict = self._find_history_config()
 
         else:
             return
 
-    def config_guide(self):
+    def config_guide(self) -> None:
         """引导用户以交互式的方式修改、保存配置文件。"""
         # input user to input necessary configurations
         # v1.1.0 更替api_id和api_hash位置,与telegram申请的api位置对应以免输错。
-        undefined = '无'
-        _api_id = self._config.get('api_id')
-        _api_hash = self._config.get('api_hash')
-        _links = self._config.get('links')
-        _save_path = self._config.get('save_path')
-        _max_download_task = self._config.get('max_download_task')
-        _download_type = self._config.get('download_type')
-        _proxy = self._config.get('proxy')
+        undefined: str = '无'
+        _api_id: str or None = self._config.get('api_id')
+        _api_hash: str or None = self._config.get('api_hash')
+        _links: str or None = self._config.get('links')
+        _save_path: str or None = self._config.get('save_path')
+        _max_download_task: int or None = self._config.get('max_download_task')
+        _download_type: list or None = self._config.get('download_type')
+        _proxy: dict = self._config.get('proxy')
 
-        def get_api_id(_last_record):
+        def get_api_id(_last_record: str) -> None:
             while True:
                 try:
                     api_id = console.input(
@@ -910,7 +907,7 @@ class Application:
                 except KeyboardInterrupt:
                     self._keyboard_interrupt()
 
-        def get_api_hash(_last_record, _valid_length):
+        def get_api_hash(_last_record: str, _valid_length: int) -> None:
             while True:
                 try:
                     api_hash = console.input(
@@ -927,7 +924,7 @@ class Application:
                 except KeyboardInterrupt:
                     self._keyboard_interrupt()
 
-        def get_links(_last_record, _valid_format):
+        def get_links(_last_record, _valid_format) -> None:
             # 输入需要下载的媒体链接文件路径,确保文件存在。
             links_file = None
             while True:
@@ -952,7 +949,7 @@ class Application:
                 except Exception as _e:
                     log.error(f'意外的参数:"{links_file}",请重新输入!原因:"{_e}"')
 
-        def get_save_path(_last_record):
+        def get_save_path(_last_record) -> None:
             # 输入媒体保存路径,确保是一个有效的目录路径。
             while True:
                 try:
@@ -972,7 +969,7 @@ class Application:
                 except KeyboardInterrupt:
                     self._keyboard_interrupt()
 
-        def get_max_download_task(_last_record):
+        def get_max_download_task(_last_record) -> None:
             # 输入最大下载任务数,确保是一个整数且不超过特定限制。
             while True:
                 try:
@@ -996,7 +993,7 @@ class Application:
                 except Exception as _e:
                     log.error(f'意外的错误,原因:"{_e}"')
 
-        def get_is_shutdown(_last_record, _valid_format):
+        def get_is_shutdown(_last_record, _valid_format) -> None:
             if _last_record:
                 _last_record = 'y'
             elif _last_record is False:
@@ -1026,7 +1023,7 @@ class Application:
                         console.print(f'已设置「is_shutdown」为:「{question}」,下载完成后将自动关机!', style='Pink1')
                         self.record_flag = True
                         break
-                    elif question == 'n' or question == '':
+                    elif question in ('n', ''):
                         self._config['is_shutdown'] = False
                         console.print(f'已设置「is_shutdown」为:「n」', style=_style)
                         self.record_flag = True
@@ -1039,7 +1036,7 @@ class Application:
                     log.error(f'意外的错误,原因:"{_e}"')
                     break
 
-        def get_download_type(_last_record: list):
+        def get_download_type(_last_record: list) -> None:
             def _set_dtype(_dtype) -> list:
                 i_dtype = int(_dtype)  # 因为终端输入是字符串，这里需要转换为整数。
                 if i_dtype == 1:
@@ -1100,10 +1097,10 @@ class Application:
             console.print('「注意」直接回车代表使用上次的记录。', style='red')
 
         if not _api_id:
-            last_record = self.last_record.get('api_id')
+            last_record: str = self.last_record.get('api_id')
             get_api_id(_last_record=last_record)
         if not _api_hash:
-            last_record = self.last_record.get('api_hash')
+            last_record: str = self.last_record.get('api_hash')
             get_api_hash(_last_record=last_record, _valid_length=32)
         if not _links:
             last_record = self.last_record.get('links')
@@ -1128,7 +1125,7 @@ class Application:
         enable_proxy = self._config.get('proxy') or {}.get('enable_proxy', False)
         proxy_record = self.last_record.get('proxy') if self.last_record.get('proxy') else {}
 
-        def get_proxy_info(_scheme, _hostname, _port):
+        def get_proxy_info(_scheme, _hostname, _port) -> Tuple[str, str, int]:
             if _scheme is None:
                 _scheme = proxy_record.get('scheme', '未知')
             if _hostname is None:
@@ -1292,7 +1289,7 @@ class Application:
                                     self._keyboard_interrupt()
                                 finally:
                                     break
-                            elif is_proxy == 'n' or is_proxy == '':
+                            elif is_proxy in ('n', ''):
                                 proxy_config['username'] = None
                                 proxy_config['password'] = None
                                 console.print(f'已设置为:「代理不需要认证」', style=style)
@@ -1310,7 +1307,7 @@ class PanelTable:
         self.table = Table(title=title, highlight=True)
         self.table.title_style = Style(color='white', bold=True)
         # 添加列。
-        for i, col in enumerate(header):
+        for _, col in enumerate(header):
             style = styles.get(col, {}) if styles else {}
             self.table.add_column(col, **style)
 
@@ -1374,23 +1371,18 @@ class MetaData:
             index = units.index(unit)
             value = number / (1024 ** index)
             return {'number': float('{:.2f}'.format(value)), 'unit': unit}
-        else:
-            values = [number]
-            for i in range(len(units) - 1):
-                if values[i] >= 1024:
-                    values.append(values[i] / 1024)
-                else:
-                    break
-            return {'number': '{:.2f}'.format(values[-1]), 'unit': units[len(values) - 1]}
+        values = [number]
+        for i in range(len(units) - 1):
+            if values[i] >= 1024:
+                values.append(values[i] / 1024)
+            else:
+                break
+        return {'number': '{:.2f}'.format(values[-1]), 'unit': units[len(values) - 1]}
 
     @staticmethod
     def print_helper():
-        markdown = Markdown(readme)
+        markdown = Markdown(README)
         console.print(markdown)
-
-    @staticmethod
-    def get_platform() -> dict:
-        return {'system': platform.system()}
 
     @staticmethod
     def _qr_terminal_str(str_obj: str, version: int = 1, render: callable = QrcodeRender.render_2by1) -> str:

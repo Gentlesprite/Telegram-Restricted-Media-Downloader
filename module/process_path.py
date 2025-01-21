@@ -180,7 +180,7 @@ def _guess_extension(mime_type: str) -> Optional[str]:
     return extension[1:] if extension and extension.startswith('.') else extension
 
 
-def _get_file_type(file_id: str):
+def _get_file_type(file_id: str) -> FileType:
     """获取文件类型。"""
     decoded = rle_decode(b64_decode(file_id))
 

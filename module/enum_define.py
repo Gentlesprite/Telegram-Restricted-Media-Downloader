@@ -16,7 +16,7 @@ class LinkType(Enum):
     comment = 2
 
     @property
-    def text(self):
+    def text(self) -> str:
         return {
             LinkType.single: 'single',
             LinkType.group: 'group',
@@ -24,7 +24,7 @@ class LinkType(Enum):
         }[self]
 
     @staticmethod
-    def translate(text: 'LinkType.text'):
+    def translate(text: 'LinkType.text') -> str:
         translation = {
             LinkType.single.text: '单文件',
             LinkType.group.text: '组文件',
@@ -42,7 +42,7 @@ class DownloadType(Enum):
     document = 2
 
     @property
-    def text(self):
+    def text(self) -> str:
         return {
             DownloadType.video: 'video',
             DownloadType.photo: 'photo',
@@ -54,7 +54,7 @@ class DownloadType(Enum):
         return [i.text for i in DownloadType]
 
     @staticmethod
-    def translate(text: 'DownloadType.text'):
+    def translate(text: 'DownloadType.text') -> str:
         translation = {
             DownloadType.video.text: '视频',
             DownloadType.photo.text: '图片',
@@ -74,7 +74,7 @@ class DownloadStatus(Enum):
     all_complete = 4
 
     @property
-    def text(self):
+    def text(self) -> str:
         return {
             DownloadStatus.downloading: 'downloading',
             DownloadStatus.success: 'success',
@@ -83,7 +83,7 @@ class DownloadStatus(Enum):
         }[self]
 
     @staticmethod
-    def translate(text: 'DownloadStatus.text', key_note: bool = False):
+    def translate(text: 'DownloadStatus.text', key_note: bool = False) -> str:
         translation = {
             DownloadStatus.downloading.text: '正在下载',
             DownloadStatus.success.text: '成功下载',
@@ -118,7 +118,7 @@ class KeyWorld(Enum):
     download_task_error = 11
 
     @property
-    def text(self):
+    def text(self) -> str:
         return {
             KeyWorld.link: 'link',
             KeyWorld.link_type: 'link_type',
@@ -135,7 +135,7 @@ class KeyWorld(Enum):
         }[self]
 
     @staticmethod
-    def translate(text: 'KeyWorld.text', key_note: bool = False):
+    def translate(text: 'KeyWorld.text', key_note: bool = False) -> str:
         translation = {
             KeyWorld.link.text: '链接',
             KeyWorld.link_type.text: '链接类型',
@@ -370,7 +370,7 @@ class Validator:
             while True:
                 try:
                     question = console.input(f'目录:"{save_path}"不存在,是否创建? - 「y|n」(默认y):').strip().lower()
-                    if question == 'y' or question == '':
+                    if question in ('y', ''):
                         os.makedirs(save_path, exist_ok=True)
                         console.log(f'成功创建目录:"{save_path}"')
                         break
@@ -394,12 +394,12 @@ class Validator:
 
     @staticmethod
     def is_valid_enable_proxy(enable_proxy: str or bool) -> bool:
-        if enable_proxy == 'y' or enable_proxy == 'n':
+        if enable_proxy in ('y', 'n'):
             return True
 
     @staticmethod
     def is_valid_is_notice(is_notice: str) -> bool:
-        if is_notice == 'y' or is_notice == 'n':
+        if is_notice in ('y', 'n'):
             return True
 
     @staticmethod
