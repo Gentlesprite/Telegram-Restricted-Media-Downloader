@@ -255,7 +255,7 @@ class TelegramRestrictedMediaDownloader:
                 self.app.print_media_table()
                 self.app.print_failure_table() if self.app.failure_link else 0  # v1.1.2 增加下载失败的链接统计,但如果没有失败的链接将不会显示。
                 MetaData.pay()
-                self.app.process_shutdown() if was_client_run else 0  # v1.2.8如果并未打开客户端执行任何下载,则不执行关机。
+                self.app.process_shutdown(60) if was_client_run else 0  # v1.2.8如果并未打开客户端执行任何下载,则不执行关机。
             if self.app.platform == 'Windows':
                 self.app.ctrl_c()
             else:
