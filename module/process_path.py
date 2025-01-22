@@ -13,6 +13,8 @@ import mimetypes
 import unicodedata
 
 from io import BytesIO
+from typing import Optional
+
 from pyrogram.file_id import (
     FILE_REFERENCE_FLAG,
     PHOTO_TYPES,
@@ -21,8 +23,6 @@ from pyrogram.file_id import (
     b64_decode,
     rle_decode,
 )
-
-from typing import Optional
 
 from module.enum_define import Extension
 
@@ -37,10 +37,7 @@ def split_path(path: str) -> dict:
 
 def _is_directory_empty(directory_path: str) -> bool:
     """判断目录是否为空。"""
-    if len(os.listdir(directory_path)) == 0:
-        return True
-    else:
-        return False
+    return len(os.listdir(directory_path)) == 0
 
 
 def _is_exist(file_path: str) -> bool:
