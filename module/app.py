@@ -26,8 +26,8 @@ from module import README
 from module import console, log
 from module import SOFTWARE_FULL_NAME, __version__, __copyright__, __license__
 
-from module.process_path import split_path, validate_title, truncate_filename, move_to_save_path, \
-    gen_backup_config, get_extension, safe_delete
+from module.process_path import split_path, validate_title, truncate_filename, move_to_save_directory, \
+    gen_backup_config, get_extension, safe_delete, compare_file_size, get_file_size
 from module.enum_define import GradientColor, ArtFont, DownloadType, DownloadStatus, Validator, QrcodeRender
 from module.enum_define import failure_download, keyword_size, keyword_link_status, keyword_file, keyword_type, \
     keyword_error_size, keyword_actual_size
@@ -162,9 +162,9 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
 
 
 class Application:
-    DIR_NAME: str = os.path.dirname(os.path.abspath(sys.argv[0]))  # 获取软件工作绝对目录。
+    DIRECTORY_NAME: str = os.path.dirname(os.path.abspath(sys.argv[0]))  # 获取软件工作绝对目录。
     CONFIG_NAME: str = 'config.yaml'  # 配置文件名。
-    CONFIG_PATH: str = os.path.join(DIR_NAME, CONFIG_NAME)
+    CONFIG_PATH: str = os.path.join(DIRECTORY_NAME, CONFIG_NAME)
     CONFIG_TEMPLATE: dict = {
         'api_id': None,
         'api_hash': None,
@@ -178,15 +178,15 @@ class Application:
             'password': None
         },
         'links': None,
-        'save_path': None,
+        'save_directory': None,  # v1.3.0 将配置文件中save_path的参数名修改为save_directory。
         'max_download_task': None,
         'is_shutdown': None,
         'download_type': None
     }
-    TEMP_FOLDER: str = os.path.join(os.getcwd(), 'temp')
-    BACKUP_DIR: str = 'ConfigBackup'
-    ABSOLUTE_BACKUP_DIR: str = os.path.join(DIR_NAME, BACKUP_DIR)
-    WORK_DIR: str = os.path.join(os.getcwd(), 'sessions')
+    TEMP_DIRECTORY: str = os.path.join(os.getcwd(), 'temp')
+    BACKUP_DIRECTORY: str = 'ConfigBackup'
+    ABSOLUTE_BACKUP_DIRECTORY: str = os.path.join(DIRECTORY_NAME, BACKUP_DIRECTORY)
+    WORK_DIRECTORY: str = os.path.join(os.getcwd(), 'sessions')
 
     def __init__(self,
                  client_obj: callable = TelegramRestrictedMediaDownloaderClient,
@@ -201,14 +201,14 @@ class Application:
         self.download_type: list = []
         self.record_dtype: set = set()
         self.config_path: str = Application.CONFIG_PATH
-        self.work_dir: str = Application.WORK_DIR
-        self.temp_folder: str = Application.TEMP_FOLDER
+        self.work_directory: str = Application.WORK_DIRECTORY
+        self.temp_directory: str = Application.TEMP_DIRECTORY
         self.record_flag: bool = False
         self.modified: bool = False
         self.get_last_history_record()
-        self._config = self.load_config()  # v1.2.9 重新调整配置文件加载逻辑。
+        self._config = self.load_config(with_check=True)  # v1.2.9 重新调整配置文件加载逻辑。
         self.config_guide() if guide else None
-        self.config = self.load_config()
+        self.config = self.load_config(with_check=False)  # v1.3.0 修复重复询问重新配置文件。
         self.api_hash = self.config.get('api_hash')
         self.api_id = self.config.get('api_id')
         self.download_type: list = self.config.get('download_type')
@@ -217,7 +217,7 @@ class Application:
         self.max_download_task: int = self.config.get('max_download_task')
         self.proxy: dict = self.config.get('proxy', {})
         self.enable_proxy = self.proxy if self.proxy.get('enable_proxy') else None
-        self.save_path: str = self.config.get('save_path')
+        self.save_directory: str = self.config.get('save_directory')
         self._get_download_type()
         self.current_task_num: int = 0
         self.max_retry_count: int = 3
@@ -246,12 +246,12 @@ class Application:
 
     def build_client(self) -> pyrogram.Client:
         """用填写的配置文件,构造pyrogram客户端。"""
-        os.makedirs(self.work_dir, exist_ok=True)
+        os.makedirs(self.work_directory, exist_ok=True)
         return self.client_obj(name=SOFTWARE_FULL_NAME.replace(' ', ''),
                                api_id=self.api_id,
                                api_hash=self.api_hash,
                                proxy=self.enable_proxy,
-                               workdir=self.work_dir)
+                               workdir=self.work_directory)
 
     def print_media_table(self) -> None:
         """打印统计的下载信息的表格。"""
@@ -336,52 +336,51 @@ class Application:
         """处理关机逻辑。"""
         self.shutdown_task(second=second) if self.is_shutdown else None
 
-    def check_download_finish(self, sever_size: int, download_path: str, save_directory: str) -> bool:
+    def check_download_finish(self, sever_file_size: int,
+                              temp_file_path: str,
+                              save_directory: str,
+                              with_move: bool = True) -> bool:
         """检测文件是否下完。"""
         temp_ext: str = '.temp'
-        if os.path.exists(download_path) or os.path.exists(download_path + temp_ext):
-            try:
-                local_size: int = os.path.getsize(download_path)
-            except FileNotFoundError:
-                local_size: int = os.path.getsize(download_path + temp_ext)  # v1.2.9 修复临时文件大小获取失败的问题。
-        else:
-            local_size: int = 0  # 仍然找不到则直接为0
-        format_local_size: str = MetaData.suitable_units_display(local_size)
-        format_sever_size: str = MetaData.suitable_units_display(sever_size)
-        _save_path: str = os.path.join(save_directory, split_path(download_path).get('file_name'))
-        save_path: str = _save_path[:-len(temp_ext)] if _save_path.endswith(temp_ext) else _save_path
-        if sever_size == local_size:
-            result: str = move_to_save_path(temp_save_path=download_path, save_path=save_directory).get('e_code')
-            console.warning(result) if result is not None else None
+        local_file_size: int = get_file_size(file_path=temp_file_path, temp_ext=temp_ext)
+        format_local_size: str = MetaData.suitable_units_display(local_file_size)
+        format_sever_size: str = MetaData.suitable_units_display(sever_file_size)
+        _file_path: str = os.path.join(save_directory, split_path(temp_file_path).get('file_name'))
+        file_path: str = _file_path[:-len(temp_ext)] if _file_path.endswith(temp_ext) else _file_path
+        if compare_file_size(a_size=local_file_size, b_size=sever_file_size):
+            if with_move:
+                result: str = move_to_save_directory(temp_file_path=temp_file_path,
+                                                     save_directory=save_directory).get(
+                    'e_code')
+                console.warning(result) if result is not None else None
             console.log(
-                f'{keyword_file}:"{save_path}",'
+                f'{keyword_file}:"{file_path}",'
                 f'{keyword_size}:{format_local_size},'
-                f'{keyword_type}:{DownloadType.translate(self.guess_file_type(file_name=download_path, status=DownloadStatus.success)[0].text)},'
+                f'{keyword_type}:{DownloadType.translate(self.guess_file_type(file_name=temp_file_path, status=DownloadStatus.success)[0].text)},'
                 f'{keyword_link_status}:{DownloadStatus.translate(DownloadStatus.success.text)}。',
             )
             return True
-        else:
-            console.log(
-                f'{keyword_file}:"{save_path}",'
-                f'{keyword_error_size}:{format_local_size},'
-                f'{keyword_actual_size}:{format_sever_size},'
-                f'{keyword_type}:{DownloadType.translate(self.guess_file_type(file_name=download_path, status=DownloadStatus.failure)[0].text)},'
-                f'{keyword_link_status}:{failure_download}。')
-            safe_delete(file_path=download_path)  # v1.2.9 修复临时文件删除失败的问题。
-            return False
+        console.log(
+            f'{keyword_file}:"{file_path}",'
+            f'{keyword_error_size}:{format_local_size},'
+            f'{keyword_actual_size}:{format_sever_size},'
+            f'{keyword_type}:{DownloadType.translate(self.guess_file_type(file_name=temp_file_path, status=DownloadStatus.failure)[0].text)},'
+            f'{keyword_link_status}:{failure_download}。')
+        safe_delete(file_path=temp_file_path)  # v1.2.9 修复临时文件删除失败的问题。
+        return False
 
     def get_media_meta(self, message, dtype) -> dict:
         """获取媒体元数据。"""
-        temp_save_path: str = self._get_temp_path(message, dtype)
+        temp_file_path: str = self._get_temp_file_path(message, dtype)
         _sever_meta = getattr(message, dtype)
-        sever_size: int = getattr(_sever_meta, 'file_size')
-        file_name: str = split_path(temp_save_path).get('file_name')
-        local_file_path: str = os.path.join(self.save_path, file_name)
-        format_file_size: str = MetaData.suitable_units_display(sever_size)
-        return {'temp_save_path': temp_save_path,
-                'sever_size': sever_size,
+        sever_file_size: int = getattr(_sever_meta, 'file_size')
+        file_name: str = split_path(temp_file_path).get('file_name')
+        save_directory: str = os.path.join(self.save_directory, file_name)
+        format_file_size: str = MetaData.suitable_units_display(sever_file_size)
+        return {'temp_file_path': temp_file_path,
+                'sever_file_size': sever_file_size,
                 'file_name': file_name,
-                'local_file_path': local_file_path,
+                'save_directory': save_directory,
                 'format_file_size': format_file_size}
 
     def get_valid_dtype(self, message) -> Dict[str, bool]:
@@ -411,11 +410,11 @@ class Application:
         return {'valid_dtype': valid_dtype,
                 'is_document_type_valid': is_document_type_valid}
 
-    def _get_temp_path(self, message: pyrogram.types.Message,
-                       dtype: DownloadType.text) -> str:
+    def _get_temp_file_path(self, message: pyrogram.types.Message,
+                            dtype: DownloadType.text) -> str:
         """获取下载文件时的临时保存路径。"""
-        file_name = None
-        os.makedirs(self.temp_folder, exist_ok=True)
+        file: str = ''
+        os.makedirs(self.temp_directory, exist_ok=True)
 
         def _process_video(msg_obj: pyrogram.types, _dtype: DownloadType.text) -> str:
             """处理视频文件的逻辑。"""
@@ -436,8 +435,8 @@ class Application:
                 get_extension(file_id=_meta_obj.file_id, mime_type=getattr(_meta_obj, 'mime_type', _default_mtype),
                               dot=False)
             )
-            _file_name: str = os.path.join(self.temp_folder, validate_title(_file_name))
-            return _file_name
+            _file: str = os.path.join(self.temp_directory, validate_title(_file_name))
+            return _file
 
         def _process_photo(msg_obj: pyrogram.types, _dtype: DownloadType.text) -> str:
             """处理视频图片的逻辑。"""
@@ -456,20 +455,22 @@ class Application:
                 getattr(_meta_obj, 'file_unique_id', 'None'),
                 _extension
             )
-            _file_name: str = os.path.join(self.temp_folder, validate_title(_file_name))
-            return _file_name
+            _file: str = os.path.join(self.temp_directory, validate_title(_file_name))
+            return _file
 
         if dtype == DownloadType.video.text:
-            file_name: str = _process_video(msg_obj=message, _dtype=dtype)
+            file: str = _process_video(msg_obj=message, _dtype=dtype)
         elif dtype == DownloadType.photo.text:
-            file_name: str = _process_photo(msg_obj=message, _dtype=dtype)
+            file: str = _process_photo(msg_obj=message, _dtype=dtype)
         elif dtype == DownloadType.document.text:
             _mime_type = getattr(getattr(message, dtype), 'mime_type')
             if 'video' in _mime_type:
-                file_name: str = _process_video(msg_obj=message, _dtype=dtype)
+                file: str = _process_video(msg_obj=message, _dtype=dtype)
             elif 'image' in _mime_type:
-                file_name: str = _process_photo(msg_obj=message, _dtype=dtype)
-        return truncate_filename(file_name)
+                file: str = _process_photo(msg_obj=message, _dtype=dtype)
+        else:
+            file: str = os.path.join(self.temp_directory, '{} - undefined.unknown')  # todo
+        return truncate_filename(file)
 
     def _media_counter(func):
         """统计媒体下载情况(数量)的装饰器。"""
@@ -611,7 +612,7 @@ class Application:
         _stdio_queue: dict = {'api_id': 0,
                               'api_hash': 1,
                               'links': 2,
-                              'save_path': 3,
+                              'save_directory': 3,
                               'max_download_task': 4,
                               'download_type': 5,
                               'is_shutdown': 6,
@@ -661,13 +662,13 @@ class Application:
         """备份当前的配置文件。"""
         if backup_config != Application.CONFIG_TEMPLATE:  # v1.2.9 修复比较变量错误的问题。
             backup_path: str = gen_backup_config(old_path=self.config_path,
-                                                 absolute_backup_dir=Application.ABSOLUTE_BACKUP_DIR,
+                                                 absolute_backup_dir=Application.ABSOLUTE_BACKUP_DIRECTORY,
                                                  error_config=error_config)
             console.log(f'原来的配置文件已备份至"{backup_path}"', style='green')
         else:
             console.log('配置文件与模板文件完全一致,无需备份。')
 
-    def load_config(self, error_config: bool = False) -> dict:
+    def load_config(self, error_config: bool = False, with_check: bool = True) -> dict:
         """加载一次当前的配置文件,并附带合法性验证、缺失参数的检测以及各种异常时的处理措施。"""
         config: dict = Application.CONFIG_TEMPLATE.copy()
         try:
@@ -696,7 +697,7 @@ class Application:
             if error_config:  # 如果遇到报错或者全部参数都是空的。
                 return config
             # v1.1.4 加入是否重新编辑配置文件的引导。保证配置文件没有缺少任何字段,否则不询问。
-            elif not self.modified and config != Application.CONFIG_TEMPLATE:
+            elif not self.modified and config != Application.CONFIG_TEMPLATE and with_check:
                 while True:
                     try:
                         question: str = console.input(
@@ -704,7 +705,7 @@ class Application:
                         if question == 'y':
                             config: dict = Application.CONFIG_TEMPLATE.copy()
                             backup_path: str = gen_backup_config(old_path=self.config_path,
-                                                                 absolute_backup_dir=Application.ABSOLUTE_BACKUP_DIR)
+                                                                 absolute_backup_dir=Application.ABSOLUTE_BACKUP_DIRECTORY)
                             console.log(
                                 f'原来的配置文件已备份至"{backup_path}"', style='green')
                             self.get_last_history_record()  # 更新到上次填写的记录。
@@ -829,7 +830,7 @@ class Application:
             min_config_file: str = self.history_timestamp.get(min_diff_timestamp)
             if not min_config_file:
                 return {}
-            last_config_file: str = os.path.join(Application.ABSOLUTE_BACKUP_DIR, min_config_file)  # 拼接文件路径。
+            last_config_file: str = os.path.join(Application.ABSOLUTE_BACKUP_DIRECTORY, min_config_file)  # 拼接文件路径。
             with open(file=last_config_file, mode='r', encoding='UTF-8') as f:
                 config: dict = yaml.safe_load(f)
             last_record: dict = self._check_params(config, history=True)  # v1.1.6修复读取历史如果缺失字段使得flag置True。
@@ -849,7 +850,7 @@ class Application:
         """获取最近一次保存的历史配置文件。"""
         # 首先判断是否存在目录文件。
         try:
-            res: list = os.listdir(Application.ABSOLUTE_BACKUP_DIR)
+            res: list = os.listdir(Application.ABSOLUTE_BACKUP_DIRECTORY)
         except FileNotFoundError:
             return
         except Exception as e:
@@ -887,7 +888,7 @@ class Application:
         _api_id: str or None = self._config.get('api_id')
         _api_hash: str or None = self._config.get('api_hash')
         _links: str or None = self._config.get('links')
-        _save_path: str or None = self._config.get('save_path')
+        _save_directory: str or None = self._config.get('save_directory')
         _max_download_task: int or None = self._config.get('max_download_task')
         _download_type: list or None = self._config.get('download_type')
         _proxy: dict = self._config.get('proxy')
@@ -949,7 +950,7 @@ class Application:
                 except Exception as _e:
                     log.error(f'意外的参数:"{links_file}",请重新输入!原因:"{_e}"')
 
-        def get_save_path(_last_record) -> None:
+        def get_save_directory(_last_record) -> None:
             # 输入媒体保存路径,确保是一个有效的目录路径。
             while True:
                 try:
@@ -958,8 +959,8 @@ class Application:
                     if save_path == '' and _last_record is not None:
                         save_path = _last_record
                     if Validator.is_valid_save_path(save_path):
-                        self._config['save_path'] = save_path
-                        console.print(f'已设置「save_path」为:「{save_path}」', style=self._stdio_style('save_path'))
+                        self._config['save_directory'] = save_path
+                        console.print(f'已设置「save_path」为:「{save_path}」', style=self._stdio_style('save_directory'))
                         self.record_flag = True
                         break
                     elif os.path.isfile(save_path):
@@ -1036,7 +1037,7 @@ class Application:
                     log.error(f'意外的错误,原因:"{_e}"')
                     break
 
-        def get_download_type(_last_record: list) -> None:
+        def get_download_type(_last_record: list or None) -> None:
             def _set_dtype(_dtype) -> list:
                 i_dtype = int(_dtype)  # 因为终端输入是字符串，这里需要转换为整数。
                 if i_dtype == 1:
@@ -1046,19 +1047,17 @@ class Application:
                 elif i_dtype == 3:
                     return [DownloadType.video.text, DownloadType.photo.text]
 
-            if _last_record is not None:
-                if isinstance(_last_record, list):
-                    res: dict = self._get_dtype(download_dtype=_last_record)
-                    if len(res) == 1:
-                        _last_record = None
-                    elif res.get('video') and res.get('photo') is False:
-                        _last_record = 1
-                    elif res.get('video') is False and res.get('photo'):
-                        _last_record = 2
-                    elif res.get('video') and res.get('photo'):
-                        _last_record = 3
-                else:
+            if isinstance(_last_record, list):
+                res: dict = self._get_dtype(download_dtype=_last_record)
+                if len(res) == 1:
                     _last_record = None
+                elif res.get('video') and res.get('photo') is False:
+                    _last_record = 1
+                elif res.get('video') is False and res.get('photo'):
+                    _last_record = 2
+                elif res.get('video') and res.get('photo'):
+                    _last_record = 3
+
             while True:
                 try:
                     download_type = console.input(
@@ -1083,7 +1082,7 @@ class Application:
             not _api_id,
             not _api_hash,
             not _links,
-            not _save_path,
+            not _save_directory,
             not _max_download_task,
             not _download_type,
             not _proxy,
@@ -1097,28 +1096,19 @@ class Application:
             console.print('「注意」直接回车代表使用上次的记录。', style='red')
 
         if not _api_id:
-            last_record: str = self.last_record.get('api_id')
-            get_api_id(_last_record=last_record)
+            get_api_id(_last_record=self.last_record.get('api_id'))
         if not _api_hash:
-            last_record: str = self.last_record.get('api_hash')
-            get_api_hash(_last_record=last_record, _valid_length=32)
+            get_api_hash(_last_record=self.last_record.get('api_hash'), _valid_length=32)
         if not _links:
-            last_record = self.last_record.get('links')
-            get_links(_last_record=last_record, _valid_format='.txt')
-        if not _save_path:
-            last_record = self.last_record.get('save_path')
-            get_save_path(_last_record=last_record)
+            get_links(_last_record=self.last_record.get('links'), _valid_format='.txt')
+        if not _save_directory:
+            get_save_directory(_last_record=self.last_record.get('save_directory'))
         if not _max_download_task:
-            last_record = self.last_record.get('max_download_task') if self.last_record.get(
-                'max_download_task') else None
-            get_max_download_task(_last_record=last_record)
+            get_max_download_task(_last_record=self.last_record.get('max_download_task'))
         if not _download_type:
-            last_record = self.last_record.get('download_type') if self.last_record.get(
-                'download_type') else None
-            get_download_type(_last_record=last_record)
+            get_download_type(_last_record=self.last_record.get('download_type'))
         # v1.1.6 下载完成自动关机。
-        last_record = self.last_record.get('is_shutdown')
-        get_is_shutdown(_last_record=last_record, _valid_format='y|n')
+        get_is_shutdown(_last_record=self.last_record.get('is_shutdown'), _valid_format='y|n')
 
         proxy_config: dict = self._config.get('proxy', {})  # 读取proxy字段得到字典。
         # v1.1.4 移除self._check_proxy_params(proxy_config)改用全字段检测  # 检查代理字典字段是否完整并自动补全保存。
