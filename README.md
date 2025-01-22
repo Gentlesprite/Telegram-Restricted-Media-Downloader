@@ -7,14 +7,14 @@
 <p align="center">
 </p>
 <p align="center">
-  A telegram downloader on windows platform based on Python
+  A telegram downloader on windows platform based on Python.
 </p>
 <p align="center">
   <a style="text-decoration:none">
     <img src="https://img.shields.io/badge/Python-3.11.7-blue.svg?color=00B16A" alt="Python 3.11.7"/>
   </a>
   <a style="text-decoration:none">
-    <img src="https://img.shields.io/badge/pyrogram@kurigram-2.1.36-blue.svg?color=00B16A" alt="pyrogram@kurigram 2.1.36"/>
+    <img src="https://img.shields.io/badge/pyrogram@kurigram-2.1.37-blue.svg?color=00B16A" alt="pyrogram@kurigram 2.1.37"/>
   </a>
   <a style="text-decoration:none">
     <img src="https://img.shields.io/badge/Platform-Windows%20-blue?color=00B16A" alt="Platform Windows"/>
