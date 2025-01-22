@@ -50,7 +50,7 @@ utils.get_peer_type = get_peer_type_new
 AUTHOR = 'Gentlesprite'
 __version__ = '1.3.0'
 __license__ = 'MIT License'
-__update_date__ = '2025/01/22 16:33:53'
+__update_date__ = '2025/01/23 02:57:43'
 __copyright__ = f'Copyright (C) 2024-{__update_date__[:4]} {AUTHOR} <https://github.com/Gentlesprite>'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_SHORT_NAME = 'TRMD'
@@ -89,34 +89,28 @@ CustomDumper.add_representer(type(None), CustomDumper.represent_none)
 README = r'''
 # 配置文件说明
 ```yaml
-# 下载完成直接打开软件即可,软件会一步一步引导你输入的!这里只是介绍每个参数的含义。
-# 填入第一步教你申请的api_hash和api_id。
-# 如果是按照软件的提示填,不需要加引号,如果是手动打开config.yaml修改配置,请仔细阅读下面内容。
-# 手动填写注意区分冒号类型,例如 - 是:不是：。
-# 手动填写的时候还请注意参数冒号不加空格会报错,后面有一个空格,例如 - api_hash: xxx而不是api_hash:xxx。
-api_hash: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx #api_hash没有引号。
-api_id: 'xxxxxxxx' # 注意配置文件中只有api_id有引号。
-# download_type是指定下载的类型,只支持video和photo写其他会报错。
-download_type: 
+# 这里只是介绍每个参数的含义,软件会详细地引导配置参数。
+# 如果是按照软件的提示填,选看。如果是手动打开config.yaml修改配置,请仔细阅读下面内容。
+# 手动填写时请注意冒号是英文冒号,冒号加一个空格。
+api_hash: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # 申请的api_hash。
+api_id: 'xxxxxxxx' # 申请的api_id。
+download_type: # 需要下载的类型。支持的参数:video,photo。
 - video 
 - photo
-is_shutdown: true # 是否下载完成后自动关机 true为下载完成后自动关机 false为下载完成后不关机。
-links: D:\path\where\your\link\txt\save\content.txt # 链接地址写法如下:
+is_shutdown: true # 下载完成后是否自动关机。支持的参数:true,false。
+links: D:\path\where\your\link\files\save\content.txt # 链接地址写法如下:
 # 新建txt文本,一个链接为一行,将路径填入即可请不要加引号,在软件运行前就准备好。
-# D:\path\where\your\link\txt\save\content.txt 请注意一个链接一行。
-# 列表写法已在v1.1.0版本中弃用,目前只有上述唯一写法。
+# D:\path\where\your\link\txt\save\content.txt 一个链接一行。
 # 不要存在中文或特殊字符。
-max_download_task: 3 # 最大的同时下载任务数 注意:如果你不是Telegram会员,那么最大同时下载数只有1。
+max_download_task: 3 # 最大的下载任务数,非Telegram会员无效。支持的参数:所有>0的整数。
 proxy: # 代理部分,如不使用请全部填null注意冒号后面有空格,否则不生效导致报错。
-  enable_proxy: true # 是否开启代理 true为开启 false为关闭。
+  enable_proxy: true # 是否开启代理。支持的参数:true,false。
   hostname: 127.0.0.1 # 代理的ip地址。
-  is_notice: false # 是否开启代理提示, true为每次打开询问你是否开启代理, false则为关闭。
-  scheme: socks5 # 代理的类型,支持http,socks4,socks5。
-  port: 10808 # 代理ip的端口。
-  username: null # 代理的账号,有就填,没有请都填null。
-  password: null # 代理的密码,有就填,没有请都填null。
-save_path: F:\path\the\media\where\you\save # 下载的媒体保存的地址,没有引号,不要存在中文或特殊字符。
-# 再次提醒,由于nuitka打包的性质决定,中文路径无法被打包好的二进制文件识别。
-# 故在配置文件时无论是链接路径还是媒体保存路径都请使用英文命名。
+  is_notice: false # 开关是否询问使用代理的提示。支持的参数:true,false。
+  scheme: socks5 # 代理的类型。支持的参数:http,socks4,socks5。
+  port: 10808 # 代理ip的端口。支持的参数:0~65535。
+  username: null # 代理的账号,没有就填null。
+  password: null # 代理的密码,没有就填null。
+save_path: F:\directory\media\where\you\save # 下载的媒体保存的目录,不要存在中文或特殊字符。
 ```
 '''
