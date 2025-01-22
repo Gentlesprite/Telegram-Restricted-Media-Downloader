@@ -71,16 +71,16 @@ class TelegramRestrictedMediaDownloader:
             while self.app.current_task_num >= self.app.max_download_task:  # v1.0.7 增加下载任务数限制。
                 await self.event.wait()
                 self.event.clear()
-            temp_save_path, sever_size, file_name, local_file_path, format_file_size = self.app.get_media_meta(
+            temp_file_path, sever_file_size, file_name, save_directory, format_file_size = self.app.get_media_meta(
                 message=message,
                 dtype=valid_dtype).values()
-            if is_file_duplicate(local_file_path=local_file_path,
-                                 sever_size=sever_size):  # 检测是否存在。
+            if is_file_duplicate(save_directory=save_directory,
+                                 sever_file_size=sever_file_size):  # 检测是否存在。
                 if retry_count == 0:  # v1.2.9 下载失败时,不再重复打印已存在的文件信息。
                     console.log(f'{keyword_file}:"{file_name}",'
                                 f'{keyword_size}:{format_file_size},'
                                 f'{keyword_type}:{DownloadType.translate(self.app.guess_file_type(file_name=file_name, status=DownloadStatus.skip)[0].text)},'
-                                f'{keyword_already_exist}:"{local_file_path}",'
+                                f'{keyword_already_exist}:"{save_directory}",'
                                 f'{keyword_link_status}:{skip_download}。', style='yellow')
             else:
                 console.log(f'{keyword_file}:"{file_name}",'
@@ -89,20 +89,21 @@ class TelegramRestrictedMediaDownloader:
                             f'{keyword_link_status}:{downloading}。')
                 task_id = self.app.progress.add_task(description='',
                                                      filename=file_name,
-                                                     info=f'0.00B/{MetaData.suitable_units_display(sever_size)}',
-                                                     total=sever_size)
+                                                     info=f'0.00B/{format_file_size}',
+                                                     total=sever_file_size)
                 _task = asyncio.create_task(
                     self.client.download_media(message=message,
                                                progress_args=(self.app.progress, task_id),
                                                progress=self.app.download_bar,
-                                               file_name=temp_save_path))
+                                               file_name=temp_file_path))
                 console.log(f'[当前任务数]:{self.app.current_task_num}。', justify='right')
 
                 def call(_future) -> None:
                     self.app.current_task_num -= 1
-                    if self.app.check_download_finish(sever_size=sever_size,
-                                                      download_path=temp_save_path,
-                                                      save_directory=self.app.save_path):
+                    if self.app.check_download_finish(sever_file_size=sever_file_size,
+                                                      temp_file_path=temp_file_path,
+                                                      save_directory=self.app.save_directory,
+                                                      with_move=True):
                         console.log(f'[当前任务数]:{self.app.current_task_num}。', justify='right')
                         self.event.set()
                     else:
@@ -115,7 +116,7 @@ class TelegramRestrictedMediaDownloader:
                             _error = f'(达到最大重试次数:{self.app.max_retry_count}次)。'
                             console.log(f'{keyword_file}:"{file_name}"',
                                         f'{keyword_size}:{format_file_size},'
-                                        f'{keyword_type}:{DownloadType.translate(self.app.guess_file_type(file_name=temp_save_path, status=DownloadStatus.failure)[0].text)},'
+                                        f'{keyword_type}:{DownloadType.translate(self.app.guess_file_type(file_name=file_name, status=DownloadStatus.failure)[0].text)},'
                                         f'{keyword_link_status}:{failure_download}'
                                         f'{_error}')
                             self.app.failure_link[msg_link] = _error.replace('。', '')
@@ -233,7 +234,7 @@ class TelegramRestrictedMediaDownloader:
             self.client.run(self._download_media_from_links())
             was_client_run: bool = True
         except (SessionRevoked, AuthKeyUnregistered, SessionExpired, ConnectionError):
-            res: bool = safe_delete(file_path=os.path.join(self.app.DIR_NAME, 'sessions'))
+            res: bool = safe_delete(file_path=os.path.join(self.app.DIRECTORY_NAME, 'sessions'))
             record_error: bool = True
             if res:
                 log.warning('账号已失效请在关闭后,再次打开软件并重新登录!')
