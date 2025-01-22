@@ -668,7 +668,7 @@ class Application:
         else:
             console.log('配置文件与模板文件完全一致,无需备份。')
 
-    def load_config(self, error_config: bool = False, with_check: bool = True) -> dict:
+    def load_config(self, error_config: bool = False, with_check: bool = False) -> dict:
         """加载一次当前的配置文件,并附带合法性验证、缺失参数的检测以及各种异常时的处理措施。"""
         config: dict = Application.CONFIG_TEMPLATE.copy()
         try:
