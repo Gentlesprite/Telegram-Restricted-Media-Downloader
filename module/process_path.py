@@ -35,24 +35,19 @@ def split_path(path: str) -> dict:
     return {'directory': directory, 'file_name': file_name}
 
 
-def _is_directory_empty(directory_path: str) -> bool:
-    """判断目录是否为空。"""
-    return len(os.listdir(directory_path)) == 0
-
-
 def _is_exist(file_path: str) -> bool:
     """判断文件路径是否存在。"""
     return not os.path.isdir(file_path) and os.path.exists(file_path)
 
 
-def _compare_file_size(local_size: int, sever_size: int) -> bool:
+def compare_file_size(a_size: int, b_size: int) -> bool:
     """比较文件的大小是否一致。"""
-    return local_size == sever_size
+    return a_size == b_size
 
 
-def is_file_duplicate(local_file_path: str, sever_size: int) -> bool:
+def is_file_duplicate(save_directory: str, sever_file_size: int) -> bool:
     """判断文件是否重复。"""
-    return _is_exist(local_file_path) and _compare_file_size(os.path.getsize(local_file_path), sever_size)
+    return _is_exist(save_directory) and compare_file_size(os.path.getsize(save_directory), sever_file_size)
 
 
 def validate_title(title: str) -> str:
@@ -112,22 +107,19 @@ def safe_delete(file_path: str) -> bool:
         return False
 
 
-def move_to_save_path(temp_save_path: str, save_path: str) -> dict:
+def move_to_save_directory(temp_file_path: str, save_directory: str) -> dict:
     """移动文件到指定路径。"""
     try:
-        os.makedirs(save_path, exist_ok=True)
-        if os.path.isdir(save_path):
-            shutil.move(temp_save_path, save_path)
+        os.makedirs(save_directory, exist_ok=True)
+        if os.path.isdir(save_directory):
+            shutil.move(temp_file_path, save_directory)
             return {'e_code': None}
-        else:
-            if _is_directory_empty(save_path):
-                os.rmdir(save_path)
-            save_path = os.path.join(os.getcwd(), 'downloads')
-            os.makedirs(save_path, exist_ok=True)
-            shutil.move(temp_save_path, save_path)
-            return {'e_code': f'"{save_path}"不是一个目录,已将文件下载到默认目录。'}
+        save_directory: str = os.path.join(os.getcwd(), 'downloads')
+        os.makedirs(save_directory, exist_ok=True)
+        shutil.move(temp_file_path, save_directory)
+        return {'e_code': f'"{save_directory}"不是一个目录,已将文件下载到默认目录。'}
     except FileExistsError:
-        return {'e_code': f'"{save_path}"已存在,不能重复保存。'}
+        return {'e_code': f'"{save_directory}"已存在,不能重复保存。'}
     except Exception as e:
         return {'e_code': f'意外的错误,原因:"{e}"'}
 
@@ -200,3 +192,12 @@ def _get_file_type(file_id: str) -> FileType:
         raise ValueError(f'Unknown file_type {file_type} of file_id {file_id}') from exc
 
     return file_type
+
+
+def get_file_size(file_path, temp_ext: str = '.temp'):
+    """获取文件大小，支持临时扩展名。"""
+    if os.path.exists(file_path):
+        return os.path.getsize(file_path)
+    elif os.path.exists(file_path + temp_ext):
+        return os.path.getsize(file_path + temp_ext)
+    return 0
