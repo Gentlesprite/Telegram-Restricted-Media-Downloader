@@ -921,7 +921,7 @@ class Application:
                             _proxy_config['scheme'] = scheme
                     if not _proxy_hostname:
                         hostname, record_flag = GetStdioParams.get_hostname(
-                            proxy_record=proxy_record,
+                            proxy_config=_proxy_config,
                             last_record=proxy_record.get('hostname'),
                             valid_format='x.x.x.x').values()
                         if record_flag:
@@ -929,7 +929,7 @@ class Application:
                             _proxy_config['hostname'] = hostname
                     if not _proxy_port:
                         port, record_flag = GetStdioParams.get_port(
-                            proxy_record=proxy_record,
+                            proxy_config=_proxy_config,
                             last_record=proxy_record.get('port'),
                             valid_format='0~65535').values()
                         if record_flag:

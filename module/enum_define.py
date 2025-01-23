@@ -557,11 +557,11 @@ class ProcessConfig:
         return result
 
     @staticmethod
-    def get_proxy_info(proxy_record: dict) -> dict:
+    def get_proxy_info(proxy_config: dict) -> dict:
 
-        return {'scheme': proxy_record.get('scheme', '未知'),
-                'hostname': proxy_record.get('hostname', '未知'),
-                'port': proxy_record.get('port', '未知')}
+        return {'scheme': proxy_config.get('scheme', '未知'),
+                'hostname': proxy_config.get('hostname', '未知'),
+                'port': proxy_config.get('port', '未知')}
 
 
 class GetStdioParams:
@@ -791,10 +791,10 @@ class GetStdioParams:
                     f'意外的参数:"{scheme}",请输入有效的代理类型!支持的参数 - 「{fmt_valid_format}」!')
 
     @staticmethod
-    def get_hostname(proxy_record: dict, last_record: str, valid_format: str = 'x.x.x.x'):
+    def get_hostname(proxy_config: dict, last_record: str, valid_format: str = 'x.x.x.x'):
         hostname = None
         while True:
-            scheme, _, __ = ProcessConfig.get_proxy_info(proxy_record).values()
+            scheme, _, __ = ProcessConfig.get_proxy_info(proxy_config).values()
             # 输入代理IP地址。
             try:
                 hostname = console.input(
@@ -810,12 +810,12 @@ class GetStdioParams:
                     f'"{hostname}"不是一个「ip地址」,请输入有效的ipv4地址!支持的参数 - 「{valid_format}」!')
 
     @staticmethod
-    def get_port(proxy_record: dict, last_record: str, valid_format: str = '0~65535'):
+    def get_port(proxy_config: dict, last_record: str, valid_format: str = '0~65535'):
         port = None
         # 输入代理端口。
         while True:
-            try:  # hostname,scheme可能出现None
-                scheme, hostname, __ = ProcessConfig.get_proxy_info(proxy_record).values()
+            try:  # hostname,scheme可能出现None。
+                scheme, hostname, __ = ProcessConfig.get_proxy_info(proxy_config).values()
                 port = console.input(
                     f'请输入ip地址为:"{hostname}",代理类型为:"{scheme}"的「代理端口」。'
                     f'上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」'
