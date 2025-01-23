@@ -5,6 +5,7 @@
 # File:downloader.py
 import os
 import asyncio
+import sys
 from typing import Set, Tuple
 
 from pyrogram.errors.exceptions.bad_request_400 import MsgIdInvalid, UsernameInvalid
@@ -13,9 +14,7 @@ from pyrogram.errors.exceptions.unauthorized_401 import SessionRevoked, AuthKeyU
 from module import console, log
 from module.app import Application, MetaData
 from module.process_path import is_file_duplicate, safe_delete
-from module.enum_define import LinkType, DownloadStatus, DownloadType
-from module.enum_define import downloading, failure_download, skip_download, keyword_link, keyword_link_type, \
-    keyword_size, keyword_link_status, keyword_file, keyword_already_exist, keyword_chanel, keyword_type
+from module.enum_define import LinkType, DownloadStatus, DownloadType, KeyWord, Status
 
 
 class TelegramRestrictedMediaDownloader:
@@ -27,7 +26,7 @@ class TelegramRestrictedMediaDownloader:
         self.app = Application()
         self.client = self.app.build_client()
 
-    async def _extract_link_content(self, msg_link) -> Tuple[str, int, list]:
+    async def __extract_link_content(self, msg_link) -> Tuple[str, int, list]:
         comment_message = []
         is_comment = False
         if '?single&comment' in msg_link:  # v1.1.0修复讨论组中附带?single时不下载的问题，
@@ -54,7 +53,7 @@ class TelegramRestrictedMediaDownloader:
         return chat_name, msg_id, comment_message
 
     @staticmethod
-    async def _is_group(message) -> Tuple[bool or None, bool or None]:
+    async def __is_group(message) -> Tuple[bool or None, bool or None]:
         try:
             return True, await message.get_media_group()
         except ValueError:
@@ -63,7 +62,7 @@ class TelegramRestrictedMediaDownloader:
         except AttributeError:
             return None, None
 
-    async def _add_task(self, msg_link, message, retry_count=0) -> None:
+    async def __add_task(self, msg_link, message, retry_count=0) -> None:
         _task = None
         valid_dtype, is_document_type_valid = self.app.get_valid_dtype(message).values()
         if valid_dtype in self.app.download_type and is_document_type_valid:
@@ -77,16 +76,16 @@ class TelegramRestrictedMediaDownloader:
             if is_file_duplicate(save_directory=save_directory,
                                  sever_file_size=sever_file_size):  # 检测是否存在。
                 if retry_count == 0:  # v1.2.9 下载失败时,不再重复打印已存在的文件信息。
-                    console.log(f'{keyword_file}:"{file_name}",'
-                                f'{keyword_size}:{format_file_size},'
-                                f'{keyword_type}:{DownloadType.translate(self.app.guess_file_type(file_name=file_name, status=DownloadStatus.skip)[0].text)},'
-                                f'{keyword_already_exist}:"{save_directory}",'
-                                f'{keyword_link_status}:{skip_download}。', style='yellow')
+                    console.log(f'{KeyWord.FILE}:"{file_name}",'
+                                f'{KeyWord.SIZE}:{format_file_size},'
+                                f'{KeyWord.TYPE}:{DownloadType.t(self.app.guess_file_type(file_name=file_name, status=DownloadStatus.skip)[0].text)},'
+                                f'{KeyWord.ALREADY_EXIST}:"{save_directory}",'
+                                f'{KeyWord.STATUS}:{Status.SKIP}。', style='yellow')
             else:
-                console.log(f'{keyword_file}:"{file_name}",'
-                            f'{keyword_size}:{format_file_size},'
-                            f'{keyword_type}:{DownloadType.translate(self.app.guess_file_type(file_name=file_name, status=DownloadStatus.downloading)[0].text)},'
-                            f'{keyword_link_status}:{downloading}。')
+                console.log(f'{KeyWord.FILE}:"{file_name}",'
+                            f'{KeyWord.SIZE}:{format_file_size},'
+                            f'{KeyWord.TYPE}:{DownloadType.t(self.app.guess_file_type(file_name=file_name, status=DownloadStatus.downloading)[0].text)},'
+                            f'{KeyWord.STATUS}:{Status.DOWNLOADING}。')
                 task_id = self.app.progress.add_task(description='',
                                                      filename=file_name,
                                                      info=f'0.00B/{format_file_size}',
@@ -114,10 +113,10 @@ class TelegramRestrictedMediaDownloader:
                             self.queue.put_nowait((msg_link, message, retry_count + 1))
                         else:
                             _error = f'(达到最大重试次数:{self.app.max_retry_count}次)。'
-                            console.log(f'{keyword_file}:"{file_name}"',
-                                        f'{keyword_size}:{format_file_size},'
-                                        f'{keyword_type}:{DownloadType.translate(self.app.guess_file_type(file_name=file_name, status=DownloadStatus.failure)[0].text)},'
-                                        f'{keyword_link_status}:{failure_download}'
+                            console.log(f'{KeyWord.FILE}:"{file_name}"',
+                                        f'{KeyWord.SIZE}:{format_file_size},'
+                                        f'{KeyWord.TYPE}:{DownloadType.t(self.app.guess_file_type(file_name=file_name, status=DownloadStatus.failure)[0].text)},'
+                                        f'{KeyWord.STATUS}:{Status.FAILURE}'
                                         f'{_error}')
                             self.app.failure_link[msg_link] = _error.replace('。', '')
                             self.event.set()
@@ -125,16 +124,16 @@ class TelegramRestrictedMediaDownloader:
                 _task.add_done_callback(lambda _future: call(_future))
         self.queue.put_nowait(_task) if _task else None
 
-    async def _get_download_task(self,
-                                 msg_link: str = None,
-                                 message=None,
-                                 retry_count=0) -> None:
+    async def __get_download_task(self,
+                                  msg_link: str = None,
+                                  message=None,
+                                  retry_count=0) -> None:
 
         if msg_link:
             try:
-                chat_name, msg_id, is_download_comment = await self._extract_link_content(msg_link)
+                chat_name, msg_id, is_download_comment = await self.__extract_link_content(msg_link)
                 msg = await self.client.get_messages(chat_name, msg_id)  # 该消息的信息。
-                res, group = await self._is_group(msg)
+                res, group = await self.__is_group(msg)
                 if res or is_download_comment:  # 组或评论区。
                     try:  # v1.1.2解决当group返回None时出现comment无法下载的问题。
                         group.extend(is_download_comment) if is_download_comment else None
@@ -142,47 +141,47 @@ class TelegramRestrictedMediaDownloader:
                         if is_download_comment and group is None:
                             group = []
                             group.extend(is_download_comment)
-                    link_type = LinkType.comment.text if is_download_comment else LinkType.group.text
+                    link_type = LinkType.comment if is_download_comment else LinkType.group
                     log.info(
-                        f'{keyword_chanel}:"{chat_name}",'  # 频道名。
-                        f'{keyword_link}:"{msg_link}",'  # 链接。
-                        f'{keyword_link_type}:{LinkType.translate(link_type)}。')  # 链接类型。
-                    [await self._add_task(msg_link, msg_group, retry_count) for msg_group in group]
+                        f'{KeyWord.CHANNEL}:"{chat_name}",'  # 频道名。
+                        f'{KeyWord.LINK}:"{msg_link}",'  # 链接。
+                        f'{KeyWord.LINK_TYPE}:{LinkType.t(link_type)}。')  # 链接类型。
+                    [await self.__add_task(msg_link, msg_group, retry_count) for msg_group in group]
 
                 elif res is False and group is None:  # 单文件。
-                    link_type = LinkType.single.text
+                    link_type = LinkType.single
                     console.log(
-                        f'{keyword_chanel}:"{chat_name}",'  # 频道名。
-                        f'{keyword_link}:"{msg_link}",'  # 链接。
-                        f'{keyword_link_type}:{LinkType.translate(link_type)}。')  # 链接类型。
-                    await self._add_task(msg_link, msg, retry_count)
+                        f'{KeyWord.CHANNEL}:"{chat_name}",'  # 频道名。
+                        f'{KeyWord.LINK}:"{msg_link}",'  # 链接。
+                        f'{KeyWord.LINK_TYPE}:{LinkType.t(link_type)}。')  # 链接类型。
+                    await self.__add_task(msg_link, msg, retry_count)
                 elif res is None and group is None:
                     error = '消息不存在,频道已解散或未在频道中'
                     self.app.failure_link[msg_link] = error
                     log.warning(
-                        f'{keyword_link}:"{msg_link}"{error},{skip_download}。')
+                        f'{KeyWord.LINK}:"{msg_link}"{error},{Status.SKIP}。')
                 elif res is None and group == 0:
-                    log.error(f'读取"{msg_link}"时出现未知错误,{skip_download}。')
+                    log.error(f'读取"{msg_link}"时出现未知错误,{Status.SKIP}。')
             except UnicodeEncodeError as e:
                 error = '频道标题存在特殊字符,请移步终端下载'
                 self.app.failure_link[msg_link] = e
-                log.error(f'{keyword_link}:"{msg_link}"{error},原因:"{e}"')
+                log.error(f'{KeyWord.LINK}:"{msg_link}"{error},{KeyWord.REASON}:"{e}"')
             except MsgIdInvalid as e:
                 self.app.failure_link[msg_link] = e
-                log.error(f'{keyword_link}:"{msg_link}"消息不存在,可能已删除,{skip_download}。原因:"{e}"')
+                log.error(f'{KeyWord.LINK}:"{msg_link}"消息不存在,可能已删除,{Status.SKIP}。{KeyWord.REASON}:"{e}"')
             except UsernameInvalid as e:
                 self.app.failure_link[msg_link] = e
                 log.error(
-                    f'{keyword_link}:"{msg_link}"频道用户名无效,该链接的频道用户名可能已更改或频道已解散,{skip_download}。原因:"{e}"')
+                    f'{KeyWord.LINK}:"{msg_link}"频道用户名无效,该链接的频道用户名可能已更改或频道已解散,{Status.SKIP}。{KeyWord.REASON}:"{e}"')
             except Exception as e:
                 self.app.failure_link[msg_link] = e
                 log.error(
-                    f'{keyword_link}:"{msg_link}"未收录到的错误,{skip_download}。原因:"{e}"')
+                    f'{KeyWord.LINK}:"{msg_link}"未收录到的错误,{Status.SKIP}。{KeyWord.REASON}:"{e}"')
         else:
-            await self._add_task(msg_link, message, retry_count)
+            await self.__add_task(msg_link, message, retry_count)
 
     @staticmethod
-    def _process_links(links: str) -> Set[str]:
+    def __process_links(links: str) -> Set[str]:
         start_content: str = 'https://t.me/'
         msg_link_set: set = set()
         if isinstance(links, str):
@@ -192,7 +191,7 @@ class TelegramRestrictedMediaDownloader:
                         if link.startswith(start_content):
                             msg_link_set.add(link)
                         else:
-                            log.warning(f'"{link}"是一个非法链接,{keyword_link_status}:{skip_download}。')
+                            log.warning(f'"{link}"是一个非法链接,{KeyWord.STATUS}:{Status.SKIP}。')
             elif not os.path.isfile(links):  # v1.1.3 优化非文件时的提示和逻辑。
                 if links.endswith('.txt'):
                     log.error(f'文件"{links}"不存在。')
@@ -202,21 +201,21 @@ class TelegramRestrictedMediaDownloader:
             return msg_link_set
         else:
             console.log('没有找到有效链接,程序已退出。')
-            exit()
+            sys.exit()
 
-    async def _download_media_from_links(self) -> None:
+    async def __download_media_from_links(self) -> None:
         await self.client.start()
         self.app.progress.start()  # v1.1.8修复登录输入手机号不显示文本问题。
         # 将初始任务添加到队列中。
-        for link in self._process_links(links=self.app.links):
-            await self._get_download_task(msg_link=link)
+        for link in self.__process_links(links=self.app.links):
+            await self.__get_download_task(msg_link=link)
 
         # 处理队列中的任务。
         while not self.queue.empty():
             task = await self.queue.get()
             if isinstance(task, tuple):
                 msg_link, message, retry_count = task
-                await self._get_download_task(msg_link=msg_link, message=message, retry_count=retry_count)
+                await self.__get_download_task(msg_link=msg_link, message=message, retry_count=retry_count)
             else:
                 await task
             self.queue.task_done()
@@ -231,10 +230,10 @@ class TelegramRestrictedMediaDownloader:
         try:
             MetaData.print_meta()
             self.app.print_config_table()
-            self.client.run(self._download_media_from_links())
+            self.client.run(self.__download_media_from_links())
             was_client_run: bool = True
         except (SessionRevoked, AuthKeyUnregistered, SessionExpired, ConnectionError):
-            res: bool = safe_delete(file_path=os.path.join(self.app.DIRECTORY_NAME, 'sessions'))
+            res: bool = safe_delete(file_p_d=os.path.join(self.app.DIRECTORY_NAME, 'sessions'))
             record_error: bool = True
             if res:
                 log.warning('账号已失效请在关闭后,再次打开软件并重新登录!')
@@ -246,7 +245,7 @@ class TelegramRestrictedMediaDownloader:
         except Exception as e:
             self.app.progress.stop()
             record_error: bool = True
-            log.exception(msg=f'运行出错,原因:"{e}"', exc_info=True)
+            log.exception(msg=f'运行出错,{KeyWord.REASON}:"{e}"', exc_info=True)
         finally:
             if self.client.is_connected:
                 was_client_run: bool = True
