@@ -635,7 +635,7 @@ class GetStdioParams:
             try:
                 max_download_task = console.input(
                     f'请输入「最大下载任务数」。上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」'
-                    f'非会员建议默认{"(默认3)" if last_record is None else ""}:').strip()
+                    f',非会员建议默认{"(默认3)" if last_record is None else ""}:').strip()
                 if max_download_task == '' and last_record is not None:
                     max_download_task = last_record
                 if max_download_task == '':
@@ -687,8 +687,8 @@ class GetStdioParams:
             last_record: str = 'n'
         else:
             last_record = GetStdioParams.UNDEFINED
-        t = f'已设置「is_shutdown」为:「{last_record}」,下载完成后将自动关机!'
-        f = f'已设置「is_shutdown」为:「{last_record}」'
+        t = f'已设置「is_shutdown」为:「y」,下载完成后将自动关机!'  # v1.3.0 修复配置is_shutdown参数时显示错误。
+        f = f'已设置「is_shutdown」为:「n」'
         while True:
             try:
                 is_shutdown = console.input(
@@ -745,6 +745,7 @@ class GetStdioParams:
 
     @staticmethod
     def get_is_notice(last_record: bool, valid_format: str = 'y|n') -> dict:
+        style = ProcessConfig.stdio_style('is_notice')
         if last_record:
             in_notice: str = 'y' if last_record else 'n'
         else:
@@ -763,10 +764,10 @@ class GetStdioParams:
                 is_notice = 'n'
             if Validator.is_valid_is_notice(is_notice):
                 if is_notice == 'y':
-                    console.print('下次将不再询问是否使用代理!', style='green')
+                    console.print(f'已设置「is_notice」为:「{is_notice}」,下次将不再询问是否使用代理。', style=style)
                     return {'is_notice': False, 'record_flag': True}
                 elif is_notice == 'n':
-                    console.print(f'已设置「is_notice」为:「{is_notice}」', style=ProcessConfig.stdio_style('is_notice'))
+                    console.print(f'已设置「is_notice」为:「{is_notice}」', style=style)
                     return {'is_notice': True, 'record_flag': True}
             else:
                 log.error(f'意外的参数:"{is_notice}",请输入有效参数!支持的参数 - 「{valid_format}」!')
