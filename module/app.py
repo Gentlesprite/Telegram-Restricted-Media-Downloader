@@ -1016,13 +1016,14 @@ class MetaData:
             index = units.index(unit)
             value = number / (1024 ** index)
             return {'number': float('{:.2f}'.format(value)), 'unit': unit}
-        values = [number]
-        for i in range(len(units) - 1):
-            if values[i] >= 1024:
-                values.append(values[i] / 1024)
-            else:
-                break
-        return {'number': '{:.2f}'.format(values[-1]), 'unit': units[len(values) - 1]}
+        else:
+            values = [number]
+            for i in range(len(units) - 1):
+                if values[i] >= 1024:
+                    values.append(values[i] / 1024)
+                else:
+                    break
+            return {'number': '{:.2f}'.format(values[-1]), 'unit': units[len(values) - 1]}
 
     @staticmethod
     def print_helper():

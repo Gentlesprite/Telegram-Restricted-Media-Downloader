@@ -114,10 +114,11 @@ def move_to_save_directory(temp_file_path: str, save_directory: str) -> dict:
         if os.path.isdir(save_directory):
             shutil.move(temp_file_path, save_directory)
             return {'e_code': None}
-        save_directory: str = os.path.join(os.getcwd(), 'downloads')
-        os.makedirs(save_directory, exist_ok=True)
-        shutil.move(temp_file_path, save_directory)
-        return {'e_code': f'"{save_directory}"不是一个目录,已将文件下载到默认目录。'}
+        else:
+            save_directory: str = os.path.join(os.getcwd(), 'downloads')
+            os.makedirs(save_directory, exist_ok=True)
+            shutil.move(temp_file_path, save_directory)
+            return {'e_code': f'"{save_directory}"不是一个目录,已将文件下载到默认目录。'}
     except FileExistsError:
         return {'e_code': f'"{save_directory}"已存在,不能重复保存。'}
     except Exception as e:
@@ -200,4 +201,5 @@ def get_file_size(file_path: str, temp_ext: str = '.temp'):
         return os.path.getsize(file_path)
     elif os.path.exists(file_path + temp_ext):
         return os.path.getsize(file_path + temp_ext)
-    return 0
+    else:
+        return 0

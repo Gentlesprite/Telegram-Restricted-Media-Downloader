@@ -606,8 +606,9 @@ class GetStdioParams:
                     return {'links': links_file_path, 'record_flag': True}
                 elif not os.path.normpath(links_file_path).endswith('.txt'):
                     log.warning(f'意外的参数:"{links_file_path}",文件路径必须以「{valid_format}」结尾,请重新输入!')
-                log.warning(
-                    f'意外的参数:"{links_file_path}",文件路径必须以「{valid_format}」结尾,并且「必须存在」,请重新输入!')
+                else:
+                    log.warning(
+                        f'意外的参数:"{links_file_path}",文件路径必须以「{valid_format}」结尾,并且「必须存在」,请重新输入!')
             except Exception as _e:
                 log.error(f'意外的参数:"{links_file_path}",请重新输入!{KeyWord.REASON}:"{_e}"')
 
@@ -625,7 +626,8 @@ class GetStdioParams:
                 return {'save_directory': save_directory, 'record_flag': True}
             elif os.path.isfile(save_directory):
                 log.warning(f'意外的参数:"{save_directory}",指定的路径是一个文件并非目录,请重新输入!')
-            log.warning(f'意外的参数:"{save_directory}",指定的路径无效或不是一个目录,请重新输入!')
+            else:
+                log.warning(f'意外的参数:"{save_directory}",指定的路径无效或不是一个目录,请重新输入!')
 
     @staticmethod
     def get_max_download_task(last_record) -> dict:
@@ -643,7 +645,8 @@ class GetStdioParams:
                     console.print(f'已设置「max_download_task」为:「{max_download_task}」',
                                   style=ProcessConfig.stdio_style('max_download_task'))
                     return {'max_download_task': int(max_download_task), 'record_flag': True}
-                log.warning(f'意外的参数:"{max_download_task}",任务数必须是「正整数」,请重新输入!')
+                else:
+                    log.warning(f'意外的参数:"{max_download_task}",任务数必须是「正整数」,请重新输入!')
             except Exception as _e:
                 log.error(f'意外的错误,{KeyWord.REASON}:"{_e}"')
 
@@ -673,7 +676,8 @@ class GetStdioParams:
                 console.print(f'已设置「download_type」为:「{download_type}」',
                               style=ProcessConfig.stdio_style('download_type'))
                 return {'download_type': ProcessConfig.set_dtype(_dtype=download_type), 'record_flag': True}
-            log.warning(f'意外的参数:"{download_type}",支持的参数 - 「1或2或3」')
+            else:
+                log.warning(f'意外的参数:"{download_type}",支持的参数 - 「1或2或3」')
 
     @staticmethod
     def get_is_shutdown(last_record: str, valid_format: str = 'y|n') -> dict:
@@ -705,7 +709,8 @@ class GetStdioParams:
                 elif is_shutdown in ('n', ''):
                     console.print(f, style=_style)
                     return {'is_shutdown': False, 'record_flag': True}
-                log.warning(f'意外的参数:"{is_shutdown}",支持的参数 - 「{valid_format}」')
+                else:
+                    log.warning(f'意外的参数:"{is_shutdown}",支持的参数 - 「{valid_format}」')
 
             except Exception as _e:
                 log.error(f'意外的错误,{KeyWord.REASON}:"{_e}"')
