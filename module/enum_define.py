@@ -10,25 +10,17 @@ from enum import Enum
 from module import console, log
 
 
-class LinkType(Enum):
-    single = 0
-    group = 1
-    comment = 2
-
-    @property
-    def text(self) -> str:
-        return {
-            LinkType.single: 'single',
-            LinkType.group: 'group',
-            LinkType.comment: 'comment',
-        }[self]
+class LinkType:
+    single: str = 'single'
+    group: str = 'group'
+    comment: str = 'comment'
 
     @staticmethod
-    def translate(text: 'LinkType.text') -> str:
+    def t(text: str) -> str:
         translation = {
-            LinkType.single.text: '单文件',
-            LinkType.group.text: '组文件',
-            LinkType.comment.text: '评论文件',
+            LinkType.single: '单文件',
+            LinkType.group: '组文件',
+            LinkType.comment: '评论区文件',
         }
         if text in translation:
             return translation[text]
@@ -54,7 +46,7 @@ class DownloadType(Enum):
         return [i.text for i in DownloadType]
 
     @staticmethod
-    def translate(text: 'DownloadType.text') -> str:
+    def t(text: 'DownloadType.text') -> str:
         translation = {
             DownloadType.video.text: '视频',
             DownloadType.photo.text: '图片',
@@ -71,7 +63,6 @@ class DownloadStatus(Enum):
     success = 1
     failure = 2
     skip = 3
-    all_complete = 4
 
     @property
     def text(self) -> str:
@@ -83,12 +74,12 @@ class DownloadStatus(Enum):
         }[self]
 
     @staticmethod
-    def translate(text: 'DownloadStatus.text', key_note: bool = False) -> str:
+    def t(text: 'DownloadStatus.text', key_note: bool = False) -> str:
         translation = {
-            DownloadStatus.downloading.text: '正在下载',
-            DownloadStatus.success.text: '成功下载',
-            DownloadStatus.failure.text: '失败下载',
-            DownloadStatus.skip.text: '跳过下载'
+            DownloadStatus.downloading.text: '下载中',
+            DownloadStatus.success.text: '成功',
+            DownloadStatus.failure.text: '失败',
+            DownloadStatus.skip.text: '跳过'
         }
         if text in translation:
             if key_note:
@@ -103,52 +94,40 @@ class DownloadStatus(Enum):
         return [i.text for i in DownloadStatus]
 
 
-class KeyWorld(Enum):
-    link = 0
-    link_type = 1
-    id = 2
-    size = 3
-    status = 4
-    file = 5
-    error_size = 6
-    actual_size = 7
-    already_exist = 8
-    chanel = 9
-    type = 10
-    download_task_error = 11
+class Status:
+    DOWNLOADING = DownloadStatus.t(DownloadStatus.downloading.text)
+    SUCCESS = DownloadStatus.t(DownloadStatus.success.text)
+    FAILURE = DownloadStatus.t(DownloadStatus.failure.text)
+    SKIP = DownloadStatus.t(DownloadStatus.skip.text)
 
-    @property
-    def text(self) -> str:
-        return {
-            KeyWorld.link: 'link',
-            KeyWorld.link_type: 'link_type',
-            KeyWorld.id: 'id',
-            KeyWorld.size: 'size',
-            KeyWorld.status: 'status',
-            KeyWorld.file: 'file',
-            KeyWorld.error_size: 'error_size',
-            KeyWorld.actual_size: 'actual_size',
-            KeyWorld.already_exist: 'already_exist',
-            KeyWorld.chanel: 'chanel',
-            KeyWorld.type: 'type',
-            KeyWorld.download_task_error: 'download_task_error'
-        }[self]
+
+class _KeyWord:
+    link: str = 'link'
+    link_type: str = 'link_type'
+    size: str = 'size'
+    status: str = 'status'
+    file: str = 'file'
+    error_size: str = 'error_size'
+    actual_size: str = 'actual_size'
+    already_exist: str = 'already_exist'
+    channel: str = 'channel'
+    type: str = 'type'
+    reason: str = 'reason'
 
     @staticmethod
-    def translate(text: 'KeyWorld.text', key_note: bool = False) -> str:
+    def t(text: str, key_note: bool = False) -> str:
         translation = {
-            KeyWorld.link.text: '链接',
-            KeyWorld.link_type.text: '链接类型',
-            KeyWorld.id.text: '标识',
-            KeyWorld.size.text: '大小',
-            KeyWorld.status.text: '状态',
-            KeyWorld.file.text: '文件',
-            KeyWorld.error_size.text: '错误大小',
-            KeyWorld.actual_size.text: '实际大小',
-            KeyWorld.already_exist.text: '已存在',
-            KeyWorld.chanel.text: '频道',
-            KeyWorld.type.text: '类型',
-            KeyWorld.download_task_error.text: '下载任务错误'
+            _KeyWord.link: '链接',
+            _KeyWord.link_type: '链接类型',
+            _KeyWord.size: '大小',
+            _KeyWord.status: '状态',
+            _KeyWord.file: '文件',
+            _KeyWord.error_size: '错误大小',
+            _KeyWord.actual_size: '实际大小',
+            _KeyWord.already_exist: '已存在',
+            _KeyWord.channel: '频道',
+            _KeyWord.type: '类型',
+            _KeyWord.reason: '原因'
         }
 
         if text in translation:
@@ -158,6 +137,20 @@ class KeyWorld(Enum):
                 return translation[text]
         else:
             raise ValueError(f'Unsupported Keyword:{text}')
+
+
+class KeyWord:
+    LINK = _KeyWord.t(_KeyWord.link, True)
+    LINK_TYPE = _KeyWord.t(_KeyWord.link_type, True)
+    SIZE = _KeyWord.t(_KeyWord.size, True)
+    STATUS = _KeyWord.t(_KeyWord.status, True)
+    FILE = _KeyWord.t(_KeyWord.file, True)
+    ERROR_SIZE = _KeyWord.t(_KeyWord.error_size, True)
+    ACTUAL_SIZE = _KeyWord.t(_KeyWord.actual_size, True)
+    ALREADY_EXIST = _KeyWord.t(_KeyWord.already_exist, True)
+    CHANNEL = _KeyWord.t(_KeyWord.channel, True)
+    TYPE = _KeyWord.t(_KeyWord.type, True)
+    REASON = _KeyWord.t(_KeyWord.reason, False)
 
 
 class Extension:
@@ -490,21 +483,3 @@ class QrcodeRender:
             output += '\n'
 
         return output[:-1]
-
-
-downloading = DownloadStatus.translate(DownloadStatus.downloading.text)
-success_download = DownloadStatus.translate(DownloadStatus.success.text)
-failure_download = DownloadStatus.translate(DownloadStatus.failure.text)
-skip_download = DownloadStatus.translate(DownloadStatus.skip.text)
-keyword_link = KeyWorld.translate(KeyWorld.link.text, True)
-keyword_link_type = KeyWorld.translate(KeyWorld.link_type.text, True)
-keyword_id = KeyWorld.translate(KeyWorld.id.text, True)
-keyword_size = KeyWorld.translate(KeyWorld.size.text, True)
-keyword_link_status = KeyWorld.translate(KeyWorld.status.text, True)
-keyword_file = KeyWorld.translate(KeyWorld.file.text, True)
-keyword_error_size = KeyWorld.translate(KeyWorld.error_size.text, True)
-keyword_actual_size = KeyWorld.translate(KeyWorld.actual_size.text, True)
-keyword_already_exist = KeyWorld.translate(KeyWorld.already_exist.text, True)
-keyword_chanel = KeyWorld.translate(KeyWorld.chanel.text, True)
-keyword_type = KeyWorld.translate(KeyWorld.type.text, True)
-keyword_download_task_error = KeyWorld.translate(KeyWorld.download_task_error.text, True)
