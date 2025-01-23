@@ -773,21 +773,22 @@ class GetStdioParams:
                 log.error(f'意外的参数:"{is_notice}",请输入有效参数!支持的参数 - 「{valid_format}」!')
 
     @staticmethod
-    def get_scheme(last_record: str, valid_format: list):
+    def get_scheme(last_record: str, valid_format: list) -> dict:
         if valid_format is None:
             valid_format = ['http', 'socks4', 'socks5']
         fmt_valid_format = '|'.join(valid_format)
-        scheme = console.input(
-            f'请输入「代理类型」。上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」'
-            f'格式 - 「{fmt_valid_format}」:').strip().lower()
-        if scheme == '' and last_record is not None:
-            scheme = last_record
-        if Validator.is_valid_scheme(scheme, valid_format):
-            console.print(f'已设置「scheme」为:「{scheme}」', style=ProcessConfig.stdio_style('scheme'))
-            return {'scheme': scheme, 'record_flag': True}
-        else:
-            log.warning(
-                f'意外的参数:"{scheme}",请输入有效的代理类型!支持的参数 - 「{fmt_valid_format}」!')
+        while True:  # v1.3.0 修复代理配置scheme参数配置抛出AttributeError。
+            scheme = console.input(
+                f'请输入「代理类型」。上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」'
+                f'格式 - 「{fmt_valid_format}」:').strip().lower()
+            if scheme == '' and last_record is not None:
+                scheme = last_record
+            if Validator.is_valid_scheme(scheme, valid_format):
+                console.print(f'已设置「scheme」为:「{scheme}」', style=ProcessConfig.stdio_style('scheme'))
+                return {'scheme': scheme, 'record_flag': True}
+            else:
+                log.warning(
+                    f'意外的参数:"{scheme}",请输入有效的代理类型!支持的参数 - 「{fmt_valid_format}」!')
 
     @staticmethod
     def get_hostname(proxy_record: dict, last_record: str, valid_format: str = 'x.x.x.x'):
