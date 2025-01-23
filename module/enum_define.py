@@ -483,3 +483,171 @@ class QrcodeRender:
             output += '\n'
 
         return output[:-1]
+
+
+class ProcessConfigDType:
+    @staticmethod
+    def set_dtype(_dtype) -> list:
+        i_dtype = int(_dtype)  # 因为终端输入是字符串，这里需要转换为整数。
+        if i_dtype == 1:
+            return [DownloadType.video.text]
+        elif i_dtype == 2:
+            return [DownloadType.photo.text]
+        elif i_dtype == 3:
+            return [DownloadType.video.text, DownloadType.photo.text]
+
+    @staticmethod
+    def get_dtype(download_dtype: list) -> dict:
+        """获取所需下载文件的类型。"""
+        if DownloadType.document.text in download_dtype:
+            download_dtype.remove(DownloadType.document.text)
+        dt_length = len(download_dtype)
+        if dt_length == 1:
+            dtype: str = download_dtype[0]
+            if dtype == DownloadType.video.text:
+                return {'video': True, 'photo': False}
+            elif dtype == DownloadType.photo.text:
+                return {'video': False, 'photo': True}
+        elif dt_length == 2:
+            return {'video': True, 'photo': True}
+        else:
+            return {'error': True}
+
+
+class IOGetConfigParams:
+    UNDEFINED = '无'
+
+    @staticmethod
+    def get_api_id(_last_record: str) -> dict:
+        while True:
+            api_id = console.input(
+                f'请输入「api_id」上一次的记录是:「{_last_record if _last_record else IOGetConfigParams.UNDEFINED}」:').strip()
+            if api_id == '' and _last_record is not None:
+                api_id = _last_record
+            if Validator.is_valid_api_id(api_id):
+                return {'api_id': api_id, 'record_flag': True}
+
+    @staticmethod
+    def get_api_hash(_last_record: str, _valid_length: int = 32) -> dict:
+        while True:
+            api_hash = console.input(
+                f'请输入「api_hash」上一次的记录是:「{_last_record if _last_record else IOGetConfigParams.UNDEFINED}」:').strip().lower()
+            if api_hash == '' and _last_record is not None:
+                api_hash = _last_record
+            if Validator.is_valid_api_hash(api_hash, _valid_length):
+                return {'api_hash': api_hash, 'record_flag': True}
+            else:
+                log.warning(f'意外的参数:"{api_hash}",不是一个「{_valid_length}位」的「值」!请重新输入!')
+
+    @staticmethod
+    def get_links(_last_record: str, _valid_format: str = '.txt') -> dict:
+        # 输入需要下载的媒体链接文件路径,确保文件存在。
+        links_file = None
+        while True:
+            try:
+                links_file = console.input(
+                    f'请输入需要下载的媒体链接的「完整路径」。上一次的记录是:「{_last_record if _last_record else IOGetConfigParams.UNDEFINED}」'
+                    f'格式 - 「{_valid_format}」:').strip()
+                if links_file == '' and _last_record is not None:
+                    links_file = _last_record
+                if Validator.is_valid_links_file(links_file, _valid_format):
+                    return {'links': links_file, 'record_flag': True}
+                elif not os.path.normpath(links_file).endswith('.txt'):
+                    log.warning(f'意外的参数:"{links_file}",文件路径必须以「{_valid_format}」结尾,请重新输入!')
+                else:
+                    log.warning(
+                        f'意外的参数:"{links_file}",文件路径必须以「{_valid_format}」结尾,并且「必须存在」,请重新输入!')
+            except Exception as _e:
+                log.error(f'意外的参数:"{links_file}",请重新输入!{KeyWord.REASON}:"{_e}"')
+
+    @staticmethod
+    def get_save_directory(_last_record) -> dict:
+        # 输入媒体保存路径,确保是一个有效的目录路径。
+        while True:
+            save_directory = console.input(
+                f'请输入媒体「保存路径」。上一次的记录是:「{_last_record if _last_record else IOGetConfigParams.UNDEFINED}」:').strip()
+            if save_directory == '' and _last_record is not None:
+                save_directory = _last_record
+            if Validator.is_valid_save_path(save_directory):
+                return {'save_directory': save_directory, 'record_flag': True}
+            elif os.path.isfile(save_directory):
+                log.warning(f'意外的参数:"{save_directory}",指定的路径是一个文件并非目录,请重新输入!')
+            else:
+                log.warning(f'意外的参数:"{save_directory}",指定的路径无效或不是一个目录,请重新输入!')
+
+    @staticmethod
+    def get_max_download_task(_last_record) -> dict:
+        # 输入最大下载任务数,确保是一个整数且不超过特定限制。
+        while True:
+            try:
+                max_download_task = console.input(
+                    f'请输入「最大下载任务数」。上一次的记录是:「{_last_record if _last_record else IOGetConfigParams.UNDEFINED}」'
+                    f'非会员建议默认{"(默认3)" if _last_record is None else ""}:').strip()
+                if max_download_task == '' and _last_record is not None:
+                    max_download_task = _last_record
+                if max_download_task == '':
+                    max_download_task = 3
+                if Validator.is_valid_max_download_task(max_download_task):
+                    return {'max_download_task': int(max_download_task), 'record_flag': True}
+                else:
+                    log.warning(f'意外的参数:"{max_download_task}",任务数必须是「正整数」,请重新输入!')
+            except Exception as _e:
+                log.error(f'意外的错误,{KeyWord.REASON}:"{_e}"')
+
+    @staticmethod
+    def get_download_type(_last_record: list or None) -> dict:
+
+        if isinstance(_last_record, list):
+            res: dict = ProcessConfigDType.get_dtype(download_dtype=_last_record)
+            if len(res) == 1:
+                _last_record = None
+            elif res.get('video') and res.get('photo') is False:
+                _last_record = 1
+            elif res.get('video') is False and res.get('photo'):
+                _last_record = 2
+            elif res.get('video') and res.get('photo'):
+                _last_record = 3
+
+        while True:
+            download_type = console.input(
+                f'输入需要下载的「媒体类型」。上一次的记录是:「{_last_record if _last_record else IOGetConfigParams.UNDEFINED}」'
+                f'格式 - 「1.视频 2.图片 3.视频和图片」{"(默认3)" if _last_record is None else ""}:').strip()
+            if download_type == '' and _last_record is not None:
+                download_type = _last_record
+            if download_type == '':
+                download_type = 3
+            if Validator.is_valid_download_type(download_type):
+                return {'download_type': ProcessConfigDType.set_dtype(_dtype=download_type), 'record_flag': True}
+            else:
+                log.warning(f'意外的参数:"{download_type}",支持的参数 - 「1或2或3」')
+
+    @staticmethod
+    def get_is_shutdown(_last_record: str, _valid_format: str = 'y|n') -> dict:
+        if _last_record:
+            _last_record = 'y'
+        elif _last_record is False:
+            _last_record = 'n'
+        else:
+            _last_record = IOGetConfigParams.UNDEFINED
+
+        while True:
+            try:
+                question = console.input(
+                    f'下载完成后是否「自动关机」。上一次的记录是:「{_last_record}」 - 「{_valid_format}」'
+                    f'{"(默认n)" if _last_record == IOGetConfigParams.UNDEFINED else ""}:').strip().lower()
+                if question == '' and _last_record != IOGetConfigParams.UNDEFINED:
+                    if _last_record == 'y':
+                        return {'is_shutdown': True, 'record_flag': True}
+
+                    elif _last_record == 'n':
+                        return {'is_shutdown': False, 'record_flag': True}
+
+                elif question == 'y':
+                    return {'is_shutdown': True, 'record_flag': True}
+                elif question in ('n', ''):
+                    return {'is_shutdown': False, 'record_flag': True}
+                else:
+                    log.warning(f'意外的参数:"{question}",支持的参数 - 「{_valid_format}」')
+
+            except Exception as _e:
+                log.error(f'意外的错误,{KeyWord.REASON}:"{_e}"')

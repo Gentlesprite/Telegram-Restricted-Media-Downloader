@@ -29,7 +29,7 @@ from module import SOFTWARE_FULL_NAME, __version__, __copyright__, __license__
 from module.process_path import split_path, validate_title, truncate_filename, move_to_save_directory, \
     gen_backup_config, get_extension, safe_delete, compare_file_size, get_file_size
 from module.enum_define import GradientColor, ArtFont, DownloadType, DownloadStatus, Validator, QrcodeRender, KeyWord, \
-    Status
+    Status, IOGetConfigParams, ProcessConfigDType
 
 
 class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
@@ -573,9 +573,9 @@ class Application:
         try:
             _dtype: list = self.download_type.copy()  # 浅拷贝赋值给_dtype,避免传入函数后改变原数据。
             data: list = [[DownloadType.t(DownloadType.video.text),
-                           self.__get_dtype(_dtype).get('video')],
+                           ProcessConfigDType.get_dtype(_dtype).get('video')],
                           [DownloadType.t(DownloadType.photo.text),
-                           self.__get_dtype(_dtype).get('photo')]]
+                           ProcessConfigDType.get_dtype(_dtype).get('photo')]]
             download_type_table = PanelTable(title='下载类型', header=('类型', '是否下载'), data=data)
             download_type_table.print_meta()
 
@@ -589,23 +589,6 @@ class Application:
             os.system('pause')
         except KeyboardInterrupt:
             pass
-
-    @staticmethod
-    def __get_dtype(download_dtype: list) -> dict:
-        """获取所需下载文件的类型。"""
-        if DownloadType.document.text in download_dtype:
-            download_dtype.remove(DownloadType.document.text)
-        dt_length = len(download_dtype)
-        if dt_length == 1:
-            dtype: str = download_dtype[0]
-            if dtype == DownloadType.video.text:
-                return {'video': True, 'photo': False}
-            elif dtype == DownloadType.photo.text:
-                return {'video': False, 'photo': True}
-        elif dt_length == 2:
-            return {'video': True, 'photo': True}
-        else:
-            return {'error': True}
 
     def __stdio_style(self, key: str) -> str:
         """控制用户交互时打印出不同的颜色(渐变)。"""
@@ -899,191 +882,6 @@ class Application:
         _proxy_password: str or bool = _proxy.get('password', False)
         _proxy_scheme: str or bool = _proxy.get('scheme', False)
 
-        def get_api_id(_last_record: str) -> None:
-            while True:
-                try:
-                    api_id = console.input(
-                        f'请输入「api_id」上一次的记录是:「{_last_record if _last_record else undefined}」:').strip()
-                    if api_id == '' and _last_record is not None:
-                        api_id = _last_record
-                    if Validator.is_valid_api_id(api_id):
-                        self._config['api_id'] = api_id
-                        console.print(f'已设置「api_id」为:「{api_id}」', style=self.__stdio_style('api_id'))
-                        self.record_flag = True
-                        break
-                except KeyboardInterrupt:
-                    self.__keyboard_interrupt()
-
-        def get_api_hash(_last_record: str, _valid_length: int) -> None:
-            while True:
-                try:
-                    api_hash = console.input(
-                        f'请输入「api_hash」上一次的记录是:「{_last_record if _last_record else undefined}」:').strip().lower()
-                    if api_hash == '' and _last_record is not None:
-                        api_hash = _last_record
-                    if Validator.is_valid_api_hash(api_hash, _valid_length):
-                        self._config['api_hash'] = api_hash
-                        console.print(f'已设置「api_hash」为:「{api_hash}」', style=self.__stdio_style('api_hash'))
-                        self.record_flag = True
-                        break
-                    else:
-                        log.warning(f'意外的参数:"{api_hash}",不是一个「{_valid_length}位」的「值」!请重新输入!')
-                except KeyboardInterrupt:
-                    self.__keyboard_interrupt()
-
-        def get_links(_last_record, _valid_format) -> None:
-            # 输入需要下载的媒体链接文件路径,确保文件存在。
-            links_file = None
-            while True:
-                try:
-                    links_file = console.input(
-                        f'请输入需要下载的媒体链接的「完整路径」。上一次的记录是:「{_last_record if _last_record else undefined}」'
-                        f'格式 - 「{_valid_format}」:').strip()
-                    if links_file == '' and _last_record is not None:
-                        links_file = _last_record
-                    if Validator.is_valid_links_file(links_file, _valid_format):
-                        self._config['links'] = links_file
-                        console.print(f'已设置「links」为:「{links_file}」', style=self.__stdio_style('links'))
-                        self.record_flag = True
-                        break
-                    elif not os.path.normpath(links_file).endswith('.txt'):
-                        log.warning(f'意外的参数:"{links_file}",文件路径必须以「{_valid_format}」结尾,请重新输入!')
-                    else:
-                        log.warning(
-                            f'意外的参数:"{links_file}",文件路径必须以「{_valid_format}」结尾,并且「必须存在」,请重新输入!')
-                except KeyboardInterrupt:
-                    self.__keyboard_interrupt()
-                except Exception as _e:
-                    log.error(f'意外的参数:"{links_file}",请重新输入!{KeyWord.REASON}:"{_e}"')
-
-        def get_save_directory(_last_record) -> None:
-            # 输入媒体保存路径,确保是一个有效的目录路径。
-            while True:
-                try:
-                    save_path = console.input(
-                        f'请输入媒体「保存路径」。上一次的记录是:「{_last_record if _last_record else undefined}」:').strip()
-                    if save_path == '' and _last_record is not None:
-                        save_path = _last_record
-                    if Validator.is_valid_save_path(save_path):
-                        self._config['save_directory'] = save_path
-                        console.print(f'已设置「save_path」为:「{save_path}」', style=self.__stdio_style('save_directory'))
-                        self.record_flag = True
-                        break
-                    elif os.path.isfile(save_path):
-                        log.warning(f'意外的参数:"{save_path}",指定的路径是一个文件并非目录,请重新输入!')
-                    else:
-                        log.warning(f'意外的参数:"{save_path}",指定的路径无效或不是一个目录,请重新输入!')
-                except KeyboardInterrupt:
-                    self.__keyboard_interrupt()
-
-        def get_max_download_task(_last_record) -> None:
-            # 输入最大下载任务数,确保是一个整数且不超过特定限制。
-            while True:
-                try:
-                    max_tasks = console.input(
-                        f'请输入「最大下载任务数」。上一次的记录是:「{_last_record if _last_record else undefined}」'
-                        f'非会员建议默认{"(默认3)" if _last_record is None else ""}:').strip()
-                    if max_tasks == '' and _last_record is not None:
-                        max_tasks = _last_record
-                    if max_tasks == '':
-                        max_tasks = 3
-                    if Validator.is_valid_max_download_task(max_tasks):
-                        self._config['max_download_task'] = int(max_tasks)
-                        console.print(f'已设置「max_download_task」为:「{max_tasks}」',
-                                      style=self.__stdio_style('max_download_task'))
-                        self.record_flag = True
-                        break
-                    else:
-                        log.warning(f'意外的参数:"{max_tasks}",任务数必须是「正整数」,请重新输入!')
-                except KeyboardInterrupt:
-                    self.__keyboard_interrupt()
-                except Exception as _e:
-                    log.error(f'意外的错误,{KeyWord.REASON}:"{_e}"')
-
-        def get_is_shutdown(_last_record, _valid_format) -> None:
-            if _last_record:
-                _last_record = 'y'
-            elif _last_record is False:
-                _last_record = 'n'
-            else:
-                _last_record = undefined
-            _style: str = self.__stdio_style('is_shutdown')
-            while True:
-                try:
-                    question = console.input(
-                        f'下载完成后是否「自动关机」。上一次的记录是:「{_last_record}」 - 「{_valid_format}」'
-                        f'{"(默认n)" if _last_record == undefined else ""}:').strip().lower()
-                    if question == '' and _last_record != undefined:
-                        if _last_record == 'y':
-                            self._config['is_shutdown'] = True
-                            console.print(f'已设置「is_shutdown」为:「{_last_record}」,下载完成后将自动关机!',
-                                          style=_style)
-                            self.record_flag = True
-                            break
-                        elif _last_record == 'n':
-                            self._config['is_shutdown'] = False
-                            console.print(f'已设置「is_shutdown」为:「{_last_record}」', style=_style)
-                            self.record_flag = True
-                            break
-                    elif question == 'y':
-                        self._config['is_shutdown'] = True
-                        console.print(f'已设置「is_shutdown」为:「{question}」,下载完成后将自动关机!', style='Pink1')
-                        self.record_flag = True
-                        break
-                    elif question in ('n', ''):
-                        self._config['is_shutdown'] = False
-                        console.print(f'已设置「is_shutdown」为:「n」', style=_style)
-                        self.record_flag = True
-                        break
-                    else:
-                        log.warning(f'意外的参数:"{question}",支持的参数 - 「{_valid_format}」')
-                except KeyboardInterrupt:
-                    self.__keyboard_interrupt()
-                except Exception as _e:
-                    log.error(f'意外的错误,{KeyWord.REASON}:"{_e}"')
-                    break
-
-        def get_download_type(_last_record: list or None) -> None:
-            def _set_dtype(_dtype) -> list:
-                i_dtype = int(_dtype)  # 因为终端输入是字符串，这里需要转换为整数。
-                if i_dtype == 1:
-                    return [DownloadType.video.text]
-                elif i_dtype == 2:
-                    return [DownloadType.photo.text]
-                elif i_dtype == 3:
-                    return [DownloadType.video.text, DownloadType.photo.text]
-
-            if isinstance(_last_record, list):
-                res: dict = self.__get_dtype(download_dtype=_last_record)
-                if len(res) == 1:
-                    _last_record = None
-                elif res.get('video') and res.get('photo') is False:
-                    _last_record = 1
-                elif res.get('video') is False and res.get('photo'):
-                    _last_record = 2
-                elif res.get('video') and res.get('photo'):
-                    _last_record = 3
-
-            while True:
-                try:
-                    download_type = console.input(
-                        f'输入需要下载的「媒体类型」。上一次的记录是:「{_last_record if _last_record else undefined}」'
-                        f'格式 - 「1.视频 2.图片 3.视频和图片」{"(默认3)" if _last_record is None else ""}:').strip()
-                    if download_type == '' and _last_record is not None:
-                        download_type = _last_record
-                    if download_type == '':
-                        download_type = 3
-                    if Validator.is_valid_download_type(download_type):
-                        self._config['download_type'] = _set_dtype(_dtype=download_type)
-                        console.print(f'已设置「download_type」为:「{download_type}」',
-                                      style=self.__stdio_style('download_type'))
-                        self.record_flag = True
-                        break
-                    else:
-                        log.warning(f'意外的参数:"{download_type}",支持的参数 - 「1或2或3」')
-                except KeyboardInterrupt:
-                    self.__keyboard_interrupt()
-
         if any([
             not _api_id,
             not _api_hash,
@@ -1100,21 +898,65 @@ class Application:
             not _proxy_scheme
         ]):
             console.print('「注意」直接回车代表使用上次的记录。', style='red')
+        try:
+            if not _api_id:
+                api_id, record_flag = IOGetConfigParams.get_api_id(_last_record=self.last_record.get('api_id')).values()
+                if record_flag:
+                    self.record_flag = record_flag
+                    self._config['api_id'] = api_id
+                    console.print(f'已设置「api_id」为:「{api_id}」', style=self.__stdio_style('api_id'))
+            if not _api_hash:
+                api_hash, record_flag = IOGetConfigParams.get_api_hash(_last_record=self.last_record.get('api_hash'),
+                                                                       _valid_length=32).values()
+                if record_flag:
+                    self.record_flag = record_flag
+                    self._config['api_hash'] = api_hash
+                    console.print(f'已设置「api_hash」为:「{api_hash}」', style=self.__stdio_style('api_hash'))
+            if not _links:
+                links, record_flag = IOGetConfigParams.get_links(_last_record=self.last_record.get('links'),
+                                                                 _valid_format='.txt').values()
+                if record_flag:
+                    self.record_flag = record_flag
+                    self._config['links'] = links
+                    console.print(f'已设置「links」为:「{links}」', style=self.__stdio_style('links'))
+            if not _save_directory:
+                save_directory, record_flag = IOGetConfigParams.get_save_directory(
+                    _last_record=self.last_record.get('save_directory')).values()
+                if record_flag:
+                    self.record_flag = record_flag
+                    self._config['save_directory'] = save_directory
+                    console.print(f'已设置「save_directory」为:「{save_directory}」',
+                                  style=self.__stdio_style('save_directory'))
+            if not _max_download_task:
+                max_download_task, record_flag = IOGetConfigParams.get_max_download_task(
+                    _last_record=self.last_record.get('max_download_task')).values()
+                if record_flag:
+                    self.record_flag = record_flag
+                    self._config['max_download_task'] = max_download_task
+                    console.print(f'已设置「max_download_task」为:「{max_download_task}」',
+                                  style=self.__stdio_style('max_download_task'))
+            if not _download_type:
+                download_type, record_flag = IOGetConfigParams.get_download_type(
+                    _last_record=self.last_record.get('download_type')).values()
+                if record_flag:
+                    self.record_flag = record_flag
+                    self._config['download_type'] = download_type
+                    console.print(f'已设置「download_type」为:「{download_type}」',
+                                  style=self.__stdio_style('download_type'))
+            is_shutdown, _record_flag = IOGetConfigParams.get_is_shutdown(
+                _last_record=self.last_record.get('is_shutdown'),
+                _valid_format='y|n')
+            if _record_flag:
+                self.record_flag = True
+                if is_shutdown is True:
+                    self._config['is_shutdown'] = True
+                    console.print(f'已设置「is_shutdown」为:「{is_shutdown}」,下载完成后将自动关机!',
+                                  style=self.__stdio_style('is_shutdown'))
+                self._config['is_shutdown'] = False
+                console.print(f'已设置「is_shutdown」为:「{is_shutdown}」', style=self.__stdio_style('is_shutdown'))
 
-        if not _api_id:
-            get_api_id(_last_record=self.last_record.get('api_id'))
-        if not _api_hash:
-            get_api_hash(_last_record=self.last_record.get('api_hash'), _valid_length=32)
-        if not _links:
-            get_links(_last_record=self.last_record.get('links'), _valid_format='.txt')
-        if not _save_directory:
-            get_save_directory(_last_record=self.last_record.get('save_directory'))
-        if not _max_download_task:
-            get_max_download_task(_last_record=self.last_record.get('max_download_task'))
-        if not _download_type:
-            get_download_type(_last_record=self.last_record.get('download_type'))
-        # v1.1.6 下载完成自动关机。
-        get_is_shutdown(_last_record=self.last_record.get('is_shutdown'), _valid_format='y|n')
+        except KeyboardInterrupt:
+            self.__keyboard_interrupt()
 
         # v1.1.4 移除self._check_proxy_params(proxy_config)改用全字段检测  # 检查代理字典字段是否完整并自动补全保存。
         proxy_record = self.last_record.get('proxy', {})
