@@ -35,7 +35,7 @@ def split_path(path: str) -> dict:
     return {'directory': directory, 'file_name': file_name}
 
 
-def _is_exist(file_path: str) -> bool:
+def __is_exist(file_path: str) -> bool:
     """判断文件路径是否存在。"""
     return not os.path.isdir(file_path) and os.path.exists(file_path)
 
@@ -47,7 +47,7 @@ def compare_file_size(a_size: int, b_size: int) -> bool:
 
 def is_file_duplicate(save_directory: str, sever_file_size: int) -> bool:
     """判断文件是否重复。"""
-    return _is_exist(save_directory) and compare_file_size(os.path.getsize(save_directory), sever_file_size)
+    return __is_exist(save_directory) and compare_file_size(os.path.getsize(save_directory), sever_file_size)
 
 
 def validate_title(title: str) -> str:
@@ -90,14 +90,14 @@ def gen_backup_config(old_path: str, absolute_backup_dir: str, error_config: boo
     return new_path
 
 
-def safe_delete(file_path: str) -> bool:
+def safe_delete(file_p_d: str) -> bool:
     """删除文件或目录。"""
     try:
-        if os.path.isdir(file_path):
-            shutil.rmtree(file_path)
+        if os.path.isdir(file_p_d):
+            shutil.rmtree(file_p_d)
             return True
-        elif os.path.isfile(file_path):
-            os.remove(file_path)
+        elif os.path.isfile(file_p_d):
+            os.remove(file_p_d)
             return True
     except FileNotFoundError:
         return True
@@ -134,9 +134,9 @@ def get_extension(file_id: str, mime_type: str, dot: bool = True) -> str:
             return '.unknown'
         return 'unknown'
 
-    file_type = _get_file_type(file_id)
+    file_type = __get_file_type(file_id)
 
-    guessed_extension = _guess_extension(mime_type)
+    guessed_extension = __guess_extension(mime_type)
 
     if file_type in PHOTO_TYPES:
         extension = Extension.photo.get(mime_type, 'jpg')
@@ -163,13 +163,13 @@ def get_extension(file_id: str, mime_type: str, dot: bool = True) -> str:
     return extension
 
 
-def _guess_extension(mime_type: str) -> Optional[str]:
+def __guess_extension(mime_type: str) -> Optional[str]:
     """如果扩展名不是None，则从没有点的MIME类型返回中猜测文件扩展名。"""
     extension = _mimetypes.guess_extension(mime_type, strict=True)
     return extension[1:] if extension and extension.startswith('.') else extension
 
 
-def _get_file_type(file_id: str) -> FileType:
+def __get_file_type(file_id: str) -> FileType:
     """获取文件类型。"""
     decoded = rle_decode(b64_decode(file_id))
 
@@ -194,7 +194,7 @@ def _get_file_type(file_id: str) -> FileType:
     return file_type
 
 
-def get_file_size(file_path, temp_ext: str = '.temp'):
+def get_file_size(file_path: str, temp_ext: str = '.temp'):
     """获取文件大小，支持临时扩展名。"""
     if os.path.exists(file_path):
         return os.path.getsize(file_path)
