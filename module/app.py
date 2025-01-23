@@ -943,8 +943,7 @@ class Application:
                             _proxy_config['password'] = password
         except KeyboardInterrupt:
             self.__keyboard_interrupt()
-        finally:
-            self.save_config()
+        self.save_config()  # v1.3.0 修复不保存配置文件时,配置文件仍然保存的问题。
 
 
 class PanelTable:
