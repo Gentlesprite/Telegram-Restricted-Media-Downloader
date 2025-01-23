@@ -558,7 +558,6 @@ class ProcessConfig:
 
     @staticmethod
     def get_proxy_info(proxy_config: dict) -> dict:
-
         return {'scheme': proxy_config.get('scheme', '未知'),
                 'hostname': proxy_config.get('hostname', '未知'),
                 'port': proxy_config.get('port', '未知')}
@@ -683,9 +682,9 @@ class GetStdioParams:
     def get_is_shutdown(last_record: str, valid_format: str = 'y|n') -> dict:
         _style: str = ProcessConfig.stdio_style('is_shutdown')
         if last_record:
-            last_record = 'y'
+            last_record: str = 'y'
         elif last_record is False:
-            last_record = 'n'
+            last_record: str = 'n'
         else:
             last_record = GetStdioParams.UNDEFINED
         t = f'已设置「is_shutdown」为:「{last_record}」,下载完成后将自动关机!'
@@ -747,9 +746,9 @@ class GetStdioParams:
     @staticmethod
     def get_is_notice(last_record: bool, valid_format: str = 'y|n') -> dict:
         if last_record:
-            in_notice = 'y' if last_record else 'n'
+            in_notice: str = 'y' if last_record else 'n'
         else:
-            in_notice = GetStdioParams.UNDEFINED
+            in_notice: str = GetStdioParams.UNDEFINED
         while True:
             # 是否记住选项。
             is_notice = console.input(
