@@ -29,7 +29,7 @@ from module import SOFTWARE_FULL_NAME, __version__, __copyright__, __license__
 from module.process_path import split_path, validate_title, truncate_filename, move_to_save_directory, \
     gen_backup_config, get_extension, safe_delete, compare_file_size, get_file_size
 from module.enum_define import GradientColor, ArtFont, DownloadType, DownloadStatus, Validator, QrcodeRender, KeyWord, \
-    Status, IOGetConfigParams, ProcessConfigDType
+    Status, GetStdioParams, ProcessConfig
 
 
 class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
@@ -192,7 +192,6 @@ class Application:
                  guide: bool = True):
         self.client_obj: callable = client_obj
         self.platform: str = platform.system()
-        self.color: list = GradientColor.blue_to_purple
         self.history_timestamp: dict = {}
         self.input_link: list = []
         self.last_record: dict = {}
@@ -573,9 +572,9 @@ class Application:
         try:
             _dtype: list = self.download_type.copy()  # 浅拷贝赋值给_dtype,避免传入函数后改变原数据。
             data: list = [[DownloadType.t(DownloadType.video.text),
-                           ProcessConfigDType.get_dtype(_dtype).get('video')],
+                           ProcessConfig.get_dtype(_dtype).get('video')],
                           [DownloadType.t(DownloadType.photo.text),
-                           ProcessConfigDType.get_dtype(_dtype).get('photo')]]
+                           ProcessConfig.get_dtype(_dtype).get('photo')]]
             download_type_table = PanelTable(title='下载类型', header=('类型', '是否下载'), data=data)
             download_type_table.print_meta()
 
@@ -589,25 +588,6 @@ class Application:
             os.system('pause')
         except KeyboardInterrupt:
             pass
-
-    def __stdio_style(self, key: str) -> str:
-        """控制用户交互时打印出不同的颜色(渐变)。"""
-        _stdio_queue: dict = {'api_id': 0,
-                              'api_hash': 1,
-                              'links': 2,
-                              'save_directory': 3,
-                              'max_download_task': 4,
-                              'download_type': 5,
-                              'is_shutdown': 6,
-                              'enable_proxy': 7,
-                              'is_notice': 8,
-                              'config_proxy': 9,
-                              'scheme': 10,
-                              'hostname': 11,
-                              'port': 12,
-                              'proxy_authentication': 13
-                              }
-        return self.color[_stdio_queue.get(key)]
 
     def shutdown_task(self, second: int) -> None:
         """下载完成后自动关机的功能。"""
@@ -751,26 +731,6 @@ class Application:
 
         return config
 
-    def __is_proxy_input(self, config: dict) -> bool:
-        """检测代理配置是否需要用户输入。"""
-        result: bool = False
-        basic_truth_table: list = []
-        advance_account_truth_table: list = []
-        if config.get('enable_proxy') is False:  # 检测打开了代理但是代理配置错误。
-            return False
-        for _ in config.items():
-            if _[0] in ['scheme', 'port', 'hostname']:
-                basic_truth_table.append(_[1])
-            if _[0] in ['username', 'password']:
-                advance_account_truth_table.append(_[1])
-        if all(basic_truth_table) is False:
-            console.print('请配置代理!', style=self.__stdio_style('config_proxy'))
-            result: bool = True
-        if any(advance_account_truth_table) and all(advance_account_truth_table) is False:
-            log.warning('代理账号或密码未输入!')
-            result: bool = True
-        return result
-
     def __keyboard_interrupt(self) -> None:
         """处理配置文件交互时,当已配置了任意部分时的用户键盘中断。"""
         new_line: bool = True
@@ -867,276 +827,124 @@ class Application:
         """引导用户以交互式的方式修改、保存配置文件。"""
         # input user to input necessary configurations
         # v1.1.0 更替api_id和api_hash位置,与telegram申请的api位置对应以免输错。
-        undefined: str = '无'
         _api_id: str or None = self._config.get('api_id')
         _api_hash: str or None = self._config.get('api_hash')
         _links: str or None = self._config.get('links')
         _save_directory: str or None = self._config.get('save_directory')
         _max_download_task: int or None = self._config.get('max_download_task')
         _download_type: list or None = self._config.get('download_type')
-        _proxy: dict = self._config.get('proxy', {})
-        _proxy_enable_proxy: str or bool = _proxy.get('enable_proxy', False)
-        _proxy_hostname: str or bool = _proxy.get('hostname', False)
-        _proxy_is_notice: str or bool = _proxy.get('is_notice', False)
-        _proxy_username: str or bool = _proxy.get('username', False)
-        _proxy_password: str or bool = _proxy.get('password', False)
-        _proxy_scheme: str or bool = _proxy.get('scheme', False)
-
+        _proxy_config: dict = self._config.get('proxy', {})
+        _proxy_enable_proxy: str or bool = _proxy_config.get('enable_proxy', False)
+        _proxy_is_notice: str or bool = _proxy_config.get('is_notice', False)
+        _proxy_scheme: str or bool = _proxy_config.get('scheme', False)
+        _proxy_hostname: str or bool = _proxy_config.get('hostname', False)
+        _proxy_port: str or bool = _proxy_config.get('port', False)
+        _proxy_username: str or bool = _proxy_config.get('username', False)
+        _proxy_password: str or bool = _proxy_config.get('password', False)
+        proxy_record: dict = self.last_record.get('proxy', {})  # proxy的历史记录。
         if any([
-            not _api_id,
-            not _api_hash,
-            not _links,
-            not _save_directory,
-            not _max_download_task,
-            not _download_type,
-            not _proxy,
-            not _proxy_enable_proxy,
-            not _proxy_hostname,
-            not _proxy_is_notice,
-            not _proxy_username,
-            not _proxy_password,
-            not _proxy_scheme
+            not _api_id, not _api_hash, not _links, not _save_directory, not _max_download_task, not _download_type,
+            not _proxy_config, not _proxy_enable_proxy, not _proxy_is_notice, not _proxy_scheme, not _proxy_port,
+            not _proxy_hostname, not _proxy_username, not _proxy_password
         ]):
             console.print('「注意」直接回车代表使用上次的记录。', style='red')
         try:
             if not _api_id:
-                api_id, record_flag = IOGetConfigParams.get_api_id(_last_record=self.last_record.get('api_id')).values()
+                api_id, record_flag = GetStdioParams.get_api_id(last_record=self.last_record.get('api_id')).values()
                 if record_flag:
                     self.record_flag = record_flag
                     self._config['api_id'] = api_id
-                    console.print(f'已设置「api_id」为:「{api_id}」', style=self.__stdio_style('api_id'))
             if not _api_hash:
-                api_hash, record_flag = IOGetConfigParams.get_api_hash(_last_record=self.last_record.get('api_hash'),
-                                                                       _valid_length=32).values()
+                api_hash, record_flag = GetStdioParams.get_api_hash(last_record=self.last_record.get('api_hash'),
+                                                                    valid_length=32).values()
                 if record_flag:
                     self.record_flag = record_flag
                     self._config['api_hash'] = api_hash
-                    console.print(f'已设置「api_hash」为:「{api_hash}」', style=self.__stdio_style('api_hash'))
             if not _links:
-                links, record_flag = IOGetConfigParams.get_links(_last_record=self.last_record.get('links'),
-                                                                 _valid_format='.txt').values()
+                links, record_flag = GetStdioParams.get_links(last_record=self.last_record.get('links'),
+                                                              valid_format='.txt').values()
                 if record_flag:
                     self.record_flag = record_flag
                     self._config['links'] = links
-                    console.print(f'已设置「links」为:「{links}」', style=self.__stdio_style('links'))
             if not _save_directory:
-                save_directory, record_flag = IOGetConfigParams.get_save_directory(
-                    _last_record=self.last_record.get('save_directory')).values()
+                save_directory, record_flag = GetStdioParams.get_save_directory(
+                    last_record=self.last_record.get('save_directory')).values()
                 if record_flag:
                     self.record_flag = record_flag
                     self._config['save_directory'] = save_directory
-                    console.print(f'已设置「save_directory」为:「{save_directory}」',
-                                  style=self.__stdio_style('save_directory'))
             if not _max_download_task:
-                max_download_task, record_flag = IOGetConfigParams.get_max_download_task(
-                    _last_record=self.last_record.get('max_download_task')).values()
+                max_download_task, record_flag = GetStdioParams.get_max_download_task(
+                    last_record=self.last_record.get('max_download_task')).values()
                 if record_flag:
                     self.record_flag = record_flag
                     self._config['max_download_task'] = max_download_task
-                    console.print(f'已设置「max_download_task」为:「{max_download_task}」',
-                                  style=self.__stdio_style('max_download_task'))
             if not _download_type:
-                download_type, record_flag = IOGetConfigParams.get_download_type(
-                    _last_record=self.last_record.get('download_type')).values()
+                download_type, record_flag = GetStdioParams.get_download_type(
+                    last_record=self.last_record.get('download_type')).values()
                 if record_flag:
                     self.record_flag = record_flag
                     self._config['download_type'] = download_type
-                    console.print(f'已设置「download_type」为:「{download_type}」',
-                                  style=self.__stdio_style('download_type'))
-            is_shutdown, _record_flag = IOGetConfigParams.get_is_shutdown(
-                _last_record=self.last_record.get('is_shutdown'),
-                _valid_format='y|n')
-            if _record_flag:
+            # 是否下载完成关机。
+            is_shutdown, _is_shutdown_record_flag = GetStdioParams.get_is_shutdown(
+                last_record=self.last_record.get('is_shutdown'),
+                valid_format='y|n').values()
+            if _is_shutdown_record_flag:
                 self.record_flag = True
-                if is_shutdown is True:
-                    self._config['is_shutdown'] = True
-                    console.print(f'已设置「is_shutdown」为:「{is_shutdown}」,下载完成后将自动关机!',
-                                  style=self.__stdio_style('is_shutdown'))
-                self._config['is_shutdown'] = False
-                console.print(f'已设置「is_shutdown」为:「{is_shutdown}」', style=self.__stdio_style('is_shutdown'))
+                self._config['is_shutdown'] = is_shutdown
+            # 是否开启代理
+            if _proxy_config.get('is_notice') is True or _proxy_config.get('is_notice') is None:  # 如果打开了通知或第一次配置。
+                valid_format: str = 'y|n'
 
+                is_enable_proxy, is_ep_record_flag = GetStdioParams.get_enable_proxy(
+                    last_record=proxy_record.get('enable_proxy', False),
+                    valid_format=valid_format).values()
+                if is_ep_record_flag:
+                    self.record_flag = True
+                    _proxy_config['enable_proxy'] = is_enable_proxy
+
+                is_notice, is_in_record_flag = GetStdioParams.get_is_notice(
+                    last_record=proxy_record.get('is_notice', False),
+                    valid_format=valid_format).values()
+                if is_in_record_flag:
+                    self.record_flag = True
+                    _proxy_config['is_notice'] = is_notice
+            # 如果需要使用代理。
+            # 如果上面配置的enable_proxy为True或本来配置文件中的enable_proxy就为True。
+            if _proxy_config.get('enable_proxy') is True or _proxy_enable_proxy is True:
+                if ProcessConfig.is_proxy_input(proxy_config=_proxy_config):
+                    if not _proxy_scheme:
+                        scheme, record_flag = GetStdioParams.get_scheme(last_record=proxy_record.get('scheme'),
+                                                                        valid_format=['http', 'socks4',
+                                                                                      'socks5']).values()
+                        if record_flag:
+                            self.record_flag = True
+                            _proxy_config['scheme'] = scheme
+                    if not _proxy_hostname:
+                        hostname, record_flag = GetStdioParams.get_hostname(
+                            proxy_record=proxy_record,
+                            last_record=proxy_record.get('hostname'),
+                            valid_format='x.x.x.x').values()
+                        if record_flag:
+                            self.record_flag = True
+                            _proxy_config['hostname'] = hostname
+                    if not _proxy_port:
+                        port, record_flag = GetStdioParams.get_port(
+                            proxy_record=proxy_record,
+                            last_record=proxy_record.get('port'),
+                            valid_format='0~65535').values()
+                        if record_flag:
+                            self.record_flag = True
+                            _proxy_config['port'] = port
+                    if not all([_proxy_username, _proxy_password]):
+                        username, password, record_flag = GetStdioParams.get_proxy_authentication().values()
+                        if record_flag:
+                            self.record_flag = True
+                            _proxy_config['username'] = username
+                            _proxy_config['password'] = password
         except KeyboardInterrupt:
             self.__keyboard_interrupt()
-
-        # v1.1.4 移除self._check_proxy_params(proxy_config)改用全字段检测  # 检查代理字典字段是否完整并自动补全保存。
-        proxy_record = self.last_record.get('proxy', {})
-        enable_proxy: str = 'undefined'
-
-        def get_proxy_info(_scheme, _hostname, _port) -> Tuple[str, str, int]:
-            if _scheme is None:
-                _scheme = proxy_record.get('scheme', '未知')
-            if _hostname is None:
-                _hostname = proxy_record.get('hostname', '未知')
-            if _port is None:
-                _port = proxy_record.get('port', '未知')
-            return _scheme, _hostname, _port
-
-        if _proxy.get('is_notice') is True or _proxy.get('is_notice') is None:  # 如果打开了通知或第一次配置。
-            ep_last_record = proxy_record.get('enable_proxy', False)
-            in_last_record = proxy_record.get('is_notice', False)
-            if ep_last_record:
-                ep_notice = 'y' if ep_last_record else 'n'
-            else:
-                ep_notice = undefined
-            if in_last_record:
-                in_notice = 'y' if in_last_record else 'n'
-            else:
-                in_notice = undefined
-            valid_format: str = 'y|n'
-
-            try:
-                while True:  # 询问是否开启代理。
-                    enable_proxy = console.input(
-                        f'是否需要使用「代理」。上一次的记录是:「{ep_notice}」'
-                        f'格式 - 「{valid_format}」{"(默认n)" if ep_notice == undefined else ""}:').strip().lower()
-                    if enable_proxy == '' and ep_last_record is not None:
-                        if ep_last_record is True:
-                            enable_proxy = 'y'
-                        elif ep_last_record is False:
-                            enable_proxy = 'n'
-                    elif enable_proxy == '':
-                        enable_proxy = 'n'
-                    if Validator.is_valid_enable_proxy(enable_proxy):
-                        if enable_proxy == 'y':
-                            _proxy['enable_proxy'] = True
-                        elif enable_proxy == 'n':
-                            _proxy['enable_proxy'] = False
-                        console.print(f'已设置「enable_proxy」为:「{enable_proxy}」',
-                                      style=self.__stdio_style('enable_proxy'))
-                        self.record_flag = True
-                        break
-                    else:
-                        log.error(f'意外的参数:"{enable_proxy}",请输入有效参数!支持的参数 - 「{valid_format}」!')
-                while True:
-                    # 是否记住选项。
-                    is_notice = console.input(
-                        f'下次是否「不再询问使用代理」。上一次的记录是:「{in_notice}」'
-                        f'格式 - 「{valid_format}」{("(默认n)" if in_notice == undefined else "")}:').strip().lower()
-                    if is_notice == '' and in_last_record is not None:
-                        if in_last_record is True:
-                            is_notice = 'y'
-                        elif in_last_record is False:
-                            is_notice = 'n'
-                    elif is_notice == '':
-                        is_notice = 'n'
-                    if Validator.is_valid_is_notice(is_notice):
-                        if is_notice == 'y':
-                            _proxy['is_notice'] = False
-                            console.print('下次将不再询问是否使用代理!', style='green')
-                        elif is_notice == 'n':
-                            _proxy['is_notice'] = True
-                        console.print(f'已设置「is_notice」为:「{is_notice}」', style=self.__stdio_style('is_notice'))
-                        self.record_flag = True
-                        break
-                    else:
-                        log.error(f'意外的参数:"{is_notice}",请输入有效参数!支持的参数 - 「{valid_format}」!')
-
-            except KeyboardInterrupt:
-                self.__keyboard_interrupt()
-
-        if enable_proxy == 'y' or _proxy_enable_proxy is True:
-            scheme = None
-            hostname = None
-            port = None
-            if self.__is_proxy_input(_proxy):
-                valid_port = '0~65535'
-                # 输入代理类型。
-                if not _proxy['scheme']:
-                    valid_format: list = ['http', 'socks4', 'socks5']
-                    last_record = proxy_record.get('scheme')
-                    while True:
-                        try:
-                            scheme = console.input(
-                                f'请输入「代理类型」。上一次的记录是:「{last_record if last_record else undefined}」'
-                                f'格式 - 「{"|".join(valid_format)}」:').strip().lower()
-                            if scheme == '' and last_record is not None:
-                                scheme = last_record
-                            if Validator.is_valid_scheme(scheme, valid_format):
-                                _proxy['scheme'] = scheme
-                                self.record_flag = True
-                                console.print(f'已设置「scheme」为:「{scheme}」', style=self.__stdio_style('scheme'))
-                                break
-                            else:
-                                log.warning(
-                                    f'意外的参数:"{scheme}",请输入有效的代理类型!支持的参数 - 「{"|".join(valid_format)}」!')
-                        except KeyboardInterrupt:
-                            self.__keyboard_interrupt()
-                if not _proxy.get('hostname'):
-                    valid_format: str = 'x.x.x.x'
-                    last_record = self.last_record.get('proxy', {}).get('hostname')
-                    while True:
-                        scheme, _, __ = get_proxy_info(scheme, None, None)
-                        # 输入代理IP地址。
-                        try:
-                            hostname = console.input(
-                                f'请输入代理类型为:"{scheme}"的「ip地址」。上一次的记录是:「{last_record if last_record else undefined}」'
-                                f'格式 - 「{valid_format}」:').strip()
-                            if hostname == '' and last_record is not None:
-                                hostname = last_record
-                            if Validator.is_valid_hostname(hostname):
-                                _proxy['hostname'] = hostname
-                                self.record_flag = True
-                                console.print(f'已设置「hostname」为:「{hostname}」', style=self.__stdio_style('hostname'))
-                                break
-                        except ValueError:
-                            log.warning(
-                                f'"{hostname}"不是一个「ip地址」,请输入有效的ipv4地址!支持的参数 - 「{valid_format}」!')
-                        except KeyboardInterrupt:
-                            self.__keyboard_interrupt()
-                if not _proxy.get('port'):
-                    last_record = self.last_record.get('proxy', {}).get('port')
-                    # 输入代理端口。
-                    while True:
-                        try:  # hostname，scheme可能出现None
-                            scheme, hostname, __ = get_proxy_info(scheme, hostname, None)
-                            port = console.input(
-                                f'请输入ip地址为:"{hostname}",代理类型为:"{scheme}"的「代理端口」。'
-                                f'上一次的记录是:「{last_record if last_record else undefined}」'
-                                f'格式 - 「{valid_port}」:').strip()
-                            if port == '' and last_record is not None:
-                                port = last_record
-                            if Validator.is_valid_port(port):
-                                _proxy['port'] = int(port)
-                                self.record_flag = True
-                                console.print(f'已设置「port」为:「{port}」', style=self.__stdio_style('port'))
-                                break
-                            else:
-                                log.warning(f'意外的参数:"{port}",端口号必须在「{valid_port}」之间!')
-                        except ValueError:
-                            log.warning(f'意外的参数:"{port}",请输入一个有效的整数!支持的参数 - 「{valid_port}」')
-                        except KeyboardInterrupt:
-                            self.__keyboard_interrupt()
-                        except Exception as e:
-                            log.error(f'意外的错误,{KeyWord.REASON}:"{e}"')
-                if not all([_proxy.get('username'), _proxy.get('password')]):
-                    # 是否需要认证。
-                    style = self.__stdio_style('proxy_authentication')
-                    valid_format: str = 'y|n'
-                    while True:
-                        try:
-                            is_proxy = console.input(f'代理是否需要「认证」? - 「{valid_format}」(默认n):').strip().lower()
-                            if is_proxy == 'y':
-                                try:
-                                    _proxy['username'] = console.input('请输入「用户名」:').strip()
-                                    self.record_flag = True
-                                    _proxy['password'] = console.input('请输入「密码」:').strip()
-                                    self.record_flag = True
-                                    console.print(f'已设置为:「代理需要认证」', style=style)
-                                except KeyboardInterrupt:
-                                    self.__keyboard_interrupt()
-                                finally:
-                                    break
-                            elif is_proxy in ('n', ''):
-                                _proxy['username'] = None
-                                _proxy['password'] = None
-                                console.print(f'已设置为:「代理不需要认证」', style=style)
-                                break
-                            else:
-                                log.warning(f'意外的参数:"{is_proxy}",支持的参数 - 「{valid_format}」!')
-                        except KeyboardInterrupt:
-                            self.__keyboard_interrupt()
-        self.save_config()
-        return
+        finally:
+            self.save_config()
 
 
 class PanelTable:

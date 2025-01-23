@@ -5,6 +5,7 @@
 # File:enum_define.py
 import os
 import ipaddress
+
 from enum import Enum
 
 from module import console, log
@@ -485,7 +486,7 @@ class QrcodeRender:
         return output[:-1]
 
 
-class ProcessConfigDType:
+class ProcessConfig:
     @staticmethod
     def set_dtype(_dtype) -> list:
         i_dtype = int(_dtype)  # 因为终端输入是字符串，这里需要转换为整数。
@@ -510,144 +511,335 @@ class ProcessConfigDType:
                 return {'video': False, 'photo': True}
         elif dt_length == 2:
             return {'video': True, 'photo': True}
-        else:
-            return {'error': True}
+        return {'error': True}
+
+    @staticmethod
+    def stdio_style(key: str, color=None) -> str:
+        """控制用户交互时打印出不同的颜色(渐变)。"""
+        if color is None:
+            color = GradientColor.blue_to_purple
+        _stdio_queue: dict = {'api_id': 0,
+                              'api_hash': 1,
+                              'links': 2,
+                              'save_directory': 3,
+                              'max_download_task': 4,
+                              'download_type': 5,
+                              'is_shutdown': 6,
+                              'enable_proxy': 7,
+                              'is_notice': 8,
+                              'config_proxy': 9,
+                              'scheme': 10,
+                              'hostname': 11,
+                              'port': 12,
+                              'proxy_authentication': 13
+                              }
+        return color[_stdio_queue.get(key)]
+
+    @staticmethod
+    def is_proxy_input(proxy_config: dict) -> bool:
+        """检测代理配置是否需要用户输入。"""
+        result: bool = False
+        basic_truth_table: list = []
+        advance_account_truth_table: list = []
+        if proxy_config.get('enable_proxy') is False:  # 检测打开了代理但是代理配置错误。
+            return False
+        for _ in proxy_config.items():
+            if _[0] in ['scheme', 'port', 'hostname']:
+                basic_truth_table.append(_[1])
+            if _[0] in ['username', 'password']:
+                advance_account_truth_table.append(_[1])
+        if all(basic_truth_table) is False:
+            console.print('请配置代理!', style=ProcessConfig.stdio_style('config_proxy'))
+            result: bool = True
+        if any(advance_account_truth_table) and all(advance_account_truth_table) is False:
+            log.warning('代理账号或密码未输入!')
+            result: bool = True
+        return result
+
+    @staticmethod
+    def get_proxy_info(proxy_record: dict) -> dict:
+
+        return {'scheme': proxy_record.get('scheme', '未知'),
+                'hostname': proxy_record.get('hostname', '未知'),
+                'port': proxy_record.get('port', '未知')}
 
 
-class IOGetConfigParams:
+class GetStdioParams:
     UNDEFINED = '无'
 
     @staticmethod
-    def get_api_id(_last_record: str) -> dict:
+    def get_api_id(last_record: str) -> dict:
         while True:
             api_id = console.input(
-                f'请输入「api_id」上一次的记录是:「{_last_record if _last_record else IOGetConfigParams.UNDEFINED}」:').strip()
-            if api_id == '' and _last_record is not None:
-                api_id = _last_record
+                f'请输入「api_id」上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」:').strip()
+            if api_id == '' and last_record is not None:
+                api_id = last_record
             if Validator.is_valid_api_id(api_id):
+                console.print(f'已设置「api_id」为:「{api_id}」', style=ProcessConfig.stdio_style('api_id'))
                 return {'api_id': api_id, 'record_flag': True}
 
     @staticmethod
-    def get_api_hash(_last_record: str, _valid_length: int = 32) -> dict:
+    def get_api_hash(last_record: str, valid_length: int = 32) -> dict:
         while True:
             api_hash = console.input(
-                f'请输入「api_hash」上一次的记录是:「{_last_record if _last_record else IOGetConfigParams.UNDEFINED}」:').strip().lower()
-            if api_hash == '' and _last_record is not None:
-                api_hash = _last_record
-            if Validator.is_valid_api_hash(api_hash, _valid_length):
+                f'请输入「api_hash」上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」:').strip().lower()
+            if api_hash == '' and last_record is not None:
+                api_hash = last_record
+            if Validator.is_valid_api_hash(api_hash, valid_length):
+                console.print(f'已设置「api_hash」为:「{api_hash}」', style=ProcessConfig.stdio_style('api_hash'))
                 return {'api_hash': api_hash, 'record_flag': True}
-            else:
-                log.warning(f'意外的参数:"{api_hash}",不是一个「{_valid_length}位」的「值」!请重新输入!')
+            log.warning(f'意外的参数:"{api_hash}",不是一个「{valid_length}位」的「值」!请重新输入!')
 
     @staticmethod
-    def get_links(_last_record: str, _valid_format: str = '.txt') -> dict:
+    def get_links(last_record: str, valid_format: str = '.txt') -> dict:
         # 输入需要下载的媒体链接文件路径,确保文件存在。
-        links_file = None
+        links_file_path = None
         while True:
             try:
-                links_file = console.input(
-                    f'请输入需要下载的媒体链接的「完整路径」。上一次的记录是:「{_last_record if _last_record else IOGetConfigParams.UNDEFINED}」'
-                    f'格式 - 「{_valid_format}」:').strip()
-                if links_file == '' and _last_record is not None:
-                    links_file = _last_record
-                if Validator.is_valid_links_file(links_file, _valid_format):
-                    return {'links': links_file, 'record_flag': True}
-                elif not os.path.normpath(links_file).endswith('.txt'):
-                    log.warning(f'意外的参数:"{links_file}",文件路径必须以「{_valid_format}」结尾,请重新输入!')
-                else:
-                    log.warning(
-                        f'意外的参数:"{links_file}",文件路径必须以「{_valid_format}」结尾,并且「必须存在」,请重新输入!')
+                links_file_path = console.input(
+                    f'请输入需要下载的媒体链接的「完整路径」。上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」'
+                    f'格式 - 「{valid_format}」:').strip()
+                if links_file_path == '' and last_record is not None:
+                    links_file_path = last_record
+                if Validator.is_valid_links_file(links_file_path, valid_format):
+                    console.print(f'已设置「links」为:「{links_file_path}」', style=ProcessConfig.stdio_style('links'))
+                    return {'links': links_file_path, 'record_flag': True}
+                elif not os.path.normpath(links_file_path).endswith('.txt'):
+                    log.warning(f'意外的参数:"{links_file_path}",文件路径必须以「{valid_format}」结尾,请重新输入!')
+                log.warning(
+                    f'意外的参数:"{links_file_path}",文件路径必须以「{valid_format}」结尾,并且「必须存在」,请重新输入!')
             except Exception as _e:
-                log.error(f'意外的参数:"{links_file}",请重新输入!{KeyWord.REASON}:"{_e}"')
+                log.error(f'意外的参数:"{links_file_path}",请重新输入!{KeyWord.REASON}:"{_e}"')
 
     @staticmethod
-    def get_save_directory(_last_record) -> dict:
+    def get_save_directory(last_record) -> dict:
         # 输入媒体保存路径,确保是一个有效的目录路径。
         while True:
             save_directory = console.input(
-                f'请输入媒体「保存路径」。上一次的记录是:「{_last_record if _last_record else IOGetConfigParams.UNDEFINED}」:').strip()
-            if save_directory == '' and _last_record is not None:
-                save_directory = _last_record
+                f'请输入媒体「保存路径」。上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」:').strip()
+            if save_directory == '' and last_record is not None:
+                save_directory = last_record
             if Validator.is_valid_save_path(save_directory):
+                console.print(f'已设置「save_directory」为:「{save_directory}」',
+                              style=ProcessConfig.stdio_style('save_directory'))
                 return {'save_directory': save_directory, 'record_flag': True}
             elif os.path.isfile(save_directory):
                 log.warning(f'意外的参数:"{save_directory}",指定的路径是一个文件并非目录,请重新输入!')
-            else:
-                log.warning(f'意外的参数:"{save_directory}",指定的路径无效或不是一个目录,请重新输入!')
+            log.warning(f'意外的参数:"{save_directory}",指定的路径无效或不是一个目录,请重新输入!')
 
     @staticmethod
-    def get_max_download_task(_last_record) -> dict:
+    def get_max_download_task(last_record) -> dict:
         # 输入最大下载任务数,确保是一个整数且不超过特定限制。
         while True:
             try:
                 max_download_task = console.input(
-                    f'请输入「最大下载任务数」。上一次的记录是:「{_last_record if _last_record else IOGetConfigParams.UNDEFINED}」'
-                    f'非会员建议默认{"(默认3)" if _last_record is None else ""}:').strip()
-                if max_download_task == '' and _last_record is not None:
-                    max_download_task = _last_record
+                    f'请输入「最大下载任务数」。上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」'
+                    f'非会员建议默认{"(默认3)" if last_record is None else ""}:').strip()
+                if max_download_task == '' and last_record is not None:
+                    max_download_task = last_record
                 if max_download_task == '':
                     max_download_task = 3
                 if Validator.is_valid_max_download_task(max_download_task):
+                    console.print(f'已设置「max_download_task」为:「{max_download_task}」',
+                                  style=ProcessConfig.stdio_style('max_download_task'))
                     return {'max_download_task': int(max_download_task), 'record_flag': True}
-                else:
-                    log.warning(f'意外的参数:"{max_download_task}",任务数必须是「正整数」,请重新输入!')
+                log.warning(f'意外的参数:"{max_download_task}",任务数必须是「正整数」,请重新输入!')
             except Exception as _e:
                 log.error(f'意外的错误,{KeyWord.REASON}:"{_e}"')
 
     @staticmethod
-    def get_download_type(_last_record: list or None) -> dict:
+    def get_download_type(last_record: list or None) -> dict:
 
-        if isinstance(_last_record, list):
-            res: dict = ProcessConfigDType.get_dtype(download_dtype=_last_record)
+        if isinstance(last_record, list):
+            res: dict = ProcessConfig.get_dtype(download_dtype=last_record)
             if len(res) == 1:
-                _last_record = None
+                last_record = None
             elif res.get('video') and res.get('photo') is False:
-                _last_record = 1
+                last_record = 1
             elif res.get('video') is False and res.get('photo'):
-                _last_record = 2
+                last_record = 2
             elif res.get('video') and res.get('photo'):
-                _last_record = 3
+                last_record = 3
 
         while True:
             download_type = console.input(
-                f'输入需要下载的「媒体类型」。上一次的记录是:「{_last_record if _last_record else IOGetConfigParams.UNDEFINED}」'
-                f'格式 - 「1.视频 2.图片 3.视频和图片」{"(默认3)" if _last_record is None else ""}:').strip()
-            if download_type == '' and _last_record is not None:
-                download_type = _last_record
+                f'输入需要下载的「媒体类型」。上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」'
+                f'格式 - 「1.视频 2.图片 3.视频和图片」{"(默认3)" if last_record is None else ""}:').strip()
+            if download_type == '' and last_record is not None:
+                download_type = last_record
             if download_type == '':
                 download_type = 3
             if Validator.is_valid_download_type(download_type):
-                return {'download_type': ProcessConfigDType.set_dtype(_dtype=download_type), 'record_flag': True}
-            else:
-                log.warning(f'意外的参数:"{download_type}",支持的参数 - 「1或2或3」')
+                console.print(f'已设置「download_type」为:「{download_type}」',
+                              style=ProcessConfig.stdio_style('download_type'))
+                return {'download_type': ProcessConfig.set_dtype(_dtype=download_type), 'record_flag': True}
+            log.warning(f'意外的参数:"{download_type}",支持的参数 - 「1或2或3」')
 
     @staticmethod
-    def get_is_shutdown(_last_record: str, _valid_format: str = 'y|n') -> dict:
-        if _last_record:
-            _last_record = 'y'
-        elif _last_record is False:
-            _last_record = 'n'
+    def get_is_shutdown(last_record: str, valid_format: str = 'y|n') -> dict:
+        _style: str = ProcessConfig.stdio_style('is_shutdown')
+        if last_record:
+            last_record = 'y'
+        elif last_record is False:
+            last_record = 'n'
         else:
-            _last_record = IOGetConfigParams.UNDEFINED
-
+            last_record = GetStdioParams.UNDEFINED
+        t = f'已设置「is_shutdown」为:「{last_record}」,下载完成后将自动关机!'
+        f = f'已设置「is_shutdown」为:「{last_record}」'
         while True:
             try:
-                question = console.input(
-                    f'下载完成后是否「自动关机」。上一次的记录是:「{_last_record}」 - 「{_valid_format}」'
-                    f'{"(默认n)" if _last_record == IOGetConfigParams.UNDEFINED else ""}:').strip().lower()
-                if question == '' and _last_record != IOGetConfigParams.UNDEFINED:
-                    if _last_record == 'y':
+                is_shutdown = console.input(
+                    f'下载完成后是否「自动关机」。上一次的记录是:「{last_record}」 - 「{valid_format}」'
+                    f'{"(默认n)" if last_record == GetStdioParams.UNDEFINED else ""}:').strip().lower()
+                if is_shutdown == '' and last_record != GetStdioParams.UNDEFINED:
+                    if last_record == 'y':
+                        console.print(t, style=_style)
                         return {'is_shutdown': True, 'record_flag': True}
-
-                    elif _last_record == 'n':
+                    elif last_record == 'n':
+                        console.print(f, style=_style)
                         return {'is_shutdown': False, 'record_flag': True}
 
-                elif question == 'y':
+                elif is_shutdown == 'y':
+                    console.print(t, style=_style)
                     return {'is_shutdown': True, 'record_flag': True}
-                elif question in ('n', ''):
+                elif is_shutdown in ('n', ''):
+                    console.print(f, style=_style)
                     return {'is_shutdown': False, 'record_flag': True}
-                else:
-                    log.warning(f'意外的参数:"{question}",支持的参数 - 「{_valid_format}」')
+                log.warning(f'意外的参数:"{is_shutdown}",支持的参数 - 「{valid_format}」')
 
             except Exception as _e:
                 log.error(f'意外的错误,{KeyWord.REASON}:"{_e}"')
+
+    @staticmethod
+    def get_enable_proxy(last_record: str or bool, valid_format: str = 'y|n') -> dict:
+        if last_record:
+            ep_notice: str = 'y' if last_record else 'n'
+        else:
+            ep_notice: str = GetStdioParams.UNDEFINED
+        while True:  # 询问是否开启代理。
+            enable_proxy = console.input(
+                f'是否需要使用「代理」。上一次的记录是:「{ep_notice}」'
+                f'格式 - 「{valid_format}」{"(默认n)" if ep_notice == GetStdioParams.UNDEFINED else ""}:').strip().lower()
+            if enable_proxy == '' and last_record is not None:
+                if last_record is True:
+                    enable_proxy = 'y'
+                elif last_record is False:
+                    enable_proxy = 'n'
+            elif enable_proxy == '':
+                enable_proxy = 'n'
+            if Validator.is_valid_enable_proxy(enable_proxy):
+                if enable_proxy == 'y':
+                    console.print(f'已设置「enable_proxy」为:「{enable_proxy}」',
+                                  style=ProcessConfig.stdio_style('enable_proxy'))
+                    return {'enable_proxy': True, 'record_flag': True}
+                elif enable_proxy == 'n':
+                    console.print(f'已设置「enable_proxy」为:「{enable_proxy}」',
+                                  style=ProcessConfig.stdio_style('enable_proxy'))
+                    return {'enable_proxy': False, 'record_flag': True}
+            else:
+                log.error(f'意外的参数:"{enable_proxy}",请输入有效参数!支持的参数 - 「{valid_format}」!')
+
+    @staticmethod
+    def get_is_notice(last_record: bool, valid_format: str = 'y|n') -> dict:
+        if last_record:
+            in_notice = 'y' if last_record else 'n'
+        else:
+            in_notice = GetStdioParams.UNDEFINED
+        while True:
+            # 是否记住选项。
+            is_notice = console.input(
+                f'下次是否「不再询问使用代理」。上一次的记录是:「{in_notice}」'
+                f'格式 - 「{valid_format}」{("(默认n)" if in_notice == GetStdioParams.UNDEFINED else "")}:').strip().lower()
+            if is_notice == '' and last_record is not None:
+                if last_record is True:
+                    is_notice = 'y'
+                elif last_record is False:
+                    is_notice = 'n'
+            elif is_notice == '':
+                is_notice = 'n'
+            if Validator.is_valid_is_notice(is_notice):
+                if is_notice == 'y':
+                    console.print('下次将不再询问是否使用代理!', style='green')
+                    return {'is_notice': False, 'record_flag': True}
+                elif is_notice == 'n':
+                    console.print(f'已设置「is_notice」为:「{is_notice}」', style=ProcessConfig.stdio_style('is_notice'))
+                    return {'is_notice': True, 'record_flag': True}
+            else:
+                log.error(f'意外的参数:"{is_notice}",请输入有效参数!支持的参数 - 「{valid_format}」!')
+
+    @staticmethod
+    def get_scheme(last_record: str, valid_format: list):
+        if valid_format is None:
+            valid_format = ['http', 'socks4', 'socks5']
+        fmt_valid_format = '|'.join(valid_format)
+        scheme = console.input(
+            f'请输入「代理类型」。上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」'
+            f'格式 - 「{fmt_valid_format}」:').strip().lower()
+        if scheme == '' and last_record is not None:
+            scheme = last_record
+        if Validator.is_valid_scheme(scheme, valid_format):
+            console.print(f'已设置「scheme」为:「{scheme}」', style=ProcessConfig.stdio_style('scheme'))
+            return {'scheme': scheme, 'record_flag': True}
+        else:
+            log.warning(
+                f'意外的参数:"{scheme}",请输入有效的代理类型!支持的参数 - 「{fmt_valid_format}」!')
+
+    @staticmethod
+    def get_hostname(proxy_record: dict, last_record: str, valid_format: str = 'x.x.x.x'):
+        hostname = None
+        while True:
+            scheme, _, __ = ProcessConfig.get_proxy_info(proxy_record).values()
+            # 输入代理IP地址。
+            try:
+                hostname = console.input(
+                    f'请输入代理类型为:"{scheme}"的「ip地址」。上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」'
+                    f'格式 - 「{valid_format}」:').strip()
+                if hostname == '' and last_record is not None:
+                    hostname = last_record
+                if Validator.is_valid_hostname(hostname):
+                    console.print(f'已设置「hostname」为:「{hostname}」', style=ProcessConfig.stdio_style('hostname'))
+                    return {'hostname': hostname, 'record_flag': True}
+            except ValueError:
+                log.warning(
+                    f'"{hostname}"不是一个「ip地址」,请输入有效的ipv4地址!支持的参数 - 「{valid_format}」!')
+
+    @staticmethod
+    def get_port(proxy_record: dict, last_record: str, valid_format: str = '0~65535'):
+        port = None
+        # 输入代理端口。
+        while True:
+            try:  # hostname,scheme可能出现None
+                scheme, hostname, __ = ProcessConfig.get_proxy_info(proxy_record).values()
+                port = console.input(
+                    f'请输入ip地址为:"{hostname}",代理类型为:"{scheme}"的「代理端口」。'
+                    f'上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」'
+                    f'格式 - 「{valid_format}」:').strip()
+                if port == '' and last_record is not None:
+                    port = last_record
+                if Validator.is_valid_port(port):
+                    console.print(f'已设置「port」为:「{port}」', style=ProcessConfig.stdio_style('port'))
+                    return {'port': int(port), 'record_flag': True}
+                else:
+                    log.warning(f'意外的参数:"{port}",端口号必须在「{valid_format}」之间!')
+            except ValueError:
+                log.warning(f'意外的参数:"{port}",请输入一个有效的整数!支持的参数 - 「{valid_format}」')
+            except Exception as e:
+                log.error(f'意外的错误,{KeyWord.REASON}:"{e}"')
+
+    @staticmethod
+    def get_proxy_authentication():
+        # 是否需要认证。
+        style = ProcessConfig.stdio_style('proxy_authentication')
+        valid_format: str = 'y|n'
+        while True:
+            is_proxy = console.input(f'代理是否需要「认证」? - 「{valid_format}」(默认n):').strip().lower()
+            if is_proxy == 'y':
+                username = console.input('请输入「用户名」:').strip()
+                password = console.input('请输入「密码」:').strip()
+                console.print(f'已设置为:「代理需要认证」', style=style)
+                return {'username': username, 'password': password, 'record_flag': True}
+            elif is_proxy in ('n', ''):
+                console.print(f'已设置为:「代理不需要认证」', style=style)
+                return {'username': None, 'password': None, 'record_flag': True}
+            else:
+                log.warning(f'意外的参数:"{is_proxy}",支持的参数 - 「{valid_format}」!')
