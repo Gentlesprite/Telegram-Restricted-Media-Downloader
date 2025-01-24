@@ -1,8 +1,8 @@
 <p align="center">
-  <img width="15%" align="center" src="https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/logo.png" alt="logo">
+  <img width="15%" align="center" src="https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/logo.png" alt="logo">
 </p>
   <h1 align="center">
-  Telegram-Restricted-Media-Downloader
+  Telegram_Restricted_Media_Downloader
 </h1>
 <p align="center">
 </p>
@@ -34,7 +34,7 @@ B站视频教程:[点击观看](https://www.bilibili.com/video/BV1nCp8evEwv)
 
 蓝奏云:[点击跳转下载](https://wwgr.lanzn.com/b0fopovuf) 密码:ceze
 
-Github:[点击跳转下载](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/releases)
+Github:[点击跳转下载](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/releases)
 
 ## 1.1.推荐终端（选看）:
 
@@ -48,9 +48,9 @@ Github:[点击跳转下载](https://github.com/Gentlesprite/Telegram-Restricted-
 
 3. 下载完成完成后**win+r**输入**wt**回车打开，然后将**Winodws Terminal**设为**默认终端**再启动软件，教程如下:
 
-   ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/1_1_1.png)
+   ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/1_1_1.png)
 
-   ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/1_1_2.png)
+   ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/1_1_2.png)
 
 # 2.0.快速开始:
 
@@ -62,21 +62,21 @@ Github:[点击跳转下载](https://github.com/Gentlesprite/Telegram-Restricted-
 
 2. 填写**自己绑定Telegram电报的手机号**注意手机号格式先要+地区再写入电话号码例如+12223334455，**+1**为地区，**222333445**为你绑定Telegram的手机号，填写后点击**Next**。
 
-   ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/2_1_1.png)
+   ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_1_1.png)
 
    
 
 3. 打开你的**Telegram客户端**，此时会收到来自**Telegram**账号的消息，将上面的验证码填入**Confirmation code**框中，然后点击**Sign in**。
 
-   ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/2_1_2.png)
+   ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_1_2.png)
 
-   ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/2_1_3.png)
+   ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_1_3.png)
 
    
 
 4. 点击**API development tools**按照提示填入即可。
 
-   ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/2_1_4.png)
+   ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_1_4.png)
 
    
 
@@ -114,7 +114,7 @@ save_path: F:\directory\media\where\you\save # 下载的媒体保存的目录,�
 
 1. 链接获取方法：对想要保存的媒体文件点击**鼠标右键**然后选择**复制消息直链**如下图所示：
 
-   ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/2_4_1.png)
+   ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_4_1.png)
 
 2. 目前支持**视频**和**图片**两种类型的下载。
 
@@ -124,13 +124,13 @@ save_path: F:\directory\media\where\you\save # 下载的媒体保存的目录,�
 
 5. links的文本**写法1**如下图所示：
 
-   ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/2_4_2.png)
+   ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_4_2.png)
 
 6. 你所需要下载的视频前提是你当前的Telegram账号，在此视频链接的频道中，否则会报错无法下载！！！
 
 7. 常见的**错误**写法(**请不要这样写**)：
 
-   ![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/2_4_3.png)
+   ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_4_3.png)
 
    字段解释：
 
@@ -174,8 +174,8 @@ save_path: F:\directory\media\where\you\save # 下载的媒体保存的目录,�
 # 3.0.在生产环境中运行
 
 ```bash
-git clone https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader.git
-cd Telegram-Restricted-Media-Downloader
+git clone https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader.git
+cd Telegram_Restricted_Media_Downloader
 pip install -r requirements.txt
 python main.py
 ```
@@ -186,10 +186,10 @@ python main.py
 
   Telegram交流群:[点击加入](https://t.me/+6KKA-buFaixmNTE1)
 
-  Telegram:@Gentlesprite
+  Telegram:[@Gentlesprite](https://t.me/Gentlesprite)
 
-  邮箱:Gentlesprite@163.com
+  邮箱:Gentlesprites@outlook.com
 
 # 5.0.支持作者:
 
-![image](https://github.com/Gentlesprite/Telegram-Restricted-Media-Downloader/blob/main/res/pay.png)
+![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/pay.png)
