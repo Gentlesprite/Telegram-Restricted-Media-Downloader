@@ -186,6 +186,7 @@ class Extension:
 
 
 class GradientColor:
+    # 生成渐变色:https://photokit.com/colors/color-gradient/?lang=zh
     blue_to_purple = ['#0ebeff',
                       '#21b4f9',
                       '#33abf3',
@@ -241,6 +242,21 @@ class GradientColor:
                 '#3af5c3',
                 '#39f7cd',
                 '#38f9d7']
+    orange_to_yellow = ['#f08a5d',
+                        '#f1915e',
+                        '#f1985f',
+                        '#f29f60',
+                        '#f3a660',
+                        '#f3ad61',
+                        '#f4b462',
+                        '#f5bc63',
+                        '#f5c364',
+                        '#f6ca65',
+                        '#f6d166',
+                        '#f7d866',
+                        '#f8df67',
+                        '#f8e668',
+                        '#f9ed69']
 
     @staticmethod
     def __extend_gradient_colors(colors: list, target_length: int) -> list:
@@ -352,6 +368,10 @@ class Validator:
     @staticmethod
     def is_valid_api_hash(api_hash: str, valid_length: int = 32) -> bool:
         return len(str(api_hash)) == valid_length
+
+    @staticmethod
+    def is_valid_bot_token(bot_token: str, valid_length: int = 46) -> bool:
+        return len(str(bot_token)) == valid_length
 
     @staticmethod
     def is_valid_links_file(file_path: str, valid_format: str = '.txt') -> bool:
@@ -517,21 +537,22 @@ class ProcessConfig:
     def stdio_style(key: str, color=None) -> str:
         """控制用户交互时打印出不同的颜色(渐变)。"""
         if color is None:
-            color = GradientColor.blue_to_purple
+            color = GradientColor.orange_to_yellow
         _stdio_queue: dict = {'api_id': 0,
                               'api_hash': 1,
-                              'links': 2,
-                              'save_directory': 3,
-                              'max_download_task': 4,
-                              'download_type': 5,
-                              'is_shutdown': 6,
-                              'enable_proxy': 7,
-                              'is_notice': 8,
-                              'config_proxy': 9,
-                              'scheme': 10,
-                              'hostname': 11,
-                              'port': 12,
-                              'proxy_authentication': 13
+                              'bot_token': 2,
+                              'links': 3,
+                              'save_directory': 4,
+                              'max_download_task': 5,
+                              'download_type': 6,
+                              'is_shutdown': 7,
+                              'enable_proxy': 8,
+                              'is_notice': 9,
+                              'config_proxy': 10,
+                              'scheme': 11,
+                              'hostname': 12,
+                              'port': 13,
+                              'proxy_authentication': 14
                               }
         return color[_stdio_queue.get(key)]
 
@@ -587,7 +608,21 @@ class GetStdioParams:
             if Validator.is_valid_api_hash(api_hash, valid_length):
                 console.print(f'已设置「api_hash」为:「{api_hash}」', style=ProcessConfig.stdio_style('api_hash'))
                 return {'api_hash': api_hash, 'record_flag': True}
-            log.warning(f'意外的参数:"{api_hash}",不是一个「{valid_length}位」的「值」!请重新输入!')
+            else:
+                log.warning(f'意外的参数:"{api_hash}",不是一个「{valid_length}位」的「值」!请重新输入!')
+
+    @staticmethod
+    def get_bot_token(last_record: str, valid_length: int = 46) -> dict:
+        while True:
+            bot_token = console.input(
+                f'请输入「bot_token」上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」:').strip()
+            if bot_token == '' and last_record is not None:
+                bot_token = last_record
+            if Validator.is_valid_bot_token(bot_token, valid_length):
+                console.print(f'已设置「api_hash」为:「{bot_token}」', style=ProcessConfig.stdio_style('bot_token'))
+                return {'bot_token': bot_token, 'record_flag': True}
+            else:
+                log.warning(f'意外的参数:"{bot_token}",不是一个「{valid_length}位」的「值」!请重新输入!')
 
     @staticmethod
     def get_links(last_record: str, valid_format: str = '.txt') -> dict:

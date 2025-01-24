@@ -28,7 +28,7 @@ from module import SOFTWARE_FULL_NAME, __version__, __copyright__, __license__
 
 from module.process_path import split_path, validate_title, truncate_filename, move_to_save_directory, \
     gen_backup_config, get_extension, safe_delete, compare_file_size, get_file_size
-from module.enum_define import GradientColor, ArtFont, DownloadType, DownloadStatus, Validator, QrcodeRender, KeyWord, \
+from module.enum_define import GradientColor, ArtFont, DownloadType, DownloadStatus, QrcodeRender, KeyWord, \
     Status, GetStdioParams, ProcessConfig
 
 
@@ -163,10 +163,12 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
 class Application:
     DIRECTORY_NAME: str = os.path.dirname(os.path.abspath(sys.argv[0]))  # 获取软件工作绝对目录。
     CONFIG_NAME: str = 'config.yaml'  # 配置文件名。
+    BOT_NAME: str = 'TRMD_BOT'
     CONFIG_PATH: str = os.path.join(DIRECTORY_NAME, CONFIG_NAME)
     CONFIG_TEMPLATE: dict = {
         'api_id': None,
         'api_hash': None,
+        'bot_token': None,
         'proxy': {
             'enable_proxy': None,
             'is_notice': None,
@@ -209,6 +211,7 @@ class Application:
         self.config = self.load_config(with_check=False)  # v1.3.0 修复重复询问重新配置文件。
         self.api_hash = self.config.get('api_hash')
         self.api_id = self.config.get('api_id')
+        self.bot_token = self.config.get('bot_token')
         self.download_type: list = self.config.get('download_type')
         self.is_shutdown: bool = self.config.get('is_shutdown')
         self.links: str = self.config.get('links')
@@ -829,6 +832,7 @@ class Application:
         # v1.1.0 更替api_id和api_hash位置,与telegram申请的api位置对应以免输错。
         _api_id: str or None = self._config.get('api_id')
         _api_hash: str or None = self._config.get('api_hash')
+        _bot_token: str or None = self._config.get('bot_token')
         _links: str or None = self._config.get('links')
         _save_directory: str or None = self._config.get('save_directory')
         _max_download_task: int or None = self._config.get('max_download_task')
@@ -843,7 +847,8 @@ class Application:
         _proxy_password: str or bool = _proxy_config.get('password', False)
         proxy_record: dict = self.last_record.get('proxy', {})  # proxy的历史记录。
         if any([
-            not _api_id, not _api_hash, not _links, not _save_directory, not _max_download_task, not _download_type,
+            not _api_id, not _api_hash, not _bot_token, not _links, not _save_directory, not _max_download_task,
+            not _download_type,
             not _proxy_config, not _proxy_enable_proxy, not _proxy_is_notice, not _proxy_scheme, not _proxy_port,
             not _proxy_hostname, not _proxy_username, not _proxy_password
         ]):
@@ -860,6 +865,13 @@ class Application:
                 if record_flag:
                     self.record_flag = record_flag
                     self._config['api_hash'] = api_hash
+            if not _bot_token:
+                bot_token, record_flag = GetStdioParams.get_bot_token(
+                    last_record=self.last_record.get('bot_token'),
+                    valid_length=46).values()
+                if record_flag:
+                    self.record_flag = record_flag
+                    self._config['bot_token'] = bot_token
             if not _links:
                 links, record_flag = GetStdioParams.get_links(last_record=self.last_record.get('links'),
                                                               valid_format='.txt').values()

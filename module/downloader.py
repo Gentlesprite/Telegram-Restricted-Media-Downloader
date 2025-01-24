@@ -4,10 +4,11 @@
 # Time:2023/10/3 1:00:03
 # File:downloader.py
 import os
-import asyncio
 import sys
-from typing import Set, Tuple
+import asyncio
+from typing import Tuple
 
+import pyrogram
 from pyrogram.errors.exceptions.bad_request_400 import MsgIdInvalid, UsernameInvalid
 from pyrogram.errors.exceptions.unauthorized_401 import SessionRevoked, AuthKeyUnregistered, SessionExpired
 
@@ -15,16 +16,32 @@ from module import console, log
 from module.app import Application, MetaData
 from module.process_path import is_file_duplicate, safe_delete
 from module.enum_define import LinkType, DownloadStatus, DownloadType, KeyWord, Status
+from module.bot import Bot
 
 
-class TelegramRestrictedMediaDownloader:
+class TelegramRestrictedMediaDownloader(Bot):
 
     def __init__(self):
+        super().__init__()
         MetaData.print_helper()
         self.event = asyncio.Event()
         self.queue = asyncio.Queue()
         self.app = Application()
         self.client = self.app.build_client()
+        self.links: set = set()
+
+    async def get_link_from_bot(self,
+                                client: pyrogram.Client,
+                                message: pyrogram.types.Message):
+        text: str = message.text
+        console.print(text)
+        await client.send_message(message.chat.id, f'我已收到"{text}"。')
+        self.message = text
+        link: str = list(self.__process_links(link=self.message, compare=True))[0]
+        if link not in self.links:
+            await self.__get_download_task(link)
+        else:
+            await client.send_message(message.chat.id, f'"{text}"已经下载。')
 
     async def __extract_link_content(self, msg_link) -> Tuple[str, int, list]:
         comment_message = []
@@ -57,12 +74,11 @@ class TelegramRestrictedMediaDownloader:
         try:
             return True, await message.get_media_group()
         except ValueError:
-            return False, None
-            # v1.0.4 修改单文件无法下载问题return False, [] if str(e) == "The message doesn't belong to a media group" else 0
+            return False, None  # v1.0.4 修改单文件无法下载问题。
         except AttributeError:
             return None, None
 
-    async def __add_task(self, msg_link, message, retry_count=0) -> None:
+    async def __add_task(self, msg_link, message, retry_count: int = 0) -> None:
         _task = None
         valid_dtype, is_document_type_valid = self.app.get_valid_dtype(message).values()
         if valid_dtype in self.app.download_type and is_document_type_valid:
@@ -127,7 +143,7 @@ class TelegramRestrictedMediaDownloader:
     async def __get_download_task(self,
                                   msg_link: str = None,
                                   message=None,
-                                  retry_count=0) -> None:
+                                  retry_count: int = 0) -> None:
 
         if msg_link:
             try:
@@ -180,34 +196,43 @@ class TelegramRestrictedMediaDownloader:
         else:
             await self.__add_task(msg_link, message, retry_count)
 
-    @staticmethod
-    def __process_links(links: str) -> Set[str]:
+    def __process_links(self, link: str, compare: bool = False) -> set or None:
+        """将链接(文本格式或链接)处理成集合。"""
         start_content: str = 'https://t.me/'
         msg_link_set: set = set()
-        if isinstance(links, str):
-            if links.endswith('.txt') and os.path.isfile(links):
-                with open(file=links, mode='r', encoding='UTF-8') as _:
-                    for link in [content.strip() for content in _.readlines()]:
-                        if link.startswith(start_content):
-                            msg_link_set.add(link)
-                        else:
-                            log.warning(f'"{link}"是一个非法链接,{KeyWord.STATUS}:{Status.SKIP}。')
-            elif not os.path.isfile(links):  # v1.1.3 优化非文件时的提示和逻辑。
-                if links.endswith('.txt'):
-                    log.error(f'文件"{links}"不存在。')
-                else:
-                    log.error(f'"{links}"是一个目录或其他未知内容,并非.txt结尾的文本文件,请更正配置文件后重试。')
-        if len(msg_link_set) > 0:
-            return msg_link_set
-        else:
+        if link.endswith('.txt') and os.path.isfile(link):
+            with open(file=link, mode='r', encoding='UTF-8') as _:
+                for link in [content.strip() for content in _.readlines()]:
+                    if link.startswith(start_content):
+                        msg_link_set.add(link)
+                    else:
+                        log.warning(f'"{link}"是一个非法链接,{KeyWord.STATUS}:{Status.SKIP}。')
+        if link.startswith(start_content):
+            msg_link_set.add(link)
+        if len(msg_link_set) > 0 and msg_link_set is not None and compare is False:
+            self.links.update(msg_link_set)
+        if not self.app.bot_token:
             console.log('没有找到有效链接,程序已退出。')
             sys.exit()
+        return msg_link_set
 
     async def __download_media_from_links(self) -> None:
         await self.client.start()
         self.app.progress.start()  # v1.1.8修复登录输入手机号不显示文本问题。
+        if self.app.bot_token is not None:
+            await self.start_bot(pyrogram.Client(
+                self.app.BOT_NAME,
+                api_hash=self.app.api_hash,
+                api_id=self.app.api_id,
+                bot_token=self.app.bot_token,
+                workdir=self.app.work_directory,
+                proxy=self.app.proxy,
+            ))
+            await self.add_handler()
+        links = self.__process_links(link=self.app.links)
+
         # 将初始任务添加到队列中。
-        for link in self.__process_links(links=self.app.links):
+        for link in links:
             await self.__get_download_task(msg_link=link)
 
         # 处理队列中的任务。
@@ -231,6 +256,8 @@ class TelegramRestrictedMediaDownloader:
             MetaData.print_meta()
             self.app.print_config_table()
             self.client.run(self.__download_media_from_links())
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(self.task_chat())
             was_client_run: bool = True
         except (SessionRevoked, AuthKeyUnregistered, SessionExpired, ConnectionError):
             res: bool = safe_delete(file_p_d=os.path.join(self.app.DIRECTORY_NAME, 'sessions'))
