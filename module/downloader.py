@@ -13,10 +13,10 @@ from pyrogram.errors.exceptions.bad_request_400 import MsgIdInvalid, UsernameInv
 from pyrogram.errors.exceptions.unauthorized_401 import SessionRevoked, AuthKeyUnregistered, SessionExpired
 
 from module import console, log
+from module.bot import Bot
 from module.app import Application, MetaData
 from module.process_path import is_file_duplicate, safe_delete
 from module.enum_define import LinkType, DownloadStatus, DownloadType, KeyWord, Status
-from module.bot import Bot
 
 
 class TelegramRestrictedMediaDownloader(Bot):
@@ -295,8 +295,9 @@ class TelegramRestrictedMediaDownloader(Bot):
             MetaData.print_meta()
             self.app.print_config_table()
             self.client.run(self.__download_media_from_links())
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(self.task_chat())
+            if self.app.bot_token:
+                loop = asyncio.get_event_loop()
+                loop.run_until_complete(self.task_chat())
             was_client_run: bool = True
         except (SessionRevoked, AuthKeyUnregistered, SessionExpired, ConnectionError):
             res: bool = safe_delete(file_p_d=os.path.join(self.app.DIRECTORY_NAME, 'sessions'))

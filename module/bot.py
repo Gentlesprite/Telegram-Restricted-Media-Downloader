@@ -5,10 +5,11 @@
 # File:bot.py
 import asyncio
 from typing import List
+
 import pyrogram
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler
-
 from pyrogram.types import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
+
 from module import __version__, SOFTWARE_FULL_NAME, AUTHOR
 from module.enum_define import BotCommentText
 
@@ -103,11 +104,12 @@ class Bot:
     async def pay_callback(client: pyrogram.Client, callback_query: CallbackQuery):
         await callback_query.answer()
         await callback_query.message.reply_text(
-            '🙏😀🙏收款「二维码」已发送至您的「终端」,感谢您的支持!🙏🥰🙏')
+            '🙏😀🙏\n收款「二维码」已发送至您的「终端」,感谢您的支持!\n🙏🥰🙏')
 
     async def exit(self, client: pyrogram.Client,
                    message: pyrogram.types.Message):
-        self.message = '/exit'
+        self.is_running = False
+        await self.bot.stop()
 
     async def start_bot(
             self,
@@ -153,8 +155,4 @@ class Bot:
 
     async def task_chat(self):
         while self.is_running:
-            if self.message == '/exit':
-                self.is_running = False
-                await self.bot.stop()
-            else:
-                await asyncio.sleep(0)
+            await asyncio.sleep(0.5)  # 解决资源占用过多问题。
