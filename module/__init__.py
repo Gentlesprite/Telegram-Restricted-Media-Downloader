@@ -94,6 +94,7 @@ README = r'''
 # 手动填写时请注意冒号是英文冒号,冒号加一个空格。
 api_hash: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # 申请的api_hash。
 api_id: 'xxxxxxxx' # 申请的api_id。
+bot_token: '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11' # bot_token(选填)如果不填,就不能使用机器人功能。前往https://t.me/BotFather可免费申请。
 download_type: # 需要下载的类型。支持的参数:video,photo。
 - video 
 - photo

@@ -869,7 +869,7 @@ class Application:
                 if enable_bot:
                     bot_token, record_flag = GetStdioParams.get_bot_token(
                         last_record=self.last_record.get('bot_token'),
-                        valid_length=46).values()
+                        valid_format=':').values()
                     if record_flag:
                         self.record_flag = record_flag
                         self._config['bot_token'] = bot_token

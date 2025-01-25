@@ -370,8 +370,11 @@ class Validator:
         return len(str(api_hash)) == valid_length
 
     @staticmethod
-    def is_valid_bot_token(bot_token: str, valid_length: int = 46) -> bool:
-        return len(str(bot_token)) == valid_length
+    def is_valid_bot_token(bot_token: str, valid_format: str = ':') -> bool:
+        if valid_format in bot_token:
+            return True
+        else:
+            return False
 
     @staticmethod
     def is_valid_links_file(file_path: str, valid_format: str = '.txt') -> bool:
@@ -625,17 +628,17 @@ class GetStdioParams:
                 log.warning(f'意外的参数:"{enable_bot}",支持的参数')
 
     @staticmethod
-    def get_bot_token(last_record: str, valid_length: int = 46) -> dict:
+    def get_bot_token(last_record: str, valid_format: str = ':') -> dict:
         while True:
             bot_token = console.input(
                 f'请输入「bot_token」上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」:').strip()
             if bot_token == '' and last_record is not None:
                 bot_token = last_record
-            if Validator.is_valid_bot_token(bot_token, valid_length):
+            if Validator.is_valid_bot_token(bot_token, valid_format):
                 console.print(f'已设置「bot_token」为:「{bot_token}」', style=ProcessConfig.stdio_style('bot_token'))
                 return {'bot_token': bot_token, 'record_flag': True}
             else:
-                log.warning(f'意外的参数:"{bot_token}",不是一个「{valid_length}位」的「值」!请重新输入!')
+                log.warning(f'意外的参数:"{bot_token}",「bot_token」中需要包含":",请重新输入!')
 
     @staticmethod
     def get_links(last_record: str, valid_format: str = '.txt') -> dict:
