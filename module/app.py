@@ -225,6 +225,8 @@ class Application:
         self.skip_video, self.skip_photo = set(), set()
         self.success_video, self.success_photo = set(), set()
         self.failure_video, self.failure_photo = set(), set()
+        self.complete_link: set = set()
+        self.link_info: dict = {}
         self.failure_link: dict = {}  # v1.1.2
         self.progress = Progress(TextColumn('[bold blue]{task.fields[filename]}', justify='right'),
                                  BarColumn(bar_width=40),
@@ -332,6 +334,11 @@ class Application:
                                         header=('编号', KeyWord.LINK, KeyWord.REASON),
                                         data=format_failure_info)
         failure_link_table.print_meta()
+
+    def print_link_table(self) -> None:
+        """打印统计的下载链接信息的表格。"""
+        # todo
+        ...
 
     def process_shutdown(self, second: int) -> None:
         """处理关机逻辑。"""
@@ -584,14 +591,6 @@ class Application:
         except Exception as e:
             log.error(f'读取"{self.links}"时出错,{KeyWord.REASON}:"{e}"')
 
-    @staticmethod
-    def ctrl_c() -> None:
-        """处理Windows用户的按键中断。"""
-        try:
-            os.system('pause')
-        except KeyboardInterrupt:
-            pass
-
     def shutdown_task(self, second: int) -> None:
         """下载完成后自动关机的功能。"""
         try:
@@ -761,7 +760,7 @@ class Application:
             if new_line is True:
                 print('\n')
                 console.log('用户手动终止配置参数。')
-            self.ctrl_c()
+            os.system('pause')
             sys.exit()
 
     def __find_history_config(self) -> dict:
@@ -866,12 +865,14 @@ class Application:
                     self.record_flag = record_flag
                     self._config['api_hash'] = api_hash
             if not _bot_token:
-                bot_token, record_flag = GetStdioParams.get_bot_token(
-                    last_record=self.last_record.get('bot_token'),
-                    valid_length=46).values()
-                if record_flag:
-                    self.record_flag = record_flag
-                    self._config['bot_token'] = bot_token
+                enable_bot: bool = GetStdioParams.get_enable_bot().get('enable_bot')
+                if enable_bot:
+                    bot_token, record_flag = GetStdioParams.get_bot_token(
+                        last_record=self.last_record.get('bot_token'),
+                        valid_length=46).values()
+                    if record_flag:
+                        self.record_flag = record_flag
+                        self._config['bot_token'] = bot_token
             if not _links:
                 links, record_flag = GetStdioParams.get_links(last_record=self.last_record.get('links'),
                                                               valid_format='.txt').values()
@@ -993,7 +994,7 @@ class MetaData:
                         'wxp://f2f0g8lKGhzEsr0rwtKWTTB2gQzs9Xg9g31aBvlpbILowMTa5SAMMEwn0JH1VEf2TGbS'),
                     justify='center')
                 console.print(
-                    GradientColor.gen_gradient_text(text='欢迎微信扫码支持作者!',
+                    GradientColor.gen_gradient_text(text='微信扫码支持作者,您的支持是我持续更新的动力。',
                                                     gradient_color=GradientColor.yellow_to_green),
                     justify='center')
             except Exception as _:

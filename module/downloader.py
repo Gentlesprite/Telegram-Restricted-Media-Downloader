@@ -28,27 +28,35 @@ class TelegramRestrictedMediaDownloader(Bot):
         self.queue = asyncio.Queue()
         self.app = Application()
         self.client = self.app.build_client()
-        self.links: set = set()
 
     async def get_link_from_bot(self,
                                 client: pyrogram.Client,
                                 message: pyrogram.types.Message):
-        text: str = message.text
-        console.print(text)
-        await client.send_message(message.chat.id, f'我已收到"{text}"。')
-        self.message = text
-        link: str = list(self.__process_links(link=self.message, compare=True))[0]
-        if link not in self.links:
-            await self.__get_download_task(link)
+        await super().get_link_from_bot(client, message)
+        if self.message is None:
+            return
         else:
-            await client.send_message(message.chat.id, f'"{text}"已经下载。')
+            links: set or None = self.__process_links(link=self.message)
+            if links is None:
+                console.log('没有找到有效链接。')
+                return
+            else:
+                for link in links:
+                    if link in self.app.complete_link:
+                        log.warning(f'链接"{link}"已下载完成,请勿重复下载。')
+                    else:
+                        await self.__create_download_task(link)
+
+    async def pay_callback(self, client: pyrogram.Client, callback: pyrogram.types.CallbackQuery):
+        MetaData.pay()
+        await super().pay_callback(client, callback)
 
     async def __extract_link_content(self, msg_link) -> Tuple[str, int, list]:
         comment_message = []
         is_comment = False
         if '?single&comment' in msg_link:  # v1.1.0修复讨论组中附带?single时不下载的问题，
             is_comment = True
-        if '?single' in msg_link:  # todo 如果用户只想下载组中的其一
+        if '?single' in msg_link:  # todo 如果只想下载组中的其一。
             msg_link = msg_link.split('?single')[0]
         if '?comment' in msg_link:  # 链接中包含?comment表示用户需要同时下载评论中的媒体。
             msg_link = msg_link.split('?comment')[0]
@@ -78,6 +86,27 @@ class TelegramRestrictedMediaDownloader(Bot):
         except AttributeError:
             return None, None
 
+    def __listen_link_complete(self, msg_link) -> bool:
+        for i in self.app.link_info.items():
+            link: str = i[0]
+            value: dict = i[1]
+            if link == msg_link:
+                value['success'] += 1
+        sever_num: int = (
+                self.app.link_info.get(msg_link).get(LinkType.single) or
+                self.app.link_info.get(msg_link).get(LinkType.group) or
+                self.app.link_info.get(msg_link).get(LinkType.comment)
+        )
+        download_num: int = self.app.link_info.get(msg_link).get(
+            'success')
+        if sever_num == download_num:
+            console.log(f'{KeyWord.LINK}:"{msg_link}",'
+                        f'{KeyWord.STATUS}:{Status.SUCCESS}。')
+            self.app.complete_link.add(msg_link)
+            return True
+        else:
+            return False
+
     async def __add_task(self, msg_link, message, retry_count: int = 0) -> None:
         _task = None
         valid_dtype, is_document_type_valid = self.app.get_valid_dtype(message).values()
@@ -97,6 +126,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                                 f'{KeyWord.TYPE}:{DownloadType.t(self.app.guess_file_type(file_name=file_name, status=DownloadStatus.skip)[0].text)},'
                                 f'{KeyWord.ALREADY_EXIST}:"{save_directory}",'
                                 f'{KeyWord.STATUS}:{Status.SKIP}。', style='yellow')
+                self.__listen_link_complete(msg_link)
             else:
                 console.log(f'{KeyWord.FILE}:"{file_name}",'
                             f'{KeyWord.SIZE}:{format_file_size},'
@@ -119,7 +149,9 @@ class TelegramRestrictedMediaDownloader(Bot):
                                                       temp_file_path=temp_file_path,
                                                       save_directory=self.app.save_directory,
                                                       with_move=True):
+                        self.__listen_link_complete(msg_link)
                         console.log(f'[当前任务数]:{self.app.current_task_num}。', justify='right')
+                        self.app.progress.remove_task(task_id=task_id)
                         self.event.set()
                     else:
                         self.app.progress.remove_task(task_id=task_id)  # v1.2.9 更正下载失败时,删除下载失败的进度条。
@@ -129,7 +161,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                             self.queue.put_nowait((msg_link, message, retry_count + 1))
                         else:
                             _error = f'(达到最大重试次数:{self.app.max_retry_count}次)。'
-                            console.log(f'{KeyWord.FILE}:"{file_name}"',
+                            console.log(f'{KeyWord.FILE}:"{file_name}",'
                                         f'{KeyWord.SIZE}:{format_file_size},'
                                         f'{KeyWord.TYPE}:{DownloadType.t(self.app.guess_file_type(file_name=file_name, status=DownloadStatus.failure)[0].text)},'
                                         f'{KeyWord.STATUS}:{Status.FAILURE}'
@@ -140,10 +172,10 @@ class TelegramRestrictedMediaDownloader(Bot):
                 _task.add_done_callback(lambda _future: call(_future))
         self.queue.put_nowait(_task) if _task else None
 
-    async def __get_download_task(self,
-                                  msg_link: str = None,
-                                  message=None,
-                                  retry_count: int = 0) -> None:
+    async def __create_download_task(self,
+                                     msg_link: str = None,
+                                     message=None,
+                                     retry_count: int = 0) -> None:
 
         if msg_link:
             try:
@@ -158,7 +190,8 @@ class TelegramRestrictedMediaDownloader(Bot):
                             group = []
                             group.extend(is_download_comment)
                     link_type = LinkType.comment if is_download_comment else LinkType.group
-                    log.info(
+                    self.app.link_info[msg_link] = {link_type: len(group), 'success': 0}
+                    console.log(
                         f'{KeyWord.CHANNEL}:"{chat_name}",'  # 频道名。
                         f'{KeyWord.LINK}:"{msg_link}",'  # 链接。
                         f'{KeyWord.LINK_TYPE}:{LinkType.t(link_type)}。')  # 链接类型。
@@ -166,6 +199,7 @@ class TelegramRestrictedMediaDownloader(Bot):
 
                 elif res is False and group is None:  # 单文件。
                     link_type = LinkType.single
+                    self.app.link_info[msg_link] = {link_type: 1, 'success': 0}
                     console.log(
                         f'{KeyWord.CHANNEL}:"{chat_name}",'  # 频道名。
                         f'{KeyWord.LINK}:"{msg_link}",'  # 链接。
@@ -196,25 +230,31 @@ class TelegramRestrictedMediaDownloader(Bot):
         else:
             await self.__add_task(msg_link, message, retry_count)
 
-    def __process_links(self, link: str, compare: bool = False) -> set or None:
+    def __process_links(self, link: str or list) -> set or None:
         """将链接(文本格式或链接)处理成集合。"""
         start_content: str = 'https://t.me/'
         msg_link_set: set = set()
-        if link.endswith('.txt') and os.path.isfile(link):
-            with open(file=link, mode='r', encoding='UTF-8') as _:
-                for link in [content.strip() for content in _.readlines()]:
+        if isinstance(link, str):
+            if link.endswith('.txt') and os.path.isfile(link):
+                with open(file=link, mode='r', encoding='UTF-8') as _:
+                    links: list = [content.strip() for content in _.readlines()]
+                for link in links:
                     if link.startswith(start_content):
                         msg_link_set.add(link)
                     else:
                         log.warning(f'"{link}"是一个非法链接,{KeyWord.STATUS}:{Status.SKIP}。')
-        if link.startswith(start_content):
-            msg_link_set.add(link)
-        if len(msg_link_set) > 0 and msg_link_set is not None and compare is False:
-            self.links.update(msg_link_set)
-        if not self.app.bot_token:
+            elif link.startswith(start_content):
+                msg_link_set.add(link)
+        elif isinstance(link, list):
+            for i in link:
+                res = self.__process_links(link=i)
+                if res is not None:
+                    msg_link_set.update(res)
+        if len(msg_link_set) > 0 and msg_link_set is not None:
+            return msg_link_set
+        elif not self.app.bot_token:
             console.log('没有找到有效链接,程序已退出。')
             sys.exit()
-        return msg_link_set
 
     async def __download_media_from_links(self) -> None:
         await self.client.start()
@@ -228,19 +268,18 @@ class TelegramRestrictedMediaDownloader(Bot):
                 workdir=self.app.work_directory,
                 proxy=self.app.proxy,
             ))
-            await self.add_handler()
         links = self.__process_links(link=self.app.links)
 
         # 将初始任务添加到队列中。
         for link in links:
-            await self.__get_download_task(msg_link=link)
+            await self.__create_download_task(msg_link=link)
 
         # 处理队列中的任务。
         while not self.queue.empty():
             task = await self.queue.get()
             if isinstance(task, tuple):
                 msg_link, message, retry_count = task
-                await self.__get_download_task(msg_link=msg_link, message=message, retry_count=retry_count)
+                await self.__create_download_task(msg_link=msg_link, message=message, retry_count=retry_count)
             else:
                 await task
             self.queue.task_done()
@@ -281,9 +320,10 @@ class TelegramRestrictedMediaDownloader(Bot):
             if not record_error:
                 self.app.print_media_table()
                 self.app.print_failure_table() if self.app.failure_link else None  # v1.1.2 增加下载失败的链接统计,但如果没有失败的链接将不会显示。
+                # todo 打印链接信息表格。
                 MetaData.pay()
                 self.app.process_shutdown(60) if was_client_run else None  # v1.2.8如果并未打开客户端执行任何下载,则不执行关机。
             if self.app.platform == 'Windows':
-                self.app.ctrl_c()
+                os.system('pause')
             else:
                 console.input('请按「Enter」键继续. . .')

@@ -612,6 +612,19 @@ class GetStdioParams:
                 log.warning(f'意外的参数:"{api_hash}",不是一个「{valid_length}位」的「值」!请重新输入!')
 
     @staticmethod
+    def get_enable_bot() -> dict:
+        while True:
+            enable_bot = console.input('是否启用「机器人」(需要提供bot_token)? - 「y|n」(默认n):').strip().lower()
+            if enable_bot in ('n', ''):
+                console.print(f'已设置为不启用「机器人」。', style=ProcessConfig.stdio_style('bot_token'))
+                return {'enable_bot': False}
+            elif enable_bot == 'y':
+                console.print(f'请配置「bot_token」。', style=ProcessConfig.stdio_style('bot_token'))
+                return {'enable_bot': True}
+            else:
+                log.warning(f'意外的参数:"{enable_bot}",支持的参数')
+
+    @staticmethod
     def get_bot_token(last_record: str, valid_length: int = 46) -> dict:
         while True:
             bot_token = console.input(
@@ -619,7 +632,7 @@ class GetStdioParams:
             if bot_token == '' and last_record is not None:
                 bot_token = last_record
             if Validator.is_valid_bot_token(bot_token, valid_length):
-                console.print(f'已设置「api_hash」为:「{bot_token}」', style=ProcessConfig.stdio_style('bot_token'))
+                console.print(f'已设置「bot_token」为:「{bot_token}」', style=ProcessConfig.stdio_style('bot_token'))
                 return {'bot_token': bot_token, 'record_flag': True}
             else:
                 log.warning(f'意外的参数:"{bot_token}",不是一个「{valid_length}位」的「值」!请重新输入!')
@@ -884,3 +897,13 @@ class GetStdioParams:
                 return {'username': None, 'password': None, 'record_flag': True}
             else:
                 log.warning(f'意外的参数:"{is_proxy}",支持的参数 - 「{valid_format}」!')
+
+
+class BotCommentText:
+    help = ('help', '展示可用命令。')
+    download = ('download', '分配新的下载任务。`/download https://t.me/x/x`')
+    exit = ('exit', '退出软件。')
+
+    @staticmethod
+    def with_description(text: tuple) -> str:
+        return f'/{text[0]} - {text[1]}'
