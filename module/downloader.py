@@ -86,20 +86,16 @@ class TelegramRestrictedMediaDownloader(Bot):
         except AttributeError:
             return None, None
 
-    def __listen_link_complete(self, msg_link) -> bool:
+    def __listen_link_complete(self, msg_link, file_name) -> bool:
+        self.app.link_info.get(msg_link).get('file_name').add(file_name)
         for i in self.app.link_info.items():
             link: str = i[0]
-            value: dict = i[1]
+            info: dict = i[1]
             if link == msg_link:
-                value['success'] += 1
-        sever_num: int = (
-                self.app.link_info.get(msg_link).get(LinkType.single) or
-                self.app.link_info.get(msg_link).get(LinkType.group) or
-                self.app.link_info.get(msg_link).get(LinkType.comment)
-        )
-        download_num: int = self.app.link_info.get(msg_link).get(
-            'success')
-        if sever_num == download_num:
+                info['complete_num'] = len(info.get('file_name'))
+        all_num: int = self.app.link_info.get(msg_link).get('member_num')
+        complete_num: int = self.app.link_info.get(msg_link).get('complete_num')
+        if all_num == complete_num:
             console.log(f'{KeyWord.LINK}:"{msg_link}",'
                         f'{KeyWord.STATUS}:{Status.SUCCESS}。')
             self.app.complete_link.add(msg_link)
@@ -126,7 +122,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                                 f'{KeyWord.TYPE}:{DownloadType.t(self.app.guess_file_type(file_name=file_name, status=DownloadStatus.skip)[0].text)},'
                                 f'{KeyWord.ALREADY_EXIST}:"{save_directory}",'
                                 f'{KeyWord.STATUS}:{Status.SKIP}。', style='yellow')
-                self.__listen_link_complete(msg_link)
+                self.__listen_link_complete(msg_link=msg_link, file_name=file_name)
             else:
                 console.log(f'{KeyWord.FILE}:"{file_name}",'
                             f'{KeyWord.SIZE}:{format_file_size},'
@@ -149,7 +145,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                                                       temp_file_path=temp_file_path,
                                                       save_directory=self.app.save_directory,
                                                       with_move=True):
-                        self.__listen_link_complete(msg_link)
+                        self.__listen_link_complete(msg_link=msg_link, file_name=file_name)
                         console.log(f'[当前任务数]:{self.app.current_task_num}。', justify='right')
                         self.app.progress.remove_task(task_id=task_id)
                         self.event.set()
@@ -190,7 +186,10 @@ class TelegramRestrictedMediaDownloader(Bot):
                             group = []
                             group.extend(is_download_comment)
                     link_type = LinkType.comment if is_download_comment else LinkType.group
-                    self.app.link_info[msg_link] = {link_type: len(group), 'success': 0}
+                    self.app.link_info[msg_link] = {'link_type': link_type,
+                                                    'member_num': len(group),
+                                                    'complete_num': 0,
+                                                    'file_name': set()}
                     console.log(
                         f'{KeyWord.CHANNEL}:"{chat_name}",'  # 频道名。
                         f'{KeyWord.LINK}:"{msg_link}",'  # 链接。
@@ -199,7 +198,10 @@ class TelegramRestrictedMediaDownloader(Bot):
 
                 elif res is False and group is None:  # 单文件。
                     link_type = LinkType.single
-                    self.app.link_info[msg_link] = {link_type: 1, 'success': 0}
+                    self.app.link_info[msg_link] = {'link_type': link_type,
+                                                    'member_num': 1,
+                                                    'complete_num': 0,
+                                                    'file_name': set()}
                     console.log(
                         f'{KeyWord.CHANNEL}:"{chat_name}",'  # 频道名。
                         f'{KeyWord.LINK}:"{msg_link}",'  # 链接。
