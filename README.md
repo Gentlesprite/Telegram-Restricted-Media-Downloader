@@ -66,7 +66,7 @@ Github:[点击跳转下载](https://github.com/Gentlesprite/Telegram_Restricted_
 
    
 
-3. 打开你的**Telegram客户端**，此时会收到来自`Telegram`账号的消息，将上面的验证码填入`Confirmation code`框中，然后点击`Sign in`。
+3. 打开你的`Telegram`客户端，此时会收到来自`Telegram`账号的消息，将上面的验证码填入`Confirmation code`框中，然后点击`Sign in`。
 
    ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_1_2.png)
 
@@ -140,11 +140,11 @@ Github:[点击跳转下载](https://github.com/Gentlesprite/Telegram_Restricted_
 
    然后在**上图**箭头所指处即可**跳转**到机器人对话框。
 
-4. 点击开始，如下图所示：
+4. **点击**开始，如下图所示：
 
    ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_2_11.png)
 
-   不出意外，会收到一条来自机器人发送的消息，如下图所示：
+   不出意外，会收到一条来自**机器人**发送的消息，如下图所示：
 
    ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_2_12.png)
 
