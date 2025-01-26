@@ -15,7 +15,7 @@ from functools import wraps
 
 import qrcode
 import pyrogram
-from pyrogram.errors import FloodWait
+from pyrogram.errors import FloodWait, PhoneNumberInvalid
 from rich.markdown import Markdown
 from rich.table import Table, Style
 from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn, TransferSpeedColumn
@@ -46,9 +46,6 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
         while True:
             try:
                 if not self.phone_number:
-                    # todo 手机输入错误的时候抛出,会导致直接退出程序:
-                    #  PhoneNumberInvalid: Telegram says: [406 PHONE_NUMBER_INVALID] - The phone number is invalid (caused by "auth.SendCode")
-                    #  将直接退出程序改为对用户的提示。
                     while True:
                         value = console.input('请输入「电话号码」或「bot token」([#6a2c70]电话号码[/#6a2c70]需以[#b83b5e]「+地区」'
                                               '[/#b83b5e]开头!如:[#f08a5d]+86[/#f08a5d][#f9ed69]15000000000[/#f9ed69]):').strip()
@@ -60,7 +57,7 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
                         if confirm in ('y', ''):
                             break
                         else:
-                            log.warning(f'意外的参数:"{confirm}",支持的参数 - 「y|n」(默认y)')
+                            log.warning(f'意外的参数:"{confirm}",支持的参数 - 「y|n」')
                     if ':' in value:
                         self.bot_token = value
                         return await self.sign_in_bot(value)
@@ -72,6 +69,10 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
                 console.print(e.MESSAGE)
                 self.phone_number = None
                 self.bot_token = None
+            except (PhoneNumberInvalid, AttributeError) as e:
+                self.phone_number = None
+                self.bot_token = None
+                log.error(f'「电话号码」或「bot token」错误,请重新输入!{KeyWord.REASON}:"{e.MESSAGE}"')
             else:
                 break
 
@@ -105,7 +106,7 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
 
                     if not self.password:
                         self.password = console.input(
-                            '输入[#f08a5d]「两步验证」[/#f08a5d]的[#f9ed69]「密码」[/#f9ed69](为空代表忘记密码):',
+                            '输入[#f08a5d]「两步验证」[/#f08a5d]的[#f9ed69]「密码」[/#f9ed69](为空代表[#B1DB74]忘记密码[/#B1DB74]):',
                             password=self.hide_password).strip()
 
                     try:
@@ -520,7 +521,7 @@ class Application:
         return wrapper
 
     @__media_counter
-    def guess_file_type(self, file_name: str, status: DownloadStatus) -> Tuple[DownloadType:int, DownloadStatus:int]:
+    def guess_file_type(self, file_name: str, status: DownloadStatus) -> Tuple[DownloadType, DownloadStatus]:
         """预测文件类型。"""
         result = ''
         file_type, _ = mimetypes.guess_type(file_name)
