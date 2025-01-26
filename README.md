@@ -160,21 +160,23 @@ Github:[点击跳转下载](https://github.com/Gentlesprite/Telegram_Restricted_
 
 6. `/help`命令使用教程，如下图所示：
 
-7. 点击**菜单**可以显示机器人可用的命令，如下图所示：
-
    ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_2_13.png)
 
-8. `/download`命令使用教程，
+7. 点击**菜单**可以显示机器人可用的命令，如下图所示：
 
    ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_2_14.png)
 
-   只要发送了正确的下载命令，终端就会创建对应的下载任务，如下图所示：
+8. `/download`命令使用教程，
 
    ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_2_15.png)
 
-9. `/exit`命令使用教程，如下图所示：
+   只要发送了正确的下载命令，终端就会创建对应的下载任务，如下图所示：
 
    ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_2_16.png)
+
+9. `/exit`命令使用教程，如下图所示：
+
+   ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_2_17.png)
 
 ## 2.3.配置文件说明
 
