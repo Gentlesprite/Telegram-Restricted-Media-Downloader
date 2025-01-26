@@ -106,7 +106,7 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
 
                     if not self.password:
                         self.password = console.input(
-                            '输入[#f08a5d]「两步验证」[/#f08a5d]的[#f9ed69]「密码」[/#f9ed69](为空代表[#B1DB74]忘记密码[/#B1DB74]):',
+                            '输入[#f08a5d]「两步验证」[/#f08a5d]的[#f9ed69]「密码」[/#f9ed69](为空代表[#FF4689]忘记密码[/#FF4689]):',
                             password=self.hide_password).strip()
 
                     try:
