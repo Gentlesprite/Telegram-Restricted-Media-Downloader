@@ -53,7 +53,7 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
                             continue
 
                         confirm = console.input(
-                            f'所输入的「{value}」是否[green]正确[/green]? - 「y|n」(默认y): ').strip().lower()
+                            f'所输入的「{value}」是否[#B1DB74]正确[/#B1DB74]? - 「y|n」(默认y): ').strip().lower()
                         if confirm in ('y', ''):
                             break
                         else:
@@ -206,6 +206,7 @@ class Application:
         self.record_flag: bool = False
         self.modified: bool = False
         self.get_last_history_record()
+        self.is_change_account: bool = True
         self._config = self.load_config(with_check=True)  # v1.2.9 重新调整配置文件加载逻辑。
         self.config_guide() if guide else None
         self.config = self.load_config(with_check=False)  # v1.3.0 修复重复询问重新配置文件。
@@ -623,13 +624,16 @@ class Application:
         except Exception as e:
             log.error(f'执行关机任务失败,可能是当前系统不支持自动关机,{KeyWord.REASON}:"{e}"')
 
-    def backup_config(self, backup_config: dict, error_config: bool = False) -> None:  # v1.2.9 更正backup_config参数类型。
+    def backup_config(self,
+                      backup_config: dict,
+                      error_config: bool = False,
+                      force: bool = False) -> None:  # v1.2.9 更正backup_config参数类型。
         """备份当前的配置文件。"""
-        if backup_config != Application.CONFIG_TEMPLATE:  # v1.2.9 修复比较变量错误的问题。
+        if backup_config != Application.CONFIG_TEMPLATE or force:  # v1.2.9 修复比较变量错误的问题。
             backup_path: str = gen_backup_config(old_path=self.config_path,
                                                  absolute_backup_dir=Application.ABSOLUTE_BACKUP_DIRECTORY,
                                                  error_config=error_config)
-            console.log(f'原来的配置文件已备份至"{backup_path}"', style='green')
+            console.log(f'原来的配置文件已备份至"{backup_path}"', style='#B1DB74')
         else:
             console.log('配置文件与模板文件完全一致,无需备份。')
 
@@ -669,11 +673,16 @@ class Application:
                             '检测到已配置完成的配置文件,是否需要重新配置?(之前的配置文件将为你备份到当前目录下) - 「y|n」(默认n):').strip().lower()
                         if question == 'y':
                             config: dict = Application.CONFIG_TEMPLATE.copy()
-                            backup_path: str = gen_backup_config(old_path=self.config_path,
-                                                                 absolute_backup_dir=Application.ABSOLUTE_BACKUP_DIRECTORY)
-                            console.log(
-                                f'原来的配置文件已备份至"{backup_path}"', style='green')
+                            self.backup_config(backup_config=config, error_config=False, force=True)
                             self.get_last_history_record()  # 更新到上次填写的记录。
+                            self.is_change_account = GetStdioParams.get_is_change_account(valid_format='y|n').get(
+                                'is_change_account')
+                            if self.is_change_account:
+                                if safe_delete(file_p_d=os.path.join(self.DIRECTORY_NAME, 'sessions')):
+                                    console.log('已删除旧会话文件,稍后需重新登录。')
+                                else:
+                                    console.log(
+                                        '删除旧会话文件失败,请手动删除软件目录下的sessions文件夹,再进行下一步操作!')
                             break
                         elif question in ('n', ''):
                             break
@@ -851,21 +860,23 @@ class Application:
             not _proxy_config, not _proxy_enable_proxy, not _proxy_is_notice, not _proxy_scheme, not _proxy_port,
             not _proxy_hostname, not _proxy_username, not _proxy_password
         ]):
-            console.print('「注意」直接回车代表使用上次的记录。', style='red')
+            console.print('「注意」直接回车代表使用上次的记录。',
+                          style='#B1DB74')
         try:
-            if not _api_id:
-                api_id, record_flag = GetStdioParams.get_api_id(last_record=self.last_record.get('api_id')).values()
-                if record_flag:
-                    self.record_flag = record_flag
-                    self._config['api_id'] = api_id
-            if not _api_hash:
-                api_hash, record_flag = GetStdioParams.get_api_hash(last_record=self.last_record.get('api_hash'),
-                                                                    valid_length=32).values()
-                if record_flag:
-                    self.record_flag = record_flag
-                    self._config['api_hash'] = api_hash
+            if self.is_change_account and _api_id is None and _api_hash is None:
+                if not _api_id:
+                    api_id, record_flag = GetStdioParams.get_api_id(last_record=self.last_record.get('api_id')).values()
+                    if record_flag:
+                        self.record_flag = record_flag
+                        self._config['api_id'] = api_id
+                if not _api_hash:
+                    api_hash, record_flag = GetStdioParams.get_api_hash(last_record=self.last_record.get('api_hash'),
+                                                                        valid_length=32).values()
+                    if record_flag:
+                        self.record_flag = record_flag
+                        self._config['api_hash'] = api_hash
             if not _bot_token:
-                enable_bot: bool = GetStdioParams.get_enable_bot().get('enable_bot')
+                enable_bot: bool = GetStdioParams.get_enable_bot(valid_format='y|n').get('enable_bot')
                 if enable_bot:
                     bot_token, record_flag = GetStdioParams.get_bot_token(
                         last_record=self.last_record.get('bot_token'),

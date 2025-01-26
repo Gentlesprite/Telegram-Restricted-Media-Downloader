@@ -260,20 +260,19 @@ class TelegramRestrictedMediaDownloader(Bot):
         await self.client.start()
         self.app.progress.start()  # v1.1.8修复登录输入手机号不显示文本问题。
         if self.app.bot_token is not None:
-            await self.start_bot(pyrogram.Client(
-                self.app.BOT_NAME,
+            result = await self.start_bot(pyrogram.Client(
+                name=self.app.BOT_NAME,
                 api_hash=self.app.api_hash,
                 api_id=self.app.api_id,
                 bot_token=self.app.bot_token,
                 workdir=self.app.work_directory,
-                proxy=self.app.proxy,
+                proxy=self.app.enable_proxy
             ))
+            console.log(result, style='#B1DB74' if self.is_running else '#FF4689')
         links = self.__process_links(link=self.app.links)
-
         # 将初始任务添加到队列中。
         for link in links:
             await self.__create_download_task(msg_link=link)
-
         # 处理队列中的任务。
         while not self.queue.empty():
             task = await self.queue.get()
@@ -283,7 +282,6 @@ class TelegramRestrictedMediaDownloader(Bot):
             else:
                 await task
             self.queue.task_done()
-
         # 等待所有任务完成。
         await self.queue.join()
 
@@ -297,15 +295,15 @@ class TelegramRestrictedMediaDownloader(Bot):
             self.client.run(self.__download_media_from_links())
             if self.app.bot_token:
                 loop = asyncio.get_event_loop()
-                loop.run_until_complete(self.task_chat())
+                loop.run_until_complete(self.bot_event_loop())
             was_client_run: bool = True
         except (SessionRevoked, AuthKeyUnregistered, SessionExpired, ConnectionError):
             res: bool = safe_delete(file_p_d=os.path.join(self.app.DIRECTORY_NAME, 'sessions'))
             record_error: bool = True
             if res:
-                log.warning('账号已失效请在关闭后,再次打开软件并重新登录!')
+                log.warning('已删除旧会话文件,请重启软件。')
             else:
-                log.error('账号已失效请手动删除软件目录下的sessions文件并重新登录!')
+                log.error('账号已失效,请手动删除软件目录下的sessions文件夹后重启软件。')
         except KeyboardInterrupt:
             self.app.progress.stop()
             console.log('用户手动终止下载任务。')
@@ -324,7 +322,4 @@ class TelegramRestrictedMediaDownloader(Bot):
                 # todo 打印链接信息表格。
                 MetaData.pay()
                 self.app.process_shutdown(60) if was_client_run else None  # v1.2.8如果并未打开客户端执行任何下载,则不执行关机。
-            if self.app.platform == 'Windows':
-                os.system('pause')
-            else:
-                console.input('请按「Enter」键继续. . .')
+            os.system('pause') if self.app.platform == 'Windows' else console.input('请按「Enter」键继续. . .')

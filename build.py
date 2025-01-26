@@ -25,4 +25,4 @@ if __name__ == '__main__':
         print(build_command)
         os.system(build_command)
     except ImportError:
-        print('请先安装使用命令:"pip install nuitka==2.4.8"安装Nuitka后重试。')
+        print('请先使用命令:"pip install nuitka==2.4.8"安装Nuitka后重试。')

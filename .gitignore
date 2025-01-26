@@ -15,6 +15,8 @@ test_download/test/
 *.yaml
 *.xml
 *.lock
+*.session
+*.session-journal
 tests.py
 test.py
 TESTS.py

@@ -591,6 +591,20 @@ class GetStdioParams:
     UNDEFINED = '无'
 
     @staticmethod
+    def get_is_change_account(valid_format: str = 'y|n') -> dict:
+        style: str = '#FF4689'
+        while True:
+            is_change_account = console.input('是否需要切换账号? - 「y|n」(默认n):').strip().lower()
+            if is_change_account in ('n', ''):
+                console.print('用户不需要切换「账号」。', style=style)
+                return {'is_change_account': False}
+            elif is_change_account == 'y':
+                console.print('用户需要切换「账号」。', style=style)
+                return {'is_change_account': True}
+            else:
+                log.warning(f'意外的参数:"{is_change_account}",支持的参数 - 「{valid_format}」!')
+
+    @staticmethod
     def get_api_id(last_record: str) -> dict:
         while True:
             api_id = console.input(
@@ -615,7 +629,7 @@ class GetStdioParams:
                 log.warning(f'意外的参数:"{api_hash}",不是一个「{valid_length}位」的「值」!请重新输入!')
 
     @staticmethod
-    def get_enable_bot() -> dict:
+    def get_enable_bot(valid_format: str = 'y|n') -> dict:
         while True:
             enable_bot = console.input('是否启用「机器人」(需要提供bot_token)? - 「y|n」(默认n):').strip().lower()
             if enable_bot in ('n', ''):
@@ -625,13 +639,13 @@ class GetStdioParams:
                 console.print(f'请配置「bot_token」。', style=ProcessConfig.stdio_style('bot_token'))
                 return {'enable_bot': True}
             else:
-                log.warning(f'意外的参数:"{enable_bot}",支持的参数')
+                log.warning(f'意外的参数:"{enable_bot}",支持的参数 - 「{valid_format}」!')
 
     @staticmethod
     def get_bot_token(last_record: str, valid_format: str = ':') -> dict:
         while True:
             bot_token = console.input(
-                f'请输入「bot_token」上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」:').strip()
+                f'请输入当前账号的「bot_token」上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」:').strip()
             if bot_token == '' and last_record is not None:
                 bot_token = last_record
             if Validator.is_valid_bot_token(bot_token, valid_format):
