@@ -297,7 +297,11 @@ class TelegramRestrictedMediaDownloader(Bot):
                 loop = asyncio.get_event_loop()
                 loop.run_until_complete(self.bot_event_loop())
             was_client_run: bool = True
-        except (SessionRevoked, AuthKeyUnregistered, SessionExpired, ConnectionError):
+        except (SessionRevoked, AuthKeyUnregistered, SessionExpired, ConnectionError) as e:
+            # todo api与登录的账号不匹配时,会抛出错误如下:
+            #  Telegram says: [401 AUTH_KEY_UNREGISTERED] - The key is not registered in the system. Delete your session file and login again (caused by "auth.ExportAuthorization")
+            #  或者报AttributeError: The API key is required for new authorizations. More info: https://docs.pyrogram.org/start/auth
+            #  将报错改为对用户的提示。
             res: bool = safe_delete(file_p_d=os.path.join(self.app.DIRECTORY_NAME, 'sessions'))
             record_error: bool = True
             if res:

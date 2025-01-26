@@ -46,6 +46,9 @@ class TelegramRestrictedMediaDownloaderClient(pyrogram.Client):
         while True:
             try:
                 if not self.phone_number:
+                    # todo 手机输入错误的时候抛出,会导致直接退出程序:
+                    #  PhoneNumberInvalid: Telegram says: [406 PHONE_NUMBER_INVALID] - The phone number is invalid (caused by "auth.SendCode")
+                    #  将直接退出程序改为对用户的提示。
                     while True:
                         value = console.input('请输入「电话号码」或「bot token」([#6a2c70]电话号码[/#6a2c70]需以[#b83b5e]「+地区」'
                                               '[/#b83b5e]开头!如:[#f08a5d]+86[/#f08a5d][#f9ed69]15000000000[/#f9ed69]):').strip()
