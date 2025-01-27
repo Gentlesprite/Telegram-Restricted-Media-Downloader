@@ -140,11 +140,11 @@ class TelegramRestrictedMediaDownloader(Bot):
                 console.log(f'[当前任务数]:{self.app.current_task_num}。', justify='right')
 
                 def call(_future) -> None:
-                    self.app.current_task_num -= 1
                     if self.app.check_download_finish(sever_file_size=sever_file_size,
                                                       temp_file_path=temp_file_path,
                                                       save_directory=self.app.save_directory,
                                                       with_move=True):
+                        self.app.current_task_num -= 1
                         self.__listen_link_complete(msg_link=msg_link, file_name=file_name)
                         console.log(f'[当前任务数]:{self.app.current_task_num}。', justify='right')
                         self.app.progress.remove_task(task_id=task_id)
@@ -162,7 +162,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                                         f'{KeyWord.TYPE}:{DownloadType.t(self.app.guess_file_type(file_name=file_name, status=DownloadStatus.failure)[0].text)},'
                                         f'{KeyWord.STATUS}:{Status.FAILURE}'
                                         f'{_error}')
-                            self.app.failure_link[msg_link] = _error.replace('。', '')
+                            self.app.link_info.get(msg_link)['error_msg'] = {file_name: _error.replace('。', '')}
                             self.event.set()
 
                 _task.add_done_callback(lambda _future: call(_future))
@@ -174,6 +174,11 @@ class TelegramRestrictedMediaDownloader(Bot):
                                      retry_count: int = 0) -> None:
 
         if msg_link:
+            self.app.link_info[msg_link] = {'link_type': None,
+                                            'member_num': 0,
+                                            'complete_num': 0,
+                                            'file_name': set(),
+                                            'error_msg': {}}
             try:
                 chat_name, msg_id, is_download_comment = await self.__extract_link_content(msg_link)
                 msg = await self.client.get_messages(chat_name, msg_id)  # 该消息的信息。
@@ -189,7 +194,8 @@ class TelegramRestrictedMediaDownloader(Bot):
                     self.app.link_info[msg_link] = {'link_type': link_type,
                                                     'member_num': len(group),
                                                     'complete_num': 0,
-                                                    'file_name': set()}
+                                                    'file_name': set(),
+                                                    'error_msg': {}}
                     console.log(
                         f'{KeyWord.CHANNEL}:"{chat_name}",'  # 频道名。
                         f'{KeyWord.LINK}:"{msg_link}",'  # 链接。
@@ -201,7 +207,9 @@ class TelegramRestrictedMediaDownloader(Bot):
                     self.app.link_info[msg_link] = {'link_type': link_type,
                                                     'member_num': 1,
                                                     'complete_num': 0,
-                                                    'file_name': set()}
+                                                    'file_name': set(),
+                                                    'error_msg': {}}
+
                     console.log(
                         f'{KeyWord.CHANNEL}:"{chat_name}",'  # 频道名。
                         f'{KeyWord.LINK}:"{msg_link}",'  # 链接。
@@ -209,24 +217,24 @@ class TelegramRestrictedMediaDownloader(Bot):
                     await self.__add_task(msg_link, msg, retry_count)
                 elif res is None and group is None:
                     error = '消息不存在,频道已解散或未在频道中'
-                    self.app.failure_link[msg_link] = error
+                    self.app.link_info.get(msg_link)['error_msg'] = {'all_member': error}
                     log.warning(
                         f'{KeyWord.LINK}:"{msg_link}"{error},{Status.SKIP}。')
                 elif res is None and group == 0:
                     log.error(f'读取"{msg_link}"时出现未知错误,{Status.SKIP}。')
             except UnicodeEncodeError as e:
                 error = '频道标题存在特殊字符,请移步终端下载'
-                self.app.failure_link[msg_link] = e
+                self.app.link_info.get(msg_link)['error_msg'] = {'all_member': e}
                 log.error(f'{KeyWord.LINK}:"{msg_link}"{error},{KeyWord.REASON}:"{e}"')
             except MsgIdInvalid as e:
-                self.app.failure_link[msg_link] = e
+                self.app.link_info.get(msg_link)['error_msg'] = {'all_member': e}
                 log.error(f'{KeyWord.LINK}:"{msg_link}"消息不存在,可能已删除,{Status.SKIP}。{KeyWord.REASON}:"{e}"')
             except UsernameInvalid as e:
-                self.app.failure_link[msg_link] = e
+                self.app.link_info.get(msg_link)['error_msg'] = {'all_member': e}
                 log.error(
                     f'{KeyWord.LINK}:"{msg_link}"频道用户名无效,该链接的频道用户名可能已更改或频道已解散,{Status.SKIP}。{KeyWord.REASON}:"{e}"')
             except Exception as e:
-                self.app.failure_link[msg_link] = e
+                self.app.link_info.get(msg_link)['error_msg'] = {'all_member': e}
                 log.error(
                     f'{KeyWord.LINK}:"{msg_link}"未收录到的错误,{Status.SKIP}。{KeyWord.REASON}:"{e}"')
         else:
@@ -324,9 +332,8 @@ class TelegramRestrictedMediaDownloader(Bot):
                 self.client.stop()
             self.app.progress.stop()
             if not record_error:
+                self.app.print_link_table()
                 self.app.print_media_table()
-                self.app.print_failure_table() if self.app.failure_link else None  # v1.1.2 增加下载失败的链接统计,但如果没有失败的链接将不会显示。
-                # todo 打印链接信息表格。
                 MetaData.pay()
                 self.app.process_shutdown(60) if was_client_run else None  # v1.2.8如果并未打开客户端执行任何下载,则不执行关机。
             os.system('pause') if self.app.platform == 'Windows' else console.input('请按「Enter」键继续. . .')

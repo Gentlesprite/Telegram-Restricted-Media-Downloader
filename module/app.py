@@ -232,7 +232,6 @@ class Application:
         self.failure_video, self.failure_photo = set(), set()
         self.complete_link: set = set()
         self.link_info: dict = {}
-        self.failure_link: dict = {}  # v1.1.2
         self.progress = Progress(TextColumn('[bold blue]{task.fields[filename]}', justify='right'),
                                  BarColumn(bar_width=40),
                                  '[progress.percentage]{task.percentage:>3.1f}%',
@@ -290,7 +289,7 @@ class Application:
                                               failure_video,
                                               skip_video,
                                               total_video]
-                                         ]
+                                            ]
                                          )
                 video_table.print_meta()
             if _compare_dtype == DownloadType.photo.text:  # 只有图片的情况。
@@ -306,7 +305,7 @@ class Application:
                                               failure_photo,
                                               skip_photo,
                                               total_photo]
-                                         ]
+                                            ]
                                          )
                 photo_table.print_meta()
         elif rdt_length == 2:
@@ -327,23 +326,38 @@ class Application:
                                           sum([failure_video, failure_photo]),
                                           sum([skip_video, skip_photo]),
                                           sum([total_video, total_photo])]
-                                     ])
+                                        ]
+                                     )
             media_table.print_meta()
-
-    def print_failure_table(self) -> None:
-        """打印统计的下载过程中失败信息的表格。"""
-        format_failure_info: list = []
-        for index, (key, value) in enumerate(self.failure_link.items(), start=1):
-            format_failure_info.append([index, key, value])
-        failure_link_table = PanelTable(title='失败链接统计',
-                                        header=('编号', KeyWord.LINK, KeyWord.REASON),
-                                        data=format_failure_info)
-        failure_link_table.print_meta()
 
     def print_link_table(self) -> None:
         """打印统计的下载链接信息的表格。"""
-        # todo
-        ...
+        try:
+            data: list = []
+            for index, (msg_link, info) in enumerate(self.link_info.items(), start=1):
+                complete_num = int(info['complete_num'])
+                member_num = int(info['member_num'])
+                try:
+                    rate = round(complete_num / member_num * 100, 2)
+                except ZeroDivisionError:
+                    rate = 0
+                complete_rate = f'{complete_num}/{member_num}[{rate}%]'
+                file_names = '\n'.join(info['file_name'])
+                error_msg = info['error_msg']
+                if not error_msg:
+                    error_info = ''
+                elif 'all_member' in error_msg:
+                    error_info = str(error_msg['all_member'])
+                else:
+                    error_info = '\n'.join([f"{fn}: {err}" for fn, err in error_msg.items()])
+                data.append([index, msg_link, file_names, complete_rate, error_info])
+            panel_table = PanelTable(title='下载链接统计',
+                                     header=('编号', '链接', '文件名', '完成率', '错误信息'),
+                                     data=data,
+                                     show_lines=True)
+            panel_table.print_meta()
+        except Exception as e:
+            log.error(f'打印下载链接统计表时出错,{KeyWord.REASON}:"{e}"')
 
     def process_shutdown(self, second: int) -> None:
         """处理关机逻辑。"""
@@ -565,11 +579,7 @@ class Application:
                 console.log(GradientColor.gen_gradient_text(text='当前没有使用代理!',
                                                             gradient_color=GradientColor.new_life))
         except Exception as e:
-            try:
-                console.print(self.config)
-            except Exception as _:
-                log.exception(_, exc_info=False)
-            log.exception(e, exc_info=False)
+            log.error(f'打印代理配置表时出错,{KeyWord.REASON}:"{e}"')
         try:
             # 展示链接内容表格。
             with open(file=self.links, mode='r', encoding='UTF-8') as _:
@@ -580,10 +590,10 @@ class Application:
             link_table = PanelTable(title='链接内容', header=('编号', '链接'),
                                     data=format_res)
             link_table.print_meta()
-        except FileNotFoundError:  # v1.1.3 用户错误填写路径提示。
-            log.error(f'读取"{self.links}"时出错。')
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, AttributeError) as e:  # v1.1.3 用户错误填写路径提示。
             log.error(f'读取"{self.links}"时出错,{KeyWord.REASON}:"{e}"')
+        except Exception as e:
+            log.error(f'打印链接内容统计表时出错,{KeyWord.REASON}:"{e}"')
         try:
             _dtype: list = self.download_type.copy()  # 浅拷贝赋值给_dtype,避免传入函数后改变原数据。
             data: list = [[DownloadType.t(DownloadType.video.text),
@@ -592,9 +602,8 @@ class Application:
                            ProcessConfig.get_dtype(_dtype).get('photo')]]
             download_type_table = PanelTable(title='下载类型', header=('类型', '是否下载'), data=data)
             download_type_table.print_meta()
-
         except Exception as e:
-            log.error(f'读取"{self.links}"时出错,{KeyWord.REASON}:"{e}"')
+            log.error(f'打印下载类型统计表时出错,{KeyWord.REASON}:"{e}"')
 
     def shutdown_task(self, second: int) -> None:
         """下载完成后自动关机的功能。"""
@@ -648,7 +657,7 @@ class Application:
             if not os.path.exists(self.config_path):
                 with open(file=self.config_path, mode='w', encoding='UTF-8') as f:
                     yaml.dump(Application.CONFIG_TEMPLATE, f, Dumper=CustomDumper)
-                console.log('未找到配置文件,已生成新的模板文件...')
+                console.log('未找到配置文件,已生成新的模板文件. . .')
             with open(self.config_path, 'r') as f:
                 config: dict = yaml.safe_load(f)  # v1.1.4 加入对每个字段的完整性检测。
             config: dict = self.__check_params(config)  # 检查所有字段是否完整,modified代表是否有修改记录(只记录缺少的)
@@ -656,16 +665,16 @@ class Application:
             # 中文路径无法被打包好的二进制文件识别,故在配置文件时无论是链接路径还是媒体保存路径都请使用英文命名。
             error_config: bool = True
             log.error(
-                f'读取配置文件遇到编码错误,可能保存路径中包含中文或特殊字符的文件夹。已生成新的模板文件...{KeyWord.REASON}:"{e}"')
+                f'读取配置文件遇到编码错误,可能保存路径中包含中文或特殊字符的文件夹。已生成新的模板文件. . .{KeyWord.REASON}:"{e}"')
             self.backup_config(config, error_config=error_config)
         except Exception as e:
             error_config: bool = True
             console.print('「注意」链接路径和保存路径不能有引号!', style='red')
-            log.error(f'检测到无效或损坏的配置文件。已生成新的模板文件...{KeyWord.REASON}:"{e}"')
+            log.error(f'检测到无效或损坏的配置文件。已生成新的模板文件. . .{KeyWord.REASON}:"{e}"')
             self.backup_config(config, error_config=error_config)
         finally:
             if config is None:
-                log.warning('检测到空的配置文件。已生成新的模板文件...')
+                log.warning('检测到空的配置文件。已生成新的模板文件. . .')
                 config: dict = Application.CONFIG_TEMPLATE.copy()
             if error_config:  # 如果遇到报错或者全部参数都是空的。
                 return config
@@ -975,8 +984,8 @@ class Application:
 
 
 class PanelTable:
-    def __init__(self, title: str, header: tuple, data: list, styles: dict = None):
-        self.table = Table(title=title, highlight=True)
+    def __init__(self, title: str, header: tuple, data: list, styles: dict = None, show_lines: bool = False):
+        self.table = Table(title=title, highlight=True, show_lines=show_lines)
         self.table.title_style = Style(color='white', bold=True)
         # 添加列。
         for _, col in enumerate(header):
