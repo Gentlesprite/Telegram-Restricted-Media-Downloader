@@ -48,9 +48,9 @@ class CustomDumper(yaml.Dumper):
 console = Console(log_path=False)
 utils.get_peer_type = get_peer_type_new
 AUTHOR = 'Gentlesprite'
-__version__ = '1.3.2'
+__version__ = '1.3.3'
 __license__ = 'MIT License'
-__update_date__ = '2025/01/27 13:00:02'
+__update_date__ = '2025/01/28 13:38:46'
 __copyright__ = f'Copyright (C) 2024-{__update_date__[:4]} {AUTHOR} <https://github.com/Gentlesprite>'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_SHORT_NAME = 'TRMD'

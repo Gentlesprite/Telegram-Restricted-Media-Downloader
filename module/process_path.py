@@ -119,8 +119,10 @@ def move_to_save_directory(temp_file_path: str, save_directory: str) -> dict:
             os.makedirs(save_directory, exist_ok=True)
             shutil.move(temp_file_path, save_directory)
             return {'e_code': f'"{save_directory}"不是一个目录,已将文件下载到默认目录。'}
-    except FileExistsError:
-        return {'e_code': f'"{save_directory}"已存在,不能重复保存。'}
+    except FileExistsError as e:
+        return {'e_code': f'"{save_directory}"已存在,不能重复保存,原因:"{e}'}
+    except PermissionError as e:
+        return {'e_code': f'"{save_directory}"进程无法访问,可能是任务重复分配问题,原因:"{e}"'}
     except Exception as e:
         return {'e_code': f'意外的错误,原因:"{e}"'}
 

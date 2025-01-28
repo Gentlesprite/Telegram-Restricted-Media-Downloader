@@ -42,8 +42,14 @@ class TelegramRestrictedMediaDownloader(Bot):
                 return
             else:
                 for link in links:
-                    if link in self.app.complete_link:
-                        log.warning(f'链接"{link}"已下载完成,请勿重复下载。')
+                    if link in self.app.complete_link or link in self.bot_task_link:
+                        msg = f'链接"{link}"已下载完成,请勿添加重复任务。'
+                        bot_msg = msg.replace('"', '`')
+                        log.warning(msg)
+                        self.last_message = await client.send_message(chat_id=message.chat.id,
+                                                                      text=bot_msg,
+                                                                      disable_web_page_preview=True)
+
                     else:
                         await self.__create_download_task(link)
 
@@ -145,6 +151,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                                                       save_directory=self.app.save_directory,
                                                       with_move=True):
                         self.app.current_task_num -= 1
+                        self.app.link_info.get(msg_link)['error_msg'] = {}
                         self.__listen_link_complete(msg_link=msg_link, file_name=file_name)
                         console.log(f'[当前任务数]:{self.app.current_task_num}。', justify='right')
                         self.app.progress.remove_task(task_id=task_id)
@@ -163,6 +170,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                                         f'{KeyWord.STATUS}:{Status.FAILURE}'
                                         f'{_error}')
                             self.app.link_info.get(msg_link)['error_msg'] = {file_name: _error.replace('。', '')}
+                            self.bot_task_link.discard(msg_link)
                             self.event.set()
 
                 _task.add_done_callback(lambda _future: call(_future))
@@ -218,6 +226,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                 elif res is None and group is None:
                     error = '消息不存在,频道已解散或未在频道中'
                     self.app.link_info.get(msg_link)['error_msg'] = {'all_member': error}
+                    self.bot_task_link.discard(msg_link)
                     log.warning(
                         f'{KeyWord.LINK}:"{msg_link}"{error},{Status.SKIP}。')
                 elif res is None and group == 0:
@@ -237,6 +246,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                 self.app.link_info.get(msg_link)['error_msg'] = {'all_member': e}
                 log.error(
                     f'{KeyWord.LINK}:"{msg_link}"未收录到的错误,{Status.SKIP}。{KeyWord.REASON}:"{e}"')
+                self.bot_task_link.discard(msg_link)
         else:
             await self.__add_task(msg_link, message, retry_count)
 

@@ -22,14 +22,16 @@ class Bot:
     def __init__(self):
         self.bot = None
         self.message = None
+        self.last_message = None
         self.is_running: bool = False
+        self.bot_task_link: set = set()
 
     async def process_error_message(self,
                                     client: pyrogram.Client,
                                     message: pyrogram.types.Message) -> None:
         await self.help(client,
                         message)
-        await client.send_message(message.chat.id, '未知命令,请查看帮助后重试。')
+        self.last_message = await client.send_message(message.chat.id, '未知命令,请查看帮助后重试。')
 
     async def get_link_from_bot(self,
                                 client: pyrogram.Client,
@@ -37,33 +39,40 @@ class Bot:
         text: str = message.text
         if text == '/download':
             self.message = None
-            await client.send_message(message.chat.id, '请提供下载链接,格式:\n`/download https://t.me/x/x`')
+            self.last_message = await client.send_message(message.chat.id,
+                                                          '请提供下载链接,格式:\n`/download https://t.me/x/x`')
         elif text.startswith('https://t.me/'):
             self.message = None
             if text[len('https://t.me/'):].count('/') >= 1:
-                await client.send_message(message.chat.id, f'请使用以下命令,分配下载任务:\n`/download {text}`')
+                self.last_message = await client.send_message(message.chat.id,
+                                                              f'请使用以下命令,分配下载任务:\n`/download {text}`')
             else:
-                await client.send_message(message.chat.id,
-                                          f'请使用以下命令,分配下载任务:\n`/download https://t.me/x/x`')
-        elif len(text) <= 25 or text == '/download https://t.me/x/x':
+                self.last_message = await client.send_message(message.chat.id,
+                                                              f'请使用以下命令,分配下载任务:\n`/download https://t.me/x/x`')
+        elif len(text) <= 25 or text == '/download https://t.me/x/x' or text.endswith('.txt'):
             self.message = None
             await self.help(client, message)
-            await client.send_message(message.chat.id, '链接错误,请查看帮助后重试。')
+            self.last_message = await client.send_message(message.chat.id, '链接错误,请查看帮助后重试。')
         else:
+            n = '\n'
             link: list = text.split()
             link.remove('/download') if '/download' in link else None
-            error_link: list = [i for i in link if not i.startswith('https://t.me/')]
-            right_link: list = [i for i in link if i.startswith('https://t.me/')]
-            error_msg: str = f'\n以下链接不合法:\n`{" ".join(error_link)}`\n已被移除。' if error_link else ''
-            add_msg: str = f'已将`{" ".join(right_link)}`分配至下载任务。' if right_link else ''
-            await client.send_message(message.chat.id, add_msg + error_msg)
+            right_link: list = [_ for _ in link if _.startswith('https://t.me/')]
+            exist_link: list = [_ for _ in link if _ in self.bot_task_link]
+            error_link: list = [_ for _ in link if not _.startswith('https://t.me/')]
+            self.bot_task_link.update(right_link)
+            right_msg: str = f'✅以下链接已创建下载任务:\n`{n.join(right_link)}`' if right_link else ''
+            exist_msg: str = f'⚠️以下链接已存在已被移除:\n`{n.join(exist_link)}`' if exist_link else ''
+            error_msg: str = f'🚫以下链接不合法已被移除:\n`{n.join(error_link)}`' if error_link else ''
+            self.last_message = await client.send_message(message.chat.id,
+                                                          right_msg + n + exist_msg + n + error_msg)
             if len(right_link) >= 1:
                 self.message = right_link
             else:
                 self.message = None
 
-    @staticmethod
-    async def help(client: pyrogram.Client,
+    async def help(self,
+                   client: pyrogram.Client,
                    message: pyrogram.types.Message) -> None:
         update_keyboard = InlineKeyboardMarkup(
             [
@@ -97,7 +106,7 @@ class Bot:
             f'❌ {BotCommentText.with_description(BotCommentText.exit)}\n\n'
         )
 
-        await client.send_message(message.chat.id, msg, reply_markup=update_keyboard)
+        self.last_message = await client.send_message(message.chat.id, msg, reply_markup=update_keyboard)
 
     @staticmethod
     async def pay_callback(client: pyrogram.Client, callback_query: CallbackQuery) -> None:
