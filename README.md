@@ -152,11 +152,12 @@ Github:[点击跳转下载](https://github.com/Gentlesprite/Telegram_Restricted_
 
 5. 目前机器人支持的命令用法及解释如下表所示：
 
-   | 命令        | 用法                                                         | 解释                   |
-   | ----------- | ------------------------------------------------------------ | ---------------------- |
-   | `/help`     | 向机器人发送发送`/help`即可。                                | 展示**可用**命令。     |
-   | `/download` | 向机器人发送`/download 视频链接1 视频链接2 视频链接3 视频链接n`即可。 | 分配**新的**下载任务。 |
-   | `/exit`     | 向机器人发送`/exit`即可。                                    | **退出**软件。         |
+   | 命令        | 用法                                                         | 解释                                           |
+   | ----------- | ------------------------------------------------------------ | ---------------------------------------------- |
+   | `/help`     | 向机器人发送发送`/help`即可。                                | 展示**可用**命令。                             |
+   | `/download` | 向机器人发送`/download 视频链接1 视频链接2 视频链接3 视频链接n`即可。 | 分配**新的**下载任务。                         |
+   | `/table`    | 向机器人发送`/table`即可。                                   | 在**终端**输出**当前**下载情况的**统计信息**。 |
+   | `/exit`     | 向机器人发送`/exit`即可。                                    | **退出**软件。                                 |
 
 6. `/help`命令使用教程，如下图所示：
 
@@ -174,9 +175,25 @@ Github:[点击跳转下载](https://github.com/Gentlesprite/Telegram_Restricted_
 
    ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_2_16.png)
 
-9. `/exit`命令使用教程，如下图所示：
+9. `/table`命令使用教程：
+
+   需要**注意**的是，这个表格是**实时**的**状态**，并不是**最终**下载完成的**结果**，每一次使用它都会随着**当前**的**下载记录**而更新。
+
+   **链接统计表**的使用，如下图所示:
 
    ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_2_17.png)
+
+   ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_2_18.png)
+
+   **计数统计表**的使用，如下图所示:
+
+   ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_2_19.png)
+
+   ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_2_20.png)
+
+10. `/exit`命令使用教程，如下图所示：
+
+   ![image](https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/blob/main/res/2_2_21.png)
 
 ## 2.3.配置文件说明
 
