@@ -16,7 +16,7 @@ from module import console, log
 from module.bot import Bot
 from module.app import Application, MetaData
 from module.process_path import is_file_duplicate, safe_delete
-from module.enum_define import LinkType, DownloadStatus, DownloadType, KeyWord, Status
+from module.enum_define import LinkType, DownloadStatus, DownloadType, KeyWord, Status, BotMessage, Base64Image
 
 
 class TelegramRestrictedMediaDownloader(Bot):
@@ -32,30 +32,51 @@ class TelegramRestrictedMediaDownloader(Bot):
     async def get_link_from_bot(self,
                                 client: pyrogram.Client,
                                 message: pyrogram.types.Message):
-        await super().get_link_from_bot(client, message)
-        if self.message is None:
+        res = await super().get_link_from_bot(client, message)
+        if res and isinstance(res, dict):
+            right_link: set = res.get('right_link')
+            exist_link: set = res.get('exist_link')
+            invalid_link: set = res.get('error_link')
+        else:
+            return
+
+        async def process_message(_msg: str, _link: str):
+            right_link.discard(_link)
+            exist_link.add(_link)
+            log.warning(_msg)
+            await client.send_message(chat_id=message.chat.id,
+                                      text=_msg,
+                                      disable_web_page_preview=True)
+
+        links: set or None = self.__process_links(link=list(right_link))
+        if links is None:
             return
         else:
-            links: set or None = self.__process_links(link=self.message)
-            if links is None:
-                console.log('没有找到有效链接。')
-                return
-            else:
-                for link in links:
-                    if link in self.app.complete_link or link in self.bot_task_link:
-                        msg = f'链接"{link}"已下载完成,请勿添加重复任务。'
-                        bot_msg = msg.replace('"', '`')
-                        log.warning(msg)
-                        self.last_message = await client.send_message(chat_id=message.chat.id,
-                                                                      text=bot_msg,
-                                                                      disable_web_page_preview=True)
-
-                    else:
-                        await self.__create_download_task(link)
+            n = '\n'
+            for link in links:
+                if link in self.app.complete_link:
+                    await process_message(f'{KeyWord.LINK}:"{link}"已「下载完成」,请勿添加重复任务。', link)
+                elif link in self.bot_task_link:
+                    await process_message(f'{KeyWord.LINK}:"{link}"已在「.txt」或「下载任务」中,请勿重复添加任务。', link)
+                else:
+                    await self.__create_download_task(link)
+                right_msg: str = f'{BotMessage.right}`{n.join(right_link)}`' if right_link else ''
+                exist_msg: str = f'{BotMessage.exist}`{n.join(exist_link)}`' if exist_link else ''
+                invalid_msg: str = f'{BotMessage.invalid}`{n.join(invalid_link)}`' if invalid_link else ''
+                await client.edit_message_text(chat_id=message.chat.id,
+                                               message_id=self.last_bot_message.id,
+                                               text=right_msg + n + exist_msg + n + invalid_msg,
+                                               disable_web_page_preview=True)
 
     async def pay_callback(self, client: pyrogram.Client, callback: pyrogram.types.CallbackQuery):
-        MetaData.pay()
-        await super().pay_callback(client, callback)
+        try:
+            await client.send_photo(chat_id=callback.message.chat.id,
+                                    photo=Base64Image.base64_to_binaryio(Base64Image.pay))
+        except Exception as _:
+            pass
+        finally:
+            MetaData.pay()
+            await super().pay_callback(client, callback)
 
     async def __extract_link_content(self, msg_link) -> Tuple[str, int, list]:
         comment_message = []
@@ -261,6 +282,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                 for link in links:
                     if link.startswith(start_content):
                         msg_link_set.add(link)
+                        self.bot_task_link.add(link)
                     else:
                         log.warning(f'"{link}"是一个非法链接,{KeyWord.STATUS}:{Status.SKIP}。')
             elif link.startswith(start_content):
@@ -275,6 +297,9 @@ class TelegramRestrictedMediaDownloader(Bot):
         elif not self.app.bot_token:
             console.log('没有找到有效链接,程序已退出。')
             sys.exit()
+        else:
+            console.log('没有找到有效链接。')
+            return None
 
     async def __download_media_from_links(self) -> None:
         await self.client.start()
@@ -288,7 +313,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                 workdir=self.app.work_directory,
                 proxy=self.app.enable_proxy
             ))
-            console.log(result, style='#B1DB74' if self.is_running else '#FF4689')
+            console.log(result, style='#B1DB74' if self.is_bot_running else '#FF4689')
         links = self.__process_links(link=self.app.links)
         # 将初始任务添加到队列中。
         for link in links:
