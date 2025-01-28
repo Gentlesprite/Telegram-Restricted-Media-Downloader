@@ -141,9 +141,8 @@ class Bot:
                 ],
                 [
                     InlineKeyboardButton(
-                        '🛎️帮助页面', url='https://t.me/RestrictedMediaDownloader',
+                        '🛎️帮助页面',
                         callback_data=BotCallbackText.back_help
-
                     )
                 ]
             ]
