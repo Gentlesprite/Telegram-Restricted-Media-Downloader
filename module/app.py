@@ -260,7 +260,7 @@ class Application:
                                proxy=self.enable_proxy,
                                workdir=self.work_directory)
 
-    def print_media_table(self) -> None:
+    def print_count_table(self) -> None:
         """打印统计的下载信息的表格。"""
         header: tuple = ('种类&状态', '成功下载', '失败下载', '跳过下载', '合计')
         self.download_type.remove(

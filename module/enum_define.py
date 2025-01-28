@@ -921,11 +921,24 @@ class GetStdioParams:
 class BotCommandText:
     help = ('help', '展示可用命令。')
     download = ('download', '分配新的下载任务。`/download https://t.me/x/x`')
+    table = ('table', '在终端输出当前下载任务的统计信息。')
     exit = ('exit', '退出软件。')
 
     @staticmethod
     def with_description(text: tuple) -> str:
         return f'/{text[0]} - {text[1]}'
+
+
+class BotCallbackText:
+    pay = 'pay'
+    link_table = 'link_table'
+    count_table = 'count_table'
+    back_help = 'back_help'
+
+    def __iter__(self):
+        for key, value in vars(self.__class__).items():
+            if not key.startswith('__'):  # 排除特殊方法和属性
+                yield value
 
 
 class BotMessage:

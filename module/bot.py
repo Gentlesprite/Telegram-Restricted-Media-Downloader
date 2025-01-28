@@ -11,52 +11,48 @@ from pyrogram.handlers import MessageHandler, CallbackQueryHandler
 from pyrogram.types import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 
 from module import __version__, __copyright__, SOFTWARE_FULL_NAME, __license__
-from module.enum_define import BotCommandText, BotMessage
+from module.enum_define import BotCommandText, BotMessage, BotCallbackText
 
 
 class Bot:
     commands: List[BotCommand] = [BotCommand(BotCommandText.help[0], BotCommandText.help[1]),
                                   BotCommand(BotCommandText.download[0], BotCommandText.download[1].replace('`', '')),
+                                  BotCommand(BotCommandText.table[0], BotCommandText.table[1]),
                                   BotCommand(BotCommandText.exit[0], BotCommandText.exit[1])]
 
     def __init__(self):
         self.bot = None
-        self.last_bot_message = None
         self.is_bot_running: bool = False
         self.bot_task_link: set = set()
 
-    async def process_error_message(self,
-                                    client: pyrogram.Client,
-                                    message: pyrogram.types.Message) -> None:
+    async def process_error_message(self, client: pyrogram.Client, message: pyrogram.types.Message) -> None:
         await self.help(client, message)
-        self.last_bot_message = await client.send_message(chat_id=message.chat.id,
-                                                          text='未知命令,请查看帮助后重试。',
-                                                          disable_web_page_preview=True)
+        await client.send_message(chat_id=message.chat.id,
+                                  text='未知命令,请查看帮助后重试。',
+                                  disable_web_page_preview=True)
 
     async def get_link_from_bot(self,
                                 client: pyrogram.Client,
                                 message: pyrogram.types.Message) -> Dict[str, set] or None:
         text: str = message.text
         if text == '/download':
-
-            self.last_bot_message = await client.send_message(chat_id=message.chat.id,
-                                                              text='请提供下载链接,格式:\n`/download https://t.me/x/x`',
-                                                              disable_web_page_preview=True)
+            await client.send_message(chat_id=message.chat.id,
+                                      text='请提供下载链接,格式:\n`/download https://t.me/x/x`',
+                                      disable_web_page_preview=True)
         elif text.startswith('https://t.me/'):
-
             if text[len('https://t.me/'):].count('/') >= 1:
-                self.last_bot_message = await client.send_message(chat_id=message.chat.id,
-                                                                  text=f'请使用以下命令,分配下载任务:\n`/download {text}`',
-                                                                  disable_web_page_preview=True)
+                await client.send_message(chat_id=message.chat.id,
+                                          text=f'请使用以下命令,分配下载任务:\n`/download {text}`',
+                                          disable_web_page_preview=True)
             else:
-                self.last_bot_message = await client.send_message(chat_id=message.chat.id,
-                                                                  text=f'请使用以下命令,分配下载任务:\n`/download https://t.me/x/x`',
-                                                                  disable_web_page_preview=True)
+                await client.send_message(chat_id=message.chat.id,
+                                          text=f'请使用以下命令,分配下载任务:\n`/download https://t.me/x/x`',
+                                          disable_web_page_preview=True)
         elif len(text) <= 25 or text == '/download https://t.me/x/x' or text.endswith('.txt'):
             await self.help(client, message)
-            self.last_bot_message = await client.send_message(chat_id=message.chat.id,
-                                                              text='链接错误,请查看帮助后重试。',
-                                                              disable_web_page_preview=True)
+            await client.send_message(chat_id=message.chat.id,
+                                      text='链接错误,请查看帮助后重试。',
+                                      disable_web_page_preview=True)
         else:
             n = '\n'
             link: list = text.split()
@@ -69,18 +65,21 @@ class Bot:
             right_msg: str = f'{BotMessage.right}`{n.join(right_link)}`' if right_link else ''
             exist_msg: str = f'{BotMessage.exist}`{n.join(exist_link)}`' if exist_link else ''
             invalid_msg: str = f'{BotMessage.invalid}`{n.join(invalid_link)}`' if invalid_link else ''
-            self.last_bot_message = await client.send_message(chat_id=message.chat.id,
-                                                              text=right_msg + n + exist_msg + n + invalid_msg,
-                                                              disable_web_page_preview=True)
+            last_bot_message = await client.send_message(chat_id=message.chat.id,
+                                                         text=right_msg + n + exist_msg + n + invalid_msg,
+                                                         disable_web_page_preview=True)
             if len(right_link) >= 1:
-                return {'right_link': right_link, 'exist_link': exist_link, 'error_link': invalid_link}
+                return {'right_link': right_link,
+                        'exist_link': exist_link,
+                        'error_link': invalid_link,
+                        'last_bot_message': last_bot_message}
             else:
                 return None
 
     async def help(self,
                    client: pyrogram.Client,
                    message: pyrogram.types.Message) -> None:
-        update_keyboard = InlineKeyboardMarkup(
+        func_keyboard = InlineKeyboardMarkup(
             [
                 [
                     InlineKeyboardButton(
@@ -97,7 +96,7 @@ class Bot:
                         url='https://www.bilibili.com/video/BV1nCp8evEwv'),
                     InlineKeyboardButton(
                         '💰支持作者',
-                        callback_data='pay')
+                        callback_data=BotCallbackText.pay)
                 ]
             ]
         )
@@ -112,16 +111,52 @@ class Bot:
             f'❌ {BotCommandText.with_description(BotCommandText.exit)}\n\n'
         )
 
-        self.last_bot_message = await client.send_message(chat_id=message.chat.id,
-                                                          text=msg,
-                                                          disable_web_page_preview=True,
-                                                          reply_markup=update_keyboard)
+        await client.send_message(chat_id=message.chat.id,
+                                  text=msg,
+                                  disable_web_page_preview=True,
+                                  reply_markup=func_keyboard)
 
     @staticmethod
-    async def pay_callback(client: pyrogram.Client, callback_query: CallbackQuery) -> None:
+    async def callback_data(client: pyrogram.Client, callback_query: CallbackQuery) -> str or None:
         await callback_query.answer()
-        await callback_query.message.reply_text(
-            '🙏🥰🙏收款「二维码」已发送至您的「终端」与「对话框」十分感谢您的支持!')
+        data = callback_query.data
+        if not data:
+            return None
+        if isinstance(data, str):
+            support_data: list = [_ for _ in BotCallbackText()]
+            for i in support_data:
+                if data == i:
+                    return i
+
+    @staticmethod
+    async def table(client: pyrogram.Client,
+                    message: pyrogram.types.Message) -> None:
+        choice_keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        '🔗链接统计表',
+                        url='https://github.com/Gentlesprite/Telegram_Restricted_Media_Downloader/releases',
+                        callback_data=BotCallbackText.link_table
+                    ),
+                    InlineKeyboardButton(
+                        '➕计数统计表', url='https://t.me/RestrictedMediaDownloader',
+                        callback_data=BotCallbackText.count_table
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        '↩️帮助页面', url='https://t.me/RestrictedMediaDownloader',
+                        callback_data=BotCallbackText.back_help
+
+                    )
+                ]
+            ]
+        )
+        await client.send_message(chat_id=message.chat.id,
+                                  text='请选择您需要输出的「统计表」类型:',
+                                  disable_web_page_preview=True,
+                                  reply_markup=choice_keyboard)
 
     async def exit(self, client: pyrogram.Client,
                    message: pyrogram.types.Message) -> None:
@@ -150,23 +185,32 @@ class Bot:
             )
             self.bot.add_handler(
                 MessageHandler(
+                    self.table,
+                    filters=pyrogram.filters.command(['table'])
+                )
+            )
+            self.bot.add_handler(
+                MessageHandler(
                     self.exit,
                     filters=pyrogram.filters.command(['exit'])
                 )
             )
-            self.bot.add_handler(MessageHandler(
-                self.get_link_from_bot,
-                filters=pyrogram.filters.regex(r'^https://t.me.*'))
+            self.bot.add_handler(
+                MessageHandler(
+                    self.get_link_from_bot,
+                    filters=pyrogram.filters.regex(r'^https://t.me.*')
+                )
             )
             self.bot.add_handler(
                 CallbackQueryHandler(
-                    self.pay_callback,
-                    filters=pyrogram.filters.regex('pay')
+                    self.callback_data
                 )
             )
-            self.bot.add_handler(MessageHandler(
-                self.process_error_message
-            ))
+            self.bot.add_handler(
+                MessageHandler(
+                    self.process_error_message
+                )
+            )
             self.is_bot_running: bool = True
             return '「机器人」启动成功。'
         except Exception as e:

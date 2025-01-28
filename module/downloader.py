@@ -16,7 +16,8 @@ from module import console, log
 from module.bot import Bot
 from module.app import Application, MetaData
 from module.process_path import is_file_duplicate, safe_delete
-from module.enum_define import LinkType, DownloadStatus, DownloadType, KeyWord, Status, BotMessage, Base64Image
+from module.enum_define import LinkType, DownloadStatus, DownloadType, KeyWord, Status, BotMessage, BotCallbackText, \
+    Base64Image
 
 
 class TelegramRestrictedMediaDownloader(Bot):
@@ -37,6 +38,7 @@ class TelegramRestrictedMediaDownloader(Bot):
             right_link: set = res.get('right_link')
             exist_link: set = res.get('exist_link')
             invalid_link: set = res.get('error_link')
+            last_bot_message = res.get('last_bot_message')
         else:
             return
 
@@ -64,42 +66,62 @@ class TelegramRestrictedMediaDownloader(Bot):
                 exist_msg: str = f'{BotMessage.exist}`{n.join(exist_link)}`' if exist_link else ''
                 invalid_msg: str = f'{BotMessage.invalid}`{n.join(invalid_link)}`' if invalid_link else ''
                 await client.edit_message_text(chat_id=message.chat.id,
-                                               message_id=self.last_bot_message.id,
+                                               message_id=last_bot_message.id,
                                                text=right_msg + n + exist_msg + n + invalid_msg,
                                                disable_web_page_preview=True)
+
+    @staticmethod
+    async def __send_pay_qr(client: pyrogram.Client, chat_id, load_name: str) -> dict:
+        e_code: dict = {'e_code': None}
+        try:
+            last_msg = await client.send_message(chat_id=chat_id,
+                                                 text=f'🙈🙈🙈请稍后🙈🙈🙈{load_name}加载中. . .',
+                                                 disable_web_page_preview=True
+                                                 )
+            await client.send_photo(chat_id=chat_id,
+                                    photo=Base64Image.base64_to_binaryio(Base64Image.pay)
+                                    )
+            await client.edit_message_text(chat_id=chat_id,
+                                           message_id=last_msg.id,
+                                           text=f'🐵🐵🐵{load_name}加载成功!🐵🐵🐵')
+        except Exception as e:
+            e_code['e_code'] = e
+        finally:
+            return e_code
 
     async def help(self,
                    client: pyrogram.Client,
                    message: pyrogram.types.Message) -> None:
-        try:
-            if message.text == '/start':
-                last_msg = await client.send_message(chat_id=message.chat.id,
-                                                     text='🙈🙈🙈请稍后🙈🙈🙈机器人加载中. . .',
-                                                     disable_web_page_preview=True
-                                                     )
-                await client.send_photo(chat_id=message.chat.id,
-                                        photo=Base64Image.base64_to_binaryio(Base64Image.pay)
-                                        )
-                await client.edit_message_text(chat_id=message.chat.id,
-                                               message_id=last_msg.id,
-                                               text='🐵🐵🐵机器人加载成功!🐵🐵🐵')
-                await client.send_message(chat_id=message.chat.id,
-                                          text='😊😊😊欢迎使用😊😊😊您的支持是我持续更新的动力。',
-                                          disable_web_page_preview=True
-                                          )
-        except Exception:
-            pass
+        chat_id = message.chat.id
+        if message.text == '/start':
+            res: dict = await self.__send_pay_qr(client=client, chat_id=chat_id, load_name='机器人')
+            if res.get('e_code'):
+                msg = '😊😊😊欢迎使用😊😊😊'
+            else:
+                msg = '😊😊😊欢迎使用😊😊😊您的支持是我持续更新的动力。'
+            await client.send_message(chat_id=chat_id, text=msg, disable_web_page_preview=True)
         await super().help(client, message)
 
-    async def pay_callback(self, client: pyrogram.Client, callback: pyrogram.types.CallbackQuery):
-        try:
-            await client.send_photo(chat_id=callback.message.chat.id,
-                                    photo=Base64Image.base64_to_binaryio(Base64Image.pay))
-        except Exception:
-            pass
-        finally:
+    async def callback_data(self, client: pyrogram.Client, callback_query: pyrogram.types.CallbackQuery):
+        callback_data = await super().callback_data(client, callback_query)
+        if callback_data is None:
+            return
+        elif callback_data == BotCallbackText.pay:
+            res: dict = await self.__send_pay_qr(client=client,
+                                                 chat_id=callback_query.message.chat.id,
+                                                 load_name='收款码')
             MetaData.pay()
-            await super().pay_callback(client, callback)
+            if res.get('e_code'):
+                msg = '🥰🥰🥰\n收款「二维码」已发送至您的「终端」十分感谢您的支持!'
+            else:
+                msg = '🥰🥰🥰\n收款「二维码」已发送至您的「终端」与「对话框」十分感谢您的支持!'
+            await callback_query.message.reply_text(msg)
+        elif callback_data == BotCallbackText.link_table:
+            self.app.print_link_table()
+        elif callback_data == BotCallbackText.count_table:
+            self.app.print_count_table()
+        elif callback_data == BotCallbackText.back_help:
+            await self.help(client, callback_query.message)
 
     async def __extract_link_content(self, msg_link) -> Tuple[str, int, list]:
         comment_message = []
@@ -391,7 +413,7 @@ class TelegramRestrictedMediaDownloader(Bot):
             self.app.progress.stop()
             if not record_error:
                 self.app.print_link_table()
-                self.app.print_media_table()
+                self.app.print_count_table()
                 MetaData.pay()
                 self.app.process_shutdown(60) if was_client_run else None  # v1.2.8如果并未打开客户端执行任何下载,则不执行关机。
             os.system('pause') if self.app.platform == 'Windows' else console.input('请按「Enter」键继续. . .')
