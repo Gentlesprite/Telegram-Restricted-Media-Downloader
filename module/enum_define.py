@@ -66,6 +66,7 @@ class DownloadStatus(Enum):
     success = 1
     failure = 2
     skip = 3
+    retry = 4
 
     @property
     def text(self) -> str:
@@ -73,7 +74,8 @@ class DownloadStatus(Enum):
             DownloadStatus.downloading: 'downloading',
             DownloadStatus.success: 'success',
             DownloadStatus.failure: 'failure',
-            DownloadStatus.skip: 'skip'
+            DownloadStatus.skip: 'skip',
+            DownloadStatus.retry: 'retry'
         }[self]
 
     @staticmethod
@@ -82,7 +84,8 @@ class DownloadStatus(Enum):
             DownloadStatus.downloading.text: '下载中',
             DownloadStatus.success.text: '成功',
             DownloadStatus.failure.text: '失败',
-            DownloadStatus.skip.text: '跳过'
+            DownloadStatus.skip.text: '跳过',
+            DownloadStatus.retry.text: '重试'
         }
         if text in translation:
             if key_note:

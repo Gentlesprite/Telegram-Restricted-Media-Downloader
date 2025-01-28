@@ -4,10 +4,11 @@
 # Time:2025/1/24 21:27
 # File:bot.py
 import asyncio
-from typing import List, Dict
+from typing import List, Dict, Union
 
 import pyrogram
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler
+from pyrogram.errors.exceptions.bad_request_400 import MessageNotModified
 from pyrogram.types import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 
 from module import __version__, __copyright__, SOFTWARE_FULL_NAME, __license__
@@ -54,24 +55,17 @@ class Bot:
                                       text='链接错误,请查看帮助后重试。',
                                       disable_web_page_preview=True)
         else:
-            n = '\n'
             link: list = text.split()
             link.remove('/download') if '/download' in link else None
             right_link: set = set([_ for _ in link if _.startswith('https://t.me/')])
-            exist_link: set = set([_ for _ in link if _ in self.bot_task_link])
-            right_link -= exist_link
             invalid_link: set = set([_ for _ in link if not _.startswith('https://t.me/')])
-            self.bot_task_link.update(right_link)
-            right_msg: str = f'{BotMessage.right}`{n.join(right_link)}`' if right_link else ''
-            exist_msg: str = f'{BotMessage.exist}`{n.join(exist_link)}`' if exist_link else ''
-            invalid_msg: str = f'{BotMessage.invalid}`{n.join(invalid_link)}`' if invalid_link else ''
             last_bot_message = await client.send_message(chat_id=message.chat.id,
-                                                         text=right_msg + n + exist_msg + n + invalid_msg,
+                                                         text=self.update_text(right_link=right_link,
+                                                                               invalid_link=invalid_link),
                                                          disable_web_page_preview=True)
-            if len(right_link) >= 1:
+            if right_link:
                 return {'right_link': right_link,
-                        'exist_link': exist_link,
-                        'error_link': invalid_link,
+                        'invalid_link': invalid_link,
                         'last_bot_message': last_bot_message}
             else:
                 return None
@@ -106,9 +100,10 @@ class Bot:
             f'©️ {__copyright__.replace(" <https://github.com/Gentlesprite>", ".")}\n'
             f'📖 Licensed under the terms of the {__license__}.`\n'
             f'🎮️ 可用命令:\n'
-            f'🛎 {BotCommandText.with_description(BotCommandText.help)}\n'
+            f'🛎️ {BotCommandText.with_description(BotCommandText.help)}\n'
             f'📁 {BotCommandText.with_description(BotCommandText.download)}\n'
-            f'❌ {BotCommandText.with_description(BotCommandText.exit)}\n\n'
+            f'📝 {BotCommandText.with_description(BotCommandText.table)}\n'
+            f'❌ {BotCommandText.with_description(BotCommandText.exit)}\n'
         )
 
         await client.send_message(chat_id=message.chat.id,
@@ -146,7 +141,7 @@ class Bot:
                 ],
                 [
                     InlineKeyboardButton(
-                        '↩️帮助页面', url='https://t.me/RestrictedMediaDownloader',
+                        '🛎️帮助页面', url='https://t.me/RestrictedMediaDownloader',
                         callback_data=BotCallbackText.back_help
 
                     )
@@ -154,13 +149,20 @@ class Bot:
             ]
         )
         await client.send_message(chat_id=message.chat.id,
-                                  text='请选择您需要输出的「统计表」类型:',
+                                  text='🧐🧐🧐请选择输出「统计表」的类型:',
                                   disable_web_page_preview=True,
                                   reply_markup=choice_keyboard)
 
     async def exit(self, client: pyrogram.Client,
                    message: pyrogram.types.Message) -> None:
+        last_message = await client.send_message(chat_id=message.chat.id,
+                                                 text='🫡🫡🫡已收到退出命令。',
+                                                 disable_web_page_preview=True)
         self.is_bot_running = False
+        await self.edit_message_text(client=client,
+                                     chat_id=message.chat.id,
+                                     last_message_id=last_message.id,
+                                     text='👌👌👌退出成功。')
 
     async def start_bot(
             self,
@@ -220,3 +222,28 @@ class Bot:
     async def bot_event_loop(self):
         while self.is_bot_running:
             await asyncio.sleep(0.5)  # 解决资源占用过多问题。
+
+    @staticmethod
+    def update_text(right_link: set, invalid_link: set, exist_link: set or None = None):
+        n = '\n'
+        right_msg = f'{BotMessage.right}`{n.join(right_link)}`' if right_link else ''
+        invalid_msg = f'{BotMessage.invalid}`{n.join(invalid_link)}`' if invalid_link else ''
+        if exist_link:
+            exist_msg = f'{BotMessage.exist}`{n.join(exist_link)}`' if exist_link else ''
+            return right_msg + n + exist_msg + n + invalid_msg
+        else:
+            return right_msg + n + invalid_msg
+
+    @staticmethod
+    async def edit_message_text(client: pyrogram.Client,
+                                chat_id: Union[int, str],
+                                last_message_id: int,
+                                text: str,
+                                disable_web_page_preview: bool = True):
+        try:
+            await client.edit_message_text(chat_id=chat_id,
+                                           message_id=last_message_id,
+                                           text=text,
+                                           disable_web_page_preview=disable_web_page_preview)
+        except MessageNotModified:
+            pass
