@@ -68,11 +68,34 @@ class TelegramRestrictedMediaDownloader(Bot):
                                                text=right_msg + n + exist_msg + n + invalid_msg,
                                                disable_web_page_preview=True)
 
+    async def help(self,
+                   client: pyrogram.Client,
+                   message: pyrogram.types.Message) -> None:
+        try:
+            if message.text == '/start':
+                last_msg = await client.send_message(chat_id=message.chat.id,
+                                                     text='🙈🙈🙈请稍后🙈🙈🙈机器人加载中. . .',
+                                                     disable_web_page_preview=True
+                                                     )
+                await client.send_photo(chat_id=message.chat.id,
+                                        photo=Base64Image.base64_to_binaryio(Base64Image.pay)
+                                        )
+                await client.edit_message_text(chat_id=message.chat.id,
+                                               message_id=last_msg.id,
+                                               text='🐵🐵🐵机器人加载成功!🐵🐵🐵')
+                await client.send_message(chat_id=message.chat.id,
+                                          text='😊😊😊欢迎使用😊😊😊您的支持是我持续更新的动力。',
+                                          disable_web_page_preview=True
+                                          )
+        except Exception:
+            pass
+        await super().help(client, message)
+
     async def pay_callback(self, client: pyrogram.Client, callback: pyrogram.types.CallbackQuery):
         try:
             await client.send_photo(chat_id=callback.message.chat.id,
                                     photo=Base64Image.base64_to_binaryio(Base64Image.pay))
-        except Exception as _:
+        except Exception:
             pass
         finally:
             MetaData.pay()

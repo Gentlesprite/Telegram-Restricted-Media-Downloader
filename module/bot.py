@@ -148,14 +148,12 @@ class Bot:
                     filters=pyrogram.filters.command(['download'])
                 )
             )
-
             self.bot.add_handler(
                 MessageHandler(
                     self.exit,
                     filters=pyrogram.filters.command(['exit'])
                 )
             )
-
             self.bot.add_handler(MessageHandler(
                 self.get_link_from_bot,
                 filters=pyrogram.filters.regex(r'^https://t.me.*'))
