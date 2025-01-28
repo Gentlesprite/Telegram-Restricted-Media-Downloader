@@ -289,7 +289,7 @@ class Application:
                                               failure_video,
                                               skip_video,
                                               total_video]
-                                            ]
+                                         ]
                                          )
                 video_table.print_meta()
             if _compare_dtype == DownloadType.photo.text:  # 只有图片的情况。
@@ -305,7 +305,7 @@ class Application:
                                               failure_photo,
                                               skip_photo,
                                               total_photo]
-                                            ]
+                                         ]
                                          )
                 photo_table.print_meta()
         elif rdt_length == 2:
@@ -326,7 +326,7 @@ class Application:
                                           sum([failure_video, failure_photo]),
                                           sum([skip_video, skip_photo]),
                                           sum([total_video, total_photo])]
-                                        ]
+                                     ]
                                      )
             media_table.print_meta()
 
@@ -377,8 +377,7 @@ class Application:
         if compare_file_size(a_size=local_file_size, b_size=sever_file_size):
             if with_move:
                 result: str = move_to_save_directory(temp_file_path=temp_file_path,
-                                                     save_directory=save_directory).get(
-                    'e_code')
+                                                     save_directory=save_directory).get('e_code')
                 console.warning(result) if result is not None else None
             console.log(
                 f'{KeyWord.FILE}:"{file_path}",'

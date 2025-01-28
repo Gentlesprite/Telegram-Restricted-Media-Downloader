@@ -921,7 +921,7 @@ class GetStdioParams:
 class BotCommandText:
     help = ('help', '展示可用命令。')
     download = ('download', '分配新的下载任务。`/download https://t.me/x/x`')
-    table = ('table', '在终端输出当前下载任务的统计信息。')
+    table = ('table', '在终端输出当前下载情况的统计信息。')
     exit = ('exit', '退出软件。')
 
     @staticmethod
