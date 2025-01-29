@@ -22,6 +22,7 @@ class Bot:
                                   BotCommand(BotCommandText.exit[0], BotCommandText.exit[1])]
 
     def __init__(self):
+        self.user = None
         self.bot = None
         self.is_bot_running: bool = False
         self.bot_task_link: set = set()
@@ -38,21 +39,21 @@ class Bot:
         text: str = message.text
         if text == '/download':
             await client.send_message(chat_id=message.chat.id,
-                                      text='请提供下载链接,格式:\n`/download https://t.me/x/x`',
+                                      text='❓❓❓请提供下载链接,格式:\n`/download https://t.me/x/x`',
                                       disable_web_page_preview=True)
         elif text.startswith('https://t.me/'):
             if text[len('https://t.me/'):].count('/') >= 1:
                 await client.send_message(chat_id=message.chat.id,
-                                          text=f'请使用以下命令,分配下载任务:\n`/download {text}`',
+                                          text=f'🚫🚫🚫请使用以下命令,分配下载任务:\n`/download {text}`',
                                           disable_web_page_preview=True)
             else:
                 await client.send_message(chat_id=message.chat.id,
-                                          text=f'请使用以下命令,分配下载任务:\n`/download https://t.me/x/x`',
+                                          text=f'❗️❗️❗️请使用以下命令,分配下载任务:\n`/download https://t.me/x/x`',
                                           disable_web_page_preview=True)
         elif len(text) <= 25 or text == '/download https://t.me/x/x' or text.endswith('.txt'):
             await self.help(client, message)
             await client.send_message(chat_id=message.chat.id,
-                                      text='链接错误,请查看帮助后重试。',
+                                      text='⁉️⁉️⁉️链接错误,请查看帮助后重试。',
                                       disable_web_page_preview=True)
         else:
             link: list = text.split()
@@ -152,6 +153,7 @@ class Bot:
                                   disable_web_page_preview=True,
                                   reply_markup=choice_keyboard)
 
+    # todo 修复当有".txt"链接还没下载完的时候,无法退出的问题。
     async def exit(self, client: pyrogram.Client,
                    message: pyrogram.types.Message) -> None:
         last_message = await client.send_message(chat_id=message.chat.id,
@@ -162,14 +164,17 @@ class Bot:
                                      chat_id=message.chat.id,
                                      last_message_id=last_message.id,
                                      text='👌👌👌退出成功。')
+        raise SystemExit(0)
 
     async def start_bot(
             self,
+            user_client_obj: pyrogram.Client,
             bot_client_obj: pyrogram.Client,
     ) -> str:
         """启动机器人。"""
         try:
             self.bot = bot_client_obj
+            self.user = user_client_obj
             await bot_client_obj.start()
             await self.bot.set_bot_commands(self.commands)
             self.bot.add_handler(
@@ -213,6 +218,9 @@ class Bot:
                 )
             )
             self.is_bot_running: bool = True
+            bot_id = getattr(await self.bot.get_me(), 'id', None)
+            if bot_id:
+                await self.user.send_message(chat_id=bot_id, text='/start', disable_web_page_preview=False)
             return '「机器人」启动成功。'
         except Exception as e:
             self.is_bot_running: bool = False

@@ -28,6 +28,7 @@ class TelegramRestrictedMediaDownloader(Bot):
         self.queue = asyncio.Queue()
         self.app = Application()
         self.client = self.app.build_client()
+        self.is_running: bool = False
 
     async def get_link_from_bot(self,
                                 client: pyrogram.Client,
@@ -213,19 +214,16 @@ class TelegramRestrictedMediaDownloader(Bot):
                 console.log(f'[当前任务数]:{self.app.current_task_num}。', justify='right')
 
                 def call(_future):
+                    self.app.current_task_num -= 1
                     if self.app.check_download_finish(sever_file_size=sever_file_size,
                                                       temp_file_path=temp_file_path,
                                                       save_directory=self.app.save_directory,
                                                       with_move=True):
-
-                        self.app.current_task_num -= 1
                         self.app.link_info.get(msg_link)['error_msg'] = {}
                         self.__listen_link_complete(msg_link=msg_link, file_name=file_name)
                         console.log(f'[当前任务数]:{self.app.current_task_num}。', justify='right')
-                        self.app.progress.remove_task(task_id=task_id)
                         self.event.set()
                     else:
-                        self.app.progress.remove_task(task_id=task_id)  # v1.2.9 更正下载失败时,删除下载失败的进度条。
                         if retry_count < self.app.max_retry_count:
                             console.log(
                                 f'[重新下载]:"{file_name}",[重试次数]:{retry_count + 1}/{self.app.max_retry_count}。')
@@ -240,6 +238,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                             self.app.link_info.get(msg_link)['error_msg'] = {file_name: _error.replace('。', '')}
                             self.bot_task_link.discard(msg_link)
                             self.event.set()
+                    self.app.progress.remove_task(task_id=task_id)
 
                 _task.add_done_callback(lambda _future: call(_future))
         self.queue.put_nowait(_task) if _task else None
@@ -351,7 +350,7 @@ class TelegramRestrictedMediaDownloader(Bot):
             return msg_link_set
         elif not self.app.bot_token:
             console.log('没有找到有效链接,程序已退出。')
-            sys.exit()
+            sys.exit(0)
         else:
             console.log('没有找到有效链接。')
             return None
@@ -360,19 +359,22 @@ class TelegramRestrictedMediaDownloader(Bot):
         await self.client.start()
         self.app.progress.start()  # v1.1.8修复登录输入手机号不显示文本问题。
         if self.app.bot_token is not None:
-            result = await self.start_bot(pyrogram.Client(
-                name=self.app.BOT_NAME,
-                api_hash=self.app.api_hash,
-                api_id=self.app.api_id,
-                bot_token=self.app.bot_token,
-                workdir=self.app.work_directory,
-                proxy=self.app.enable_proxy
-            ))
+            result = await self.start_bot(self.client,
+                                          pyrogram.Client(
+                                              name=self.app.BOT_NAME,
+                                              api_hash=self.app.api_hash,
+                                              api_id=self.app.api_id,
+                                              bot_token=self.app.bot_token,
+                                              workdir=self.app.work_directory,
+                                              proxy=self.app.enable_proxy
+                                          ))
             console.log(result, style='#B1DB74' if self.is_bot_running else '#FF4689')
-        links = self.__process_links(link=self.app.links)
+        txt_links = self.__process_links(link=self.app.links)
         # 将初始任务添加到队列中。
-        for link in links:
-            await self.__create_download_task(msg_link=link)
+        if txt_links:
+            for link in txt_links:
+                await self.__create_download_task(msg_link=link)
+        # todo 修复机器人下载重试时会卡住的问题。
         # 处理队列中的任务。
         while not self.queue.empty():
             task = await self.queue.get()
@@ -409,11 +411,10 @@ class TelegramRestrictedMediaDownloader(Bot):
             self.app.progress.stop()
             record_error: bool = True
             log.error(f'登录超时,请重新打开软件尝试登录,{KeyWord.REASON}:"{e}"')
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, SystemExit):
             self.app.progress.stop()
             console.log('用户手动终止下载任务。')
         except Exception as e:
-            self.app.progress.stop()
             record_error: bool = True
             log.exception(msg=f'运行出错,{KeyWord.REASON}:"{e}"', exc_info=True)
         finally:
@@ -426,4 +427,4 @@ class TelegramRestrictedMediaDownloader(Bot):
                 self.app.print_count_table()
                 MetaData.pay()
                 self.app.process_shutdown(60) if was_client_run else None  # v1.2.8如果并未打开客户端执行任何下载,则不执行关机。
-            os.system('pause') if self.app.platform == 'Windows' else console.input('请按「Enter」键继续. . .')
+            self.app.ctrl_c()

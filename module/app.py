@@ -378,7 +378,7 @@ class Application:
             if with_move:
                 result: str = move_to_save_directory(temp_file_path=temp_file_path,
                                                      save_directory=save_directory).get('e_code')
-                console.warning(result) if result is not None else None
+                log.warning(result) if result is not None else None
             console.log(
                 f'{KeyWord.FILE}:"{file_path}",'
                 f'{KeyWord.SIZE}:{format_local_size},'
@@ -583,12 +583,13 @@ class Application:
             # 展示链接内容表格。
             with open(file=self.links, mode='r', encoding='UTF-8') as _:
                 res: list = [content.strip() for content in _.readlines()]
-            format_res: list = []
-            for i in enumerate(res, start=1):
-                format_res.append(list(i))
-            link_table = PanelTable(title='链接内容', header=('编号', '链接'),
-                                    data=format_res)
-            link_table.print_meta()
+            if res:
+                format_res: list = []
+                for i in enumerate(res, start=1):
+                    format_res.append(list(i))
+                link_table = PanelTable(title='链接内容', header=('编号', '链接'),
+                                        data=format_res)
+                link_table.print_meta()
         except (FileNotFoundError, PermissionError, AttributeError) as e:  # v1.1.3 用户错误填写路径提示。
             log.error(f'读取"{self.links}"时出错,{KeyWord.REASON}:"{e}"')
         except Exception as e:
@@ -772,7 +773,7 @@ class Application:
                     else:
                         log.warning(f'意外的参数:"{question}",支持的参数 - 「y|n」')
             else:
-                sys.exit()
+                raise SystemExit(0)
         except KeyboardInterrupt:
             new_line: bool = False
             print('\n')
@@ -782,7 +783,11 @@ class Application:
                 print('\n')
                 console.log('用户手动终止配置参数。')
             os.system('pause')
-            sys.exit()
+            self.ctrl_c()
+            raise SystemExit(0)
+
+    def ctrl_c(self):
+        os.system('pause') if self.platform == 'Windows' else console.input('请按「Enter」键继续. . .')
 
     def __find_history_config(self) -> dict:
         """找到历史配置文件。"""
