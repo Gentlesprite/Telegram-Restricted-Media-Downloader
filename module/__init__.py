@@ -45,12 +45,13 @@ class CustomDumper(yaml.Dumper):
         return self.represent_scalar('tag:yaml.org,2002:null', '~')
 
 
-console = Console(log_path=False)
+LOG_TIME_FORMAT = '[%Y-%m-%d %H:%M:%S]'
+console = Console(log_path=False, log_time_format=LOG_TIME_FORMAT)
 utils.get_peer_type = get_peer_type_new
 AUTHOR = 'Gentlesprite'
 __version__ = '1.3.4'
 __license__ = 'MIT License'
-__update_date__ = '2025/01/30 22:36:03'
+__update_date__ = '2025/01/30 23:45:15'
 __copyright__ = f'Copyright (C) 2024-{__update_date__[:4]} {AUTHOR} <https://github.com/Gentlesprite>'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_SHORT_NAME = 'TRMD'
@@ -75,12 +76,14 @@ file_handler.setFormatter(logging.Formatter("%(message)s"))
 # 配置日志记录器
 logging.basicConfig(
     level=logging.WARNING,
-    format="%(message)s",
-    datefmt="[%X]",
+    format='%(message)s',
+    datefmt=LOG_TIME_FORMAT,
     handlers=[
         RichHandler(rich_tracebacks=True,
                     console=console,  # v1.2.5传入控制台对象,修复报错时进度条打印错位
-                    show_path=False),
+                    show_path=False,
+                    omit_repeated_times=False,
+                    log_time_format=LOG_TIME_FORMAT),
         file_handler  # 文件输出
     ]
 )
