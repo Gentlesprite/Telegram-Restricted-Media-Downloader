@@ -245,6 +245,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                         format_file_size,
                         task_id, _future):
         self.app.current_task_num -= 1
+        self.event.set()  # v1.3.4 修复重试下载被阻塞的问题。
         self.queue.task_done()
         if self.app.check_download_finish(sever_file_size=sever_file_size,
                                           temp_file_path=temp_file_path,
@@ -253,7 +254,6 @@ class TelegramRestrictedMediaDownloader(Bot):
             self.app.link_info.get(msg_link)['error_msg'] = {}
             self.__listen_link_complete(msg_link=msg_link, file_name=file_name)
             console.log(f'[当前任务数]:{self.app.current_task_num}。', justify='right')
-            self.event.set()
         else:
             if retry_count < self.app.max_retry_count:
                 retry_count += 1
@@ -268,7 +268,6 @@ class TelegramRestrictedMediaDownloader(Bot):
                             f'{_error}')
                 self.app.link_info.get(msg_link).get('error_msg')[file_name] = _error.replace('。', '')
                 self.bot_task_link.discard(msg_link)
-                self.event.set()
         self.app.progress.remove_task(task_id=task_id)
 
     async def __create_download_task(self,
@@ -423,7 +422,6 @@ class TelegramRestrictedMediaDownloader(Bot):
                 await task
             else:
                 await result
-
         # 等待所有任务完成。
         await self.queue.join()
 
