@@ -351,11 +351,12 @@ class Application:
                 else:
                     error_info = '\n'.join([f"{fn}: {err}" for fn, err in error_msg.items()])
                 data.append([index, msg_link, file_names, complete_rate, error_info])
-            panel_table = PanelTable(title='下载链接统计',
-                                     header=('编号', '链接', '文件名', '完成率', '错误信息'),
-                                     data=data,
-                                     show_lines=True)
-            panel_table.print_meta()
+            if data:
+                panel_table = PanelTable(title='下载链接统计',
+                                         header=('编号', '链接', '文件名', '完成率', '错误信息'),
+                                         data=data,
+                                         show_lines=True)
+                panel_table.print_meta()
         except Exception as e:
             log.error(f'打印下载链接统计表时出错,{KeyWord.REASON}:"{e}"')
 
@@ -882,11 +883,7 @@ class Application:
         _proxy_password: str or bool = _proxy_config.get('password', False)
         proxy_record: dict = self.last_record.get('proxy', {})  # proxy的历史记录。
 
-        if any([
-            not _api_id, not _api_hash, not _bot_token, not _links, not _save_directory, not _max_download_task,
-            not _download_type, not _is_shutdown, not _proxy_config, not _proxy_enable_proxy, not _proxy_scheme,
-            not _proxy_port, not _proxy_hostname, not _proxy_username, not _proxy_password
-        ]):
+        if any([not _api_id, not _api_hash, not _save_directory, not _max_download_task, not _download_type]):
             console.print('「注意」直接回车代表使用上次的记录。',
                           style='#B1DB74')
         try:
@@ -904,7 +901,7 @@ class Application:
                     if record_flag:
                         self.record_flag = record_flag
                         self._config['api_hash'] = api_hash
-            if not _bot_token:
+            if not _bot_token and self.re_config:
                 enable_bot: bool = GetStdioParams.get_enable_bot(valid_format='y|n').get('enable_bot')
                 if enable_bot:
                     bot_token, record_flag = GetStdioParams.get_bot_token(
@@ -913,7 +910,7 @@ class Application:
                     if record_flag:
                         self.record_flag = record_flag
                         self._config['bot_token'] = bot_token
-            if not _links or not _bot_token or self.re_config:
+            if not _links or not _bot_token and self.re_config:
                 links, record_flag = GetStdioParams.get_links(last_record=self.last_record.get('links'),
                                                               valid_format='.txt').values()
                 if record_flag:
@@ -945,7 +942,7 @@ class Application:
                     self.record_flag = True
                     self._config['is_shutdown'] = is_shutdown
             # 是否开启代理
-            if not _proxy_enable_proxy:
+            if not _proxy_enable_proxy and self.re_config:
                 valid_format: str = 'y|n'
                 is_enable_proxy, is_ep_record_flag = GetStdioParams.get_enable_proxy(
                     last_record=proxy_record.get('enable_proxy', False),
