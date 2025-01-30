@@ -6,8 +6,9 @@
 import os
 import sys
 import asyncio
-from typing import Tuple, Union
 from functools import partial
+from typing import Tuple, Union
+
 import pyrogram
 from pyrogram.errors.exceptions.bad_request_400 import MsgIdInvalid, UsernameInvalid
 from pyrogram.errors.exceptions.unauthorized_401 import SessionRevoked, AuthKeyUnregistered, SessionExpired
