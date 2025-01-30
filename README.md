@@ -217,7 +217,6 @@ max_download_task: 3 # 最大的下载任务数,非Telegram会员无效。支持
 proxy: # 代理部分,如不使用请全部填null注意冒号后面有空格,否则不生效导致报错。
   enable_proxy: true # 是否开启代理。支持的参数:true,false。
   hostname: 127.0.0.1 # 代理的ip地址。
-  is_notice: false # 开关是否询问使用代理的提示。支持的参数:true,false。
   scheme: socks5 # 代理的类型。支持的参数:http,socks4,socks5。
   port: 10808 # 代理ip的端口。支持的参数:0~65535。
   username: null # 代理的账号,没有就填null。

@@ -175,7 +175,6 @@ class Application:
         'bot_token': None,
         'proxy': {
             'enable_proxy': None,
-            'is_notice': None,
             'scheme': None,
             'hostname': None,
             'port': None,
@@ -211,9 +210,10 @@ class Application:
         self.modified: bool = False
         self.get_last_history_record()
         self.is_change_account: bool = True
-        self._config = self.load_config(with_check=True)  # v1.2.9 重新调整配置文件加载逻辑。
+        self.re_config: bool = False
+        self._config: dict = self.load_config(with_check=True)  # v1.2.9 重新调整配置文件加载逻辑。
         self.config_guide() if guide else None
-        self.config = self.load_config(with_check=False)  # v1.3.0 修复重复询问重新配置文件。
+        self.config: dict = self.load_config(with_check=False)  # v1.3.0 修复重复询问重新配置文件。
         self.api_hash = self.config.get('api_hash')
         self.api_id = self.config.get('api_id')
         self.bot_token = self.config.get('bot_token')
@@ -395,15 +395,17 @@ class Application:
         safe_delete(file_p_d=temp_file_path)  # v1.2.9 修复临时文件删除失败的问题。
         return False
 
-    def get_media_meta(self, message, dtype) -> dict:
+    def get_media_meta(self, message: pyrogram.types.Message, dtype) -> dict:
         """获取媒体元数据。"""
+        file_id: int = getattr(message, 'id')
         temp_file_path: str = self.__get_temp_file_path(message, dtype)
         _sever_meta = getattr(message, dtype)
         sever_file_size: int = getattr(_sever_meta, 'file_size')
         file_name: str = split_path(temp_file_path).get('file_name')
         save_directory: str = os.path.join(self.save_directory, file_name)
         format_file_size: str = MetaData.suitable_units_display(sever_file_size)
-        return {'temp_file_path': temp_file_path,
+        return {'file_id': file_id,
+                'temp_file_path': temp_file_path,
                 'sever_file_size': sever_file_size,
                 'file_name': file_name,
                 'save_directory': save_directory,
@@ -660,7 +662,10 @@ class Application:
                 console.log('未找到配置文件,已生成新的模板文件. . .')
             with open(self.config_path, 'r') as f:
                 config: dict = yaml.safe_load(f)  # v1.1.4 加入对每个字段的完整性检测。
+            compare_config: dict = config.copy()
             config: dict = self.__check_params(config)  # 检查所有字段是否完整,modified代表是否有修改记录(只记录缺少的)
+            if config != compare_config:
+                self.re_config = True
         except UnicodeDecodeError as e:  # v1.1.3 加入配置文件路径是中文或特殊字符时的错误提示,由于nuitka打包的性质决定,
             # 中文路径无法被打包好的二进制文件识别,故在配置文件时无论是链接路径还是媒体保存路径都请使用英文命名。
             error_config: bool = True
@@ -674,6 +679,7 @@ class Application:
             self.backup_config(config, error_config=error_config)
         finally:
             if config is None:
+                self.re_config = True
                 log.warning('检测到空的配置文件。已生成新的模板文件. . .')
                 config: dict = Application.CONFIG_TEMPLATE.copy()
             if error_config:  # 如果遇到报错或者全部参数都是空的。
@@ -690,6 +696,7 @@ class Application:
                             self.get_last_history_record()  # 更新到上次填写的记录。
                             self.is_change_account = GetStdioParams.get_is_change_account(valid_format='y|n').get(
                                 'is_change_account')
+                            self.re_config = True
                             if self.is_change_account:
                                 if safe_delete(file_p_d=os.path.join(self.DIRECTORY_NAME, 'sessions')):
                                     console.log('已删除旧会话文件,稍后需重新登录。')
@@ -862,129 +869,123 @@ class Application:
         _save_directory: str or None = self._config.get('save_directory')
         _max_download_task: int or None = self._config.get('max_download_task')
         _download_type: list or None = self._config.get('download_type')
+        _is_shutdown: bool or None = self._config.get('is_shutdown')
         _proxy_config: dict = self._config.get('proxy', {})
         _proxy_enable_proxy: str or bool = _proxy_config.get('enable_proxy', False)
-        _proxy_is_notice: str or bool = _proxy_config.get('is_notice', False)
         _proxy_scheme: str or bool = _proxy_config.get('scheme', False)
         _proxy_hostname: str or bool = _proxy_config.get('hostname', False)
         _proxy_port: str or bool = _proxy_config.get('port', False)
         _proxy_username: str or bool = _proxy_config.get('username', False)
         _proxy_password: str or bool = _proxy_config.get('password', False)
         proxy_record: dict = self.last_record.get('proxy', {})  # proxy的历史记录。
-        if any([
-            not _api_id, not _api_hash, not _bot_token, not _links, not _save_directory, not _max_download_task,
-            not _download_type,
-            not _proxy_config, not _proxy_enable_proxy, not _proxy_is_notice, not _proxy_scheme, not _proxy_port,
-            not _proxy_hostname, not _proxy_username, not _proxy_password
-        ]):
-            console.print('「注意」直接回车代表使用上次的记录。',
-                          style='#B1DB74')
-        try:
-            if self.is_change_account and _api_id is None and _api_hash is None:
-                if not _api_id:
-                    api_id, record_flag = GetStdioParams.get_api_id(last_record=self.last_record.get('api_id')).values()
+        if self.re_config:
+            if any([
+                not _api_id, not _api_hash, not _bot_token, not _links, not _save_directory, not _max_download_task,
+                not _download_type, not _is_shutdown, not _proxy_config, not _proxy_enable_proxy, not _proxy_scheme,
+                not _proxy_port, not _proxy_hostname, not _proxy_username, not _proxy_password
+            ]):
+                console.print('「注意」直接回车代表使用上次的记录。',
+                              style='#B1DB74')
+            try:
+                if self.is_change_account and _api_id is None and _api_hash is None:
+                    if not _api_id:
+                        api_id, record_flag = GetStdioParams.get_api_id(
+                            last_record=self.last_record.get('api_id')).values()
+                        if record_flag:
+                            self.record_flag = record_flag
+                            self._config['api_id'] = api_id
+                    if not _api_hash:
+                        api_hash, record_flag = GetStdioParams.get_api_hash(
+                            last_record=self.last_record.get('api_hash'),
+                            valid_length=32).values()
+                        if record_flag:
+                            self.record_flag = record_flag
+                            self._config['api_hash'] = api_hash
+                if not _bot_token:
+                    enable_bot: bool = GetStdioParams.get_enable_bot(valid_format='y|n').get('enable_bot')
+                    if enable_bot:
+                        bot_token, record_flag = GetStdioParams.get_bot_token(
+                            last_record=self.last_record.get('bot_token'),
+                            valid_format=':').values()
+                        if record_flag:
+                            self.record_flag = record_flag
+                            self._config['bot_token'] = bot_token
+                if not _links:
+                    links, record_flag = GetStdioParams.get_links(last_record=self.last_record.get('links'),
+                                                                  valid_format='.txt').values()
                     if record_flag:
                         self.record_flag = record_flag
-                        self._config['api_id'] = api_id
-                if not _api_hash:
-                    api_hash, record_flag = GetStdioParams.get_api_hash(last_record=self.last_record.get('api_hash'),
-                                                                        valid_length=32).values()
+                        self._config['links'] = links
+                if not _save_directory:
+                    save_directory, record_flag = GetStdioParams.get_save_directory(
+                        last_record=self.last_record.get('save_directory')).values()
                     if record_flag:
                         self.record_flag = record_flag
-                        self._config['api_hash'] = api_hash
-            if not _bot_token:
-                enable_bot: bool = GetStdioParams.get_enable_bot(valid_format='y|n').get('enable_bot')
-                if enable_bot:
-                    bot_token, record_flag = GetStdioParams.get_bot_token(
-                        last_record=self.last_record.get('bot_token'),
-                        valid_format=':').values()
+                        self._config['save_directory'] = save_directory
+                if not _max_download_task:
+                    max_download_task, record_flag = GetStdioParams.get_max_download_task(
+                        last_record=self.last_record.get('max_download_task')).values()
                     if record_flag:
                         self.record_flag = record_flag
-                        self._config['bot_token'] = bot_token
-            if not _links:
-                links, record_flag = GetStdioParams.get_links(last_record=self.last_record.get('links'),
-                                                              valid_format='.txt').values()
-                if record_flag:
-                    self.record_flag = record_flag
-                    self._config['links'] = links
-            if not _save_directory:
-                save_directory, record_flag = GetStdioParams.get_save_directory(
-                    last_record=self.last_record.get('save_directory')).values()
-                if record_flag:
-                    self.record_flag = record_flag
-                    self._config['save_directory'] = save_directory
-            if not _max_download_task:
-                max_download_task, record_flag = GetStdioParams.get_max_download_task(
-                    last_record=self.last_record.get('max_download_task')).values()
-                if record_flag:
-                    self.record_flag = record_flag
-                    self._config['max_download_task'] = max_download_task
-            if not _download_type:
-                download_type, record_flag = GetStdioParams.get_download_type(
-                    last_record=self.last_record.get('download_type')).values()
-                if record_flag:
-                    self.record_flag = record_flag
-                    self._config['download_type'] = download_type
-            # 是否下载完成关机。
-            is_shutdown, _is_shutdown_record_flag = GetStdioParams.get_is_shutdown(
-                last_record=self.last_record.get('is_shutdown'),
-                valid_format='y|n').values()
-            if _is_shutdown_record_flag:
-                self.record_flag = True
-                self._config['is_shutdown'] = is_shutdown
-            # 是否开启代理
-            if _proxy_config.get('is_notice') is True or _proxy_config.get('is_notice') is None:  # 如果打开了通知或第一次配置。
-                valid_format: str = 'y|n'
-
-                is_enable_proxy, is_ep_record_flag = GetStdioParams.get_enable_proxy(
-                    last_record=proxy_record.get('enable_proxy', False),
-                    valid_format=valid_format).values()
-                if is_ep_record_flag:
-                    self.record_flag = True
-                    _proxy_config['enable_proxy'] = is_enable_proxy
-
-                is_notice, is_in_record_flag = GetStdioParams.get_is_notice(
-                    last_record=proxy_record.get('is_notice', False),
-                    valid_format=valid_format).values()
-                if is_in_record_flag:
-                    self.record_flag = True
-                    _proxy_config['is_notice'] = is_notice
-            # 如果需要使用代理。
-            # 如果上面配置的enable_proxy为True或本来配置文件中的enable_proxy就为True。
-            if _proxy_config.get('enable_proxy') is True or _proxy_enable_proxy is True:
-                if ProcessConfig.is_proxy_input(proxy_config=_proxy_config):
-                    if not _proxy_scheme:
-                        scheme, record_flag = GetStdioParams.get_scheme(last_record=proxy_record.get('scheme'),
-                                                                        valid_format=['http', 'socks4',
-                                                                                      'socks5']).values()
-                        if record_flag:
-                            self.record_flag = True
-                            _proxy_config['scheme'] = scheme
-                    if not _proxy_hostname:
-                        hostname, record_flag = GetStdioParams.get_hostname(
-                            proxy_config=_proxy_config,
-                            last_record=proxy_record.get('hostname'),
-                            valid_format='x.x.x.x').values()
-                        if record_flag:
-                            self.record_flag = True
-                            _proxy_config['hostname'] = hostname
-                    if not _proxy_port:
-                        port, record_flag = GetStdioParams.get_port(
-                            proxy_config=_proxy_config,
-                            last_record=proxy_record.get('port'),
-                            valid_format='0~65535').values()
-                        if record_flag:
-                            self.record_flag = True
-                            _proxy_config['port'] = port
-                    if not all([_proxy_username, _proxy_password]):
-                        username, password, record_flag = GetStdioParams.get_proxy_authentication().values()
-                        if record_flag:
-                            self.record_flag = True
-                            _proxy_config['username'] = username
-                            _proxy_config['password'] = password
-        except KeyboardInterrupt:
-            self.__keyboard_interrupt()
-        self.save_config()  # v1.3.0 修复不保存配置文件时,配置文件仍然保存的问题。
+                        self._config['max_download_task'] = max_download_task
+                if not _download_type:
+                    download_type, record_flag = GetStdioParams.get_download_type(
+                        last_record=self.last_record.get('download_type')).values()
+                    if record_flag:
+                        self.record_flag = record_flag
+                        self._config['download_type'] = download_type
+                if not _is_shutdown:
+                    is_shutdown, _is_shutdown_record_flag = GetStdioParams.get_is_shutdown(
+                        last_record=self.last_record.get('is_shutdown'),
+                        valid_format='y|n').values()
+                    if _is_shutdown_record_flag:
+                        self.record_flag = True
+                        self._config['is_shutdown'] = is_shutdown
+                # 是否开启代理
+                if not _proxy_enable_proxy:
+                    valid_format: str = 'y|n'
+                    is_enable_proxy, is_ep_record_flag = GetStdioParams.get_enable_proxy(
+                        last_record=proxy_record.get('enable_proxy', False),
+                        valid_format=valid_format).values()
+                    if is_ep_record_flag:
+                        self.record_flag = True
+                        _proxy_config['enable_proxy'] = is_enable_proxy
+                # 如果需要使用代理。
+                # 如果上面配置的enable_proxy为True或本来配置文件中的enable_proxy就为True。
+                if _proxy_config.get('enable_proxy') is True or _proxy_enable_proxy is True:
+                    if ProcessConfig.is_proxy_input(proxy_config=_proxy_config):
+                        if not _proxy_scheme:
+                            scheme, record_flag = GetStdioParams.get_scheme(last_record=proxy_record.get('scheme'),
+                                                                            valid_format=['http', 'socks4',
+                                                                                          'socks5']).values()
+                            if record_flag:
+                                self.record_flag = True
+                                _proxy_config['scheme'] = scheme
+                        if not _proxy_hostname:
+                            hostname, record_flag = GetStdioParams.get_hostname(
+                                proxy_config=_proxy_config,
+                                last_record=proxy_record.get('hostname'),
+                                valid_format='x.x.x.x').values()
+                            if record_flag:
+                                self.record_flag = True
+                                _proxy_config['hostname'] = hostname
+                        if not _proxy_port:
+                            port, record_flag = GetStdioParams.get_port(
+                                proxy_config=_proxy_config,
+                                last_record=proxy_record.get('port'),
+                                valid_format='0~65535').values()
+                            if record_flag:
+                                self.record_flag = True
+                                _proxy_config['port'] = port
+                        if not all([_proxy_username, _proxy_password]):
+                            username, password, record_flag = GetStdioParams.get_proxy_authentication().values()
+                            if record_flag:
+                                self.record_flag = True
+                                _proxy_config['username'] = username
+                                _proxy_config['password'] = password
+            except KeyboardInterrupt:
+                self.__keyboard_interrupt()
+            self.save_config()  # v1.3.0 修复不保存配置文件时,配置文件仍然保存的问题。
 
 
 class PanelTable:

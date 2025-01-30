@@ -153,7 +153,6 @@ class Bot:
                                   disable_web_page_preview=True,
                                   reply_markup=choice_keyboard)
 
-    # todo 修复当有".txt"链接还没下载完的时候,无法退出的问题。
     async def exit(self, client: pyrogram.Client,
                    message: pyrogram.types.Message) -> None:
         last_message = await client.send_message(chat_id=message.chat.id,
@@ -225,10 +224,6 @@ class Bot:
         except Exception as e:
             self.is_bot_running: bool = False
             return f'「机器人」启动失败,原因:"{e}"'
-
-    async def bot_event_loop(self):
-        while self.is_bot_running:
-            await asyncio.sleep(0.5)  # 解决资源占用过多问题。
 
     @staticmethod
     def update_text(right_link: set, invalid_link: set, exist_link: set or None = None):

@@ -420,11 +420,6 @@ class Validator:
             return True
 
     @staticmethod
-    def is_valid_is_notice(is_notice: str) -> bool:
-        if is_notice in ('y', 'n'):
-            return True
-
-    @staticmethod
     def is_valid_scheme(scheme: str, valid_format: list) -> bool:
         return scheme in valid_format
 
@@ -555,12 +550,11 @@ class ProcessConfig:
                               'download_type': 6,
                               'is_shutdown': 7,
                               'enable_proxy': 8,
-                              'is_notice': 9,
-                              'config_proxy': 10,
-                              'scheme': 11,
-                              'hostname': 12,
-                              'port': 13,
-                              'proxy_authentication': 14
+                              'config_proxy': 9,
+                              'scheme': 10,
+                              'hostname': 11,
+                              'port': 12,
+                              'proxy_authentication': 13
                               }
         return color[_stdio_queue.get(key)]
 
@@ -812,35 +806,6 @@ class GetStdioParams:
                     return {'enable_proxy': False, 'record_flag': True}
             else:
                 log.error(f'意外的参数:"{enable_proxy}",请输入有效参数!支持的参数 - 「{valid_format}」!')
-
-    @staticmethod
-    def get_is_notice(last_record: bool, valid_format: str = 'y|n') -> dict:
-        style = ProcessConfig.stdio_style('is_notice')
-        if last_record:
-            in_notice: str = 'y' if last_record else 'n'
-        else:
-            in_notice: str = GetStdioParams.UNDEFINED
-        while True:
-            # 是否记住选项。
-            is_notice = console.input(
-                f'下次是否「不再询问使用代理」。上一次的记录是:「{in_notice}」'
-                f'格式 - 「{valid_format}」{("(默认n)" if in_notice == GetStdioParams.UNDEFINED else "")}:').strip().lower()
-            if is_notice == '' and last_record is not None:
-                if last_record is True:
-                    is_notice = 'y'
-                elif last_record is False:
-                    is_notice = 'n'
-            elif is_notice == '':
-                is_notice = 'n'
-            if Validator.is_valid_is_notice(is_notice):
-                if is_notice == 'y':
-                    console.print(f'已设置「is_notice」为:「{is_notice}」,下次将不再询问是否使用代理。', style=style)
-                    return {'is_notice': False, 'record_flag': True}
-                elif is_notice == 'n':
-                    console.print(f'已设置「is_notice」为:「{is_notice}」', style=style)
-                    return {'is_notice': True, 'record_flag': True}
-            else:
-                log.error(f'意外的参数:"{is_notice}",请输入有效参数!支持的参数 - 「{valid_format}」!')
 
     @staticmethod
     def get_scheme(last_record: str, valid_format: list) -> dict:
