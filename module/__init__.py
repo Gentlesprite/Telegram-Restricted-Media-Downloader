@@ -49,7 +49,7 @@ LOG_TIME_FORMAT = '[%Y-%m-%d %H:%M:%S]'
 console = Console(log_path=False, log_time_format=LOG_TIME_FORMAT)
 utils.get_peer_type = get_peer_type_new
 AUTHOR = 'Gentlesprite'
-__version__ = '1.3.4'
+__version__ = '1.3.5'
 __license__ = 'MIT License'
 __update_date__ = '2025/01/31 00:46:32'
 __copyright__ = f'Copyright (C) 2024-{__update_date__[:4]} {AUTHOR} <https://github.com/Gentlesprite>'

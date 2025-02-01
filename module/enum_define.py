@@ -875,7 +875,7 @@ class GetStdioParams:
         while True:
             is_proxy = console.input(f'代理是否需要「认证」? - 「{valid_format}」(默认n):').strip().lower()
             if is_proxy == 'y':
-                username = console.input('请输入「用户名」:').strip()
+                username = console.input('请输入「账号」:').strip()
                 password = console.input('请输入「密码」:').strip()
                 console.print(f'已设置为:「代理需要认证」', style=style)
                 return {'username': username, 'password': password, 'record_flag': True}
