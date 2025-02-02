@@ -227,8 +227,8 @@ class Bot:
             bot_username = getattr(await self.bot.get_me(), 'username', None)
             if bot_username:
                 await self.user.send_message(chat_id=bot_username, text='/start', disable_web_page_preview=False)
-        except Exception:
-            pass
+        except Exception as _:
+            return _
 
     @staticmethod
     def update_text(right_link: set, invalid_link: set, exist_link: set or None = None):
