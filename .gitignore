@@ -7,18 +7,16 @@ output/
 img/
 venv/
 ConfigBackup/
-test/
-test_download/
-test_download/test/
+tests/
+test*
 # ignore files
 *.exe
 *.yaml
+*.template
 *.xml
 *.lock
 *.session
 *.session-journal
-tests.py
-test.py
-TESTS.py
-config.yaml.template
+test*.py
 Pipfile
+
