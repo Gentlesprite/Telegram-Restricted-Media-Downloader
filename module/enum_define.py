@@ -671,9 +671,10 @@ class GetStdioParams:
                     log.warning(f'意外的参数:"{links_file_path}",文件路径必须以「{valid_format}」结尾,请重新输入!')
                 else:
                     log.warning(
-                        f'意外的参数:"{links_file_path}",文件路径必须以「{valid_format}」结尾,并且「必须存在」,请重新输入!')
+                        f'意外的参数:"{links_file_path}",文件「必须存在」,请重新输入!')
             except Exception as _e:
-                log.error(f'意外的参数:"{links_file_path}",请重新输入!{KeyWord.REASON}:"{_e}"')
+                log.warning(
+                    f'意外的参数:"{links_file_path}",文件路径必须以「{valid_format}」结尾,并且「必须存在」,请重新输入!{KeyWord.REASON}:"{_e}"')
 
     @staticmethod
     def get_save_directory(last_record) -> dict:
