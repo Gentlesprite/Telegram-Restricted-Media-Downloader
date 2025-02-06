@@ -51,9 +51,9 @@ console = Console(log_path=False, log_time_format=LOG_TIME_FORMAT)
 utils.get_peer_type = get_peer_type_new
 Session.WAIT_TIMEOUT = 100
 AUTHOR = 'Gentlesprite'
-__version__ = '1.3.5'
+__version__ = '1.3.6'
 __license__ = 'MIT License'
-__update_date__ = '2025/02/06 20:23:30'
+__update_date__ = '2025/02/06 23:31:59'
 __copyright__ = f'Copyright (C) 2024-{__update_date__[:4]} {AUTHOR} <https://github.com/Gentlesprite>'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_SHORT_NAME = 'TRMD'

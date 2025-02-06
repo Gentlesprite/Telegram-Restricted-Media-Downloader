@@ -7,7 +7,7 @@ from typing import List, Dict, Union
 
 import pyrogram
 from pyrogram.handlers import MessageHandler, CallbackQueryHandler
-from pyrogram.errors.exceptions.bad_request_400 import MessageNotModified
+from pyrogram.errors.exceptions.bad_request_400 import MessageNotModified, AccessTokenInvalid
 from pyrogram.types import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 
 from module import __version__, __copyright__, SOFTWARE_FULL_NAME, __license__
@@ -218,6 +218,9 @@ class Bot:
             self.is_bot_running: bool = True
             await self.get_start()
             return '「机器人」启动成功。'
+        except AccessTokenInvalid as e:
+            self.is_bot_running: bool = False
+            return f'「机器人」启动失败,「bot_token」错误,原因:"{e}"'
         except Exception as e:
             self.is_bot_running: bool = False
             return f'「机器人」启动失败,原因:"{e}"'
