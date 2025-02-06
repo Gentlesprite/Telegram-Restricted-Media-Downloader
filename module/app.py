@@ -1068,8 +1068,8 @@ class MetaData:
 
     @staticmethod
     def print_helper():
-        markdown = Markdown(README)
-        console.print(markdown)
+        console.print(Markdown('# 配置文件说明'))
+        console.print(Markdown(README))
 
     @staticmethod
     def __qr_terminal_str(str_obj: str, version: int = 1, render: callable = QrcodeRender.render_2by1) -> str:

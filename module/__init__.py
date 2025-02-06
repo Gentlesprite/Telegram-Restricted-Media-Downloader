@@ -11,6 +11,7 @@ from logging.handlers import RotatingFileHandler
 
 import yaml
 from pyrogram import utils
+from pyrogram.session import Session
 from rich.console import Console
 from rich.logging import RichHandler
 
@@ -48,14 +49,15 @@ class CustomDumper(yaml.Dumper):
 LOG_TIME_FORMAT = '[%Y-%m-%d %H:%M:%S]'
 console = Console(log_path=False, log_time_format=LOG_TIME_FORMAT)
 utils.get_peer_type = get_peer_type_new
+Session.WAIT_TIMEOUT = 100
 AUTHOR = 'Gentlesprite'
 __version__ = '1.3.5'
 __license__ = 'MIT License'
-__update_date__ = '2025/02/02 11:39:01'
+__update_date__ = '2025/02/06 20:23:30'
 __copyright__ = f'Copyright (C) 2024-{__update_date__[:4]} {AUTHOR} <https://github.com/Gentlesprite>'
 SOFTWARE_FULL_NAME = 'Telegram Restricted Media Downloader'
 SOFTWARE_SHORT_NAME = 'TRMD'
-APPDATA_PATH = os.path.join(os.environ['APPDATA'], SOFTWARE_SHORT_NAME)
+APPDATA_PATH = os.path.join(os.environ.get('APPDATA'), SOFTWARE_SHORT_NAME)
 os.makedirs(APPDATA_PATH, exist_ok=True)  # v1.2.6修复初次运行打开报错问题。
 INPUT_HISTORY_PATH = os.path.join(APPDATA_PATH, f'.{SOFTWARE_SHORT_NAME}_HISTORY')
 MAX_RECORD_LENGTH = 1000
@@ -90,7 +92,6 @@ logging.basicConfig(
 log = logging.getLogger('rich')
 CustomDumper.add_representer(type(None), CustomDumper.represent_none)
 README = r'''
-# 配置文件说明
 ```yaml
 # 这里只是介绍每个参数的含义,软件会详细地引导配置参数。
 # 如果是按照软件的提示填,选看。如果是手动打开config.yaml修改配置,请仔细阅读下面内容。
