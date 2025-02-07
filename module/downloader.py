@@ -10,7 +10,8 @@ from functools import partial
 from typing import Tuple, Union
 
 import pyrogram
-from pyrogram.errors.exceptions.bad_request_400 import MsgIdInvalid, UsernameInvalid
+from pyrogram.errors.exceptions.not_acceptable_406 import ChannelPrivate
+from pyrogram.errors.exceptions.bad_request_400 import MsgIdInvalid, UsernameInvalid, ChannelInvalid
 from pyrogram.errors.exceptions.unauthorized_401 import SessionRevoked, AuthKeyUnregistered, SessionExpired
 
 from module import console, log
@@ -346,6 +347,20 @@ class TelegramRestrictedMediaDownloader(Bot):
             self.app.link_info.get(msg_link)['error_msg'] = {'all_member': e}
             log.error(
                 f'{KeyWord.LINK}:"{msg_link}"频道用户名无效,该链接的频道用户名可能已更改或频道已解散,'
+                f'{KeyWord.REASON}:"{e}",'
+                f'{KeyWord.STATUS}:{Status.FAILURE}。')
+            return False
+        except ChannelInvalid as e:
+            self.app.link_info.get(msg_link)['error_msg'] = {'all_member': e}
+            log.error(
+                f'{KeyWord.LINK}:"{msg_link}"频道可能为私密频道,请让当前账号加入该频道后再重试,'
+                f'{KeyWord.REASON}:"{e}",'
+                f'{KeyWord.STATUS}:{Status.FAILURE}。')
+            return False
+        except ChannelPrivate as e:
+            self.app.link_info.get(msg_link)['error_msg'] = {'all_member': e}
+            log.error(
+                f'{KeyWord.LINK}:"{msg_link}"频道可能为私密频道,当前账号可能已不在该频道,请让当前账号加入该频道后再重试,'
                 f'{KeyWord.REASON}:"{e}",'
                 f'{KeyWord.STATUS}:{Status.FAILURE}。')
             return False
