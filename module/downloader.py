@@ -25,6 +25,7 @@ class TelegramRestrictedMediaDownloader(Bot):
     def __init__(self):
         super().__init__()
         MetaData.print_helper()
+        self.loop = asyncio.get_event_loop()
         self.event = asyncio.Event()
         self.queue = asyncio.Queue()
         self.app = Application()
@@ -207,11 +208,11 @@ class TelegramRestrictedMediaDownloader(Bot):
                 if is_file_duplicate(save_directory=save_directory,
                                      sever_file_size=sever_file_size):  # 检测是否存在。
                     if retry_count == 0:  # v1.2.9 下载失败时,不再重复打印已存在的文件信息。
+                        console.log(f'{KeyWord.ALREADY_EXIST}:"{save_directory}"')
                         console.log(f'{KeyWord.FILE}:"{file_name}",'
                                     f'{KeyWord.SIZE}:{format_file_size},'
                                     f'{KeyWord.TYPE}:{DownloadType.t(self.app.guess_file_type(file_name=file_name, status=DownloadStatus.skip)[0].text)},'
-                                    f'{KeyWord.ALREADY_EXIST}:"{save_directory}",'
-                                    f'{KeyWord.STATUS}:{Status.SKIP}。', style='yellow')
+                                    f'{KeyWord.STATUS}:{Status.SKIP}。', style='#e6db74')
                     self.__listen_link_complete(msg_link=msg_link, file_name=file_name)
                 else:
                     console.log(f'{KeyWord.FILE}:"{file_name}",'
@@ -222,7 +223,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                                                          filename=file_name,
                                                          info=f'0.00B/{format_file_size}',
                                                          total=sever_file_size)
-                    _task = asyncio.create_task(
+                    _task = self.loop.create_task(
                         self.client.download_media(message=message,
                                                    progress_args=(self.app.progress, task_id),
                                                    progress=self.app.download_bar,
@@ -265,7 +266,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                 console.log(f'{KeyWord.FILE}:"{file_name}",'
                             f'{KeyWord.SIZE}:{format_file_size},'
                             f'{KeyWord.TYPE}:{DownloadType.t(self.app.guess_file_type(file_name=file_name, status=DownloadStatus.failure)[0].text)},'
-                            f'{KeyWord.STATUS}:{Status.SKIP}'
+                            f'{KeyWord.STATUS}:{Status.FAILURE}'
                             f'{_error}')
                 self.app.link_info.get(msg_link).get('error_msg')[file_name] = _error.replace('。', '')
                 self.bot_task_link.discard(msg_link)
@@ -418,7 +419,7 @@ class TelegramRestrictedMediaDownloader(Bot):
             result = await self.queue.get()
             if isinstance(result, tuple):
                 msg_link, retry, notice = result
-                task = asyncio.create_task(self.__create_download_task(msg_link=msg_link, retry=retry))
+                task = self.loop.create_task(self.__create_download_task(msg_link=msg_link, retry=retry))
                 task.add_done_callback(partial(self.__retry_call, notice))
                 await task
             else:
@@ -431,13 +432,13 @@ class TelegramRestrictedMediaDownloader(Bot):
         try:
             MetaData.print_meta()
             self.app.print_config_table()
-            self.client.run(self.__download_media_from_links())
+            self.loop.run_until_complete(self.__download_media_from_links())
         except (SessionRevoked, AuthKeyUnregistered, SessionExpired, ConnectionError) as e:
             log.error(f'登录时遇到错误,{KeyWord.REASON}:"{e}"')
             res: bool = safe_delete(file_p_d=os.path.join(self.app.DIRECTORY_NAME, 'sessions'))
             record_error: bool = True
             if res:
-                log.warning('已删除旧会话文件,请重启软件。')
+                log.warning('账号已失效,已删除旧会话文件,请重启软件。')
             else:
                 log.error('账号已失效,请手动删除软件目录下的sessions文件夹后重启软件。')
         except AttributeError as e:
