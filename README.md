@@ -212,8 +212,7 @@ is_shutdown: true # 下载完成后是否自动关机。支持的参数:true,fal
 links: D:\path\where\your\link\files\save\content.txt # 链接地址写法如下:
 # 新建txt文本,一个链接为一行,将路径填入即可请不要加引号,在软件运行前就准备好。
 # D:\path\where\your\link\txt\save\content.txt 一个链接一行。
-# 不要存在中文或特殊字符。
-max_download_task: 3 # 最大的下载任务数,非Telegram会员无效。支持的参数:所有>0的整数。
+max_download_task: 3 # 最大的下载任务数,值过高可能会导致网络相关问题。支持的参数:所有>0的整数。
 proxy: # 代理部分,如不使用请全部填null注意冒号后面有空格,否则不生效导致报错。
   enable_proxy: true # 是否开启代理。支持的参数:true,false。
   hostname: 127.0.0.1 # 代理的ip地址。
@@ -221,7 +220,7 @@ proxy: # 代理部分,如不使用请全部填null注意冒号后面有空格,�
   port: 10808 # 代理ip的端口。支持的参数:0~65535。
   username: null # 代理的账号,没有就填null。
   password: null # 代理的密码,没有就填null。
-save_path: F:\directory\media\where\you\save # 下载的媒体保存的目录,不要存在中文或特殊字符。
+save_path: F:\directory\media\where\you\save # 下载的媒体保存的目录。
 ```
 
 ## 2.4.**使用注意事项**
