@@ -700,7 +700,7 @@ class GetStdioParams:
             try:
                 max_download_task = console.input(
                     f'请输入「最大下载任务数」。上一次的记录是:「{last_record if last_record else GetStdioParams.UNDEFINED}」'
-                    f',非会员建议默认{"(默认3)" if last_record is None else ""}:').strip()
+                    f',值过高可能会导致网络相关问题,建议默认{"(默认3)" if last_record is None else ""}:').strip()
                 if max_download_task == '' and last_record is not None:
                     max_download_task = last_record
                 if max_download_task == '':

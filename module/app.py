@@ -220,7 +220,8 @@ class Application:
         self.download_type: list = self.config.get('download_type')
         self.is_shutdown: bool = self.config.get('is_shutdown')
         self.links: str = self.config.get('links')
-        self.max_download_task: int = self.config.get('max_download_task')
+        self.max_download_task: int = self.config.get('max_download_task') if isinstance(
+            self.config.get('max_download_task'), int) else 3
         self.proxy: dict = self.config.get('proxy', {})
         self.enable_proxy = self.proxy if self.proxy.get('enable_proxy') else None
         self.save_directory: str = self.config.get('save_directory')
@@ -258,7 +259,10 @@ class Application:
                                api_id=self.api_id,
                                api_hash=self.api_hash,
                                proxy=self.enable_proxy,
-                               workdir=self.work_directory)
+                               workdir=self.work_directory,
+                               max_concurrent_transmissions=self.max_download_task)
+        # v1.3.7 新增多任务下载功能,无论是否Telegram会员。
+        # https://stackoverflow.com/questions/76714896/pyrogram-download-multiple-files-at-the-same-time
 
     def print_count_table(self) -> None:
         """打印统计的下载信息的表格。"""
@@ -871,7 +875,8 @@ class Application:
         _bot_token: str or None = self._config.get('bot_token')
         _links: str or None = self._config.get('links')
         _save_directory: str or None = self._config.get('save_directory')
-        _max_download_task: int or None = self._config.get('max_download_task')
+        _max_download_task: int or None = self._config.get('max_download_task') if isinstance(
+            self._config.get('max_download_task'), int) else 3
         _download_type: list or None = self._config.get('download_type')
         _is_shutdown: bool or None = self._config.get('is_shutdown')
         _proxy_config: dict = self._config.get('proxy', {})
