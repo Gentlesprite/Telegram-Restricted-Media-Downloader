@@ -1035,7 +1035,7 @@ class MetaData:
                                                     gradient_color=GradientColor.yellow_to_green),
                     justify='center')
             except Exception as _:
-                pass
+                return _
 
     @staticmethod
     def print_meta():
