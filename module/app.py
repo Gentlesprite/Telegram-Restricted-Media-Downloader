@@ -22,9 +22,10 @@ from rich.progress import Progress, TextColumn, BarColumn, TimeRemainingColumn, 
 
 from module import yaml
 from module import CustomDumper
+from module import Session
 from module import README
 from module import console, log
-from module import SOFTWARE_FULL_NAME, __version__, __copyright__, __license__
+from module import MAX_FILE_REFERENCE_TIME, SOFTWARE_FULL_NAME, __version__, __copyright__, __license__
 
 from module.process_path import split_path, validate_title, truncate_filename, move_to_save_directory, \
     gen_backup_config, get_extension, safe_delete, compare_file_size, get_file_size
@@ -233,6 +234,7 @@ class Application:
         self.failure_video, self.failure_photo = set(), set()
         self.complete_link: set = set()
         self.link_info: dict = {}
+        self.global_retry_task: int = 0
         self.progress = Progress(TextColumn('[bold blue]{task.fields[filename]}', justify='right'),
                                  BarColumn(bar_width=40),
                                  '[progress.percentage]{task.percentage:>3.1f}%',
@@ -255,6 +257,7 @@ class Application:
     def build_client(self) -> pyrogram.Client:
         """用填写的配置文件,构造pyrogram客户端。"""
         os.makedirs(self.work_directory, exist_ok=True)
+        Session.WAIT_TIMEOUT = min(Session.WAIT_TIMEOUT + self.max_download_task ** 2, MAX_FILE_REFERENCE_TIME)
         return self.client_obj(name=SOFTWARE_FULL_NAME.replace(' ', ''),
                                api_id=self.api_id,
                                api_hash=self.api_hash,

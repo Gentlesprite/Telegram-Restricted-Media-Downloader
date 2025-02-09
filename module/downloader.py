@@ -83,7 +83,8 @@ class TelegramRestrictedMediaDownloader(Bot):
                                                  disable_web_page_preview=True
                                                  )
             await client.send_photo(chat_id=chat_id,
-                                    photo=Base64Image.base64_to_binaryio(Base64Image.pay)
+                                    photo=Base64Image.base64_to_binaryio(Base64Image.pay),
+                                    disable_notification=True
                                     )
             await client.edit_message_text(chat_id=chat_id,
                                            message_id=last_msg.id,
@@ -260,6 +261,7 @@ class TelegramRestrictedMediaDownloader(Bot):
         else:
             if retry_count < self.app.max_retry_count:
                 retry_count += 1
+                self.app.global_retry_task += 1
                 notice = f'[重新下载]:"{file_name}",[重试次数]:{retry_count}/{self.app.max_retry_count}。'
                 self.queue.put_nowait((msg_link, {'id': file_id, 'count': retry_count}, notice))
             else:
@@ -405,6 +407,7 @@ class TelegramRestrictedMediaDownloader(Bot):
 
     def __retry_call(self, notice, _future):
         console.log(notice)
+        self.app.global_retry_task -= 1
         self.queue.task_done()
 
     async def __download_media_from_links(self) -> None:
@@ -438,7 +441,10 @@ class TelegramRestrictedMediaDownloader(Bot):
                 task.add_done_callback(partial(self.__retry_call, notice))
                 await task
             else:
-                await result
+                if self.app.global_retry_task != 0 and self.app.current_task_num < self.app.max_download_task:
+                    continue  # v1.3.8 修复:正常下载任务未达上限时,重试任务需等待当前任务完成后再创建。
+                else:
+                    await result
         # 等待所有任务完成。
         await self.queue.join()
 
