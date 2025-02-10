@@ -61,7 +61,7 @@ class TelegramRestrictedMediaDownloader(Bot):
             return
         else:
             for link in links:
-                res = await self.__create_download_task(msg_link=link)
+                res = await self.__create_download_task(link=link)
                 if res is False:
                     invalid_link.add(link)
                 else:
@@ -122,8 +122,13 @@ class TelegramRestrictedMediaDownloader(Bot):
                 msg = '🥰🥰🥰\n收款「二维码」已发送至您的「终端」与「对话框」十分感谢您的支持!'
             await callback_query.message.reply_text(msg)
         elif callback_data == BotCallbackText.link_table:
-            self.app.print_link_table()
-            await callback_query.message.edit_text('🫡🫡🫡`链接统计表`已发送至您的「终端」请注意查收。')
+            res: bool or str = self.app.print_link_table()
+            if isinstance(res, str):
+                await callback_query.message.edit_text('😵‍💫😵‍💫😵‍💫`链接统计表`打印失败。\n(具体原因请前往终端查看报错信息)')
+            elif isinstance(res, bool) and res is True:
+                await callback_query.message.edit_text('🫡🫡🫡`链接统计表`已发送至您的「终端」请注意查收。')
+            else:
+                await callback_query.message.edit_text('😵😵😵没有链接需要统计。')
         elif callback_data == BotCallbackText.count_table:
             self.app.print_count_table()
             await callback_query.message.edit_text('👌👌👌`计数统计表`已发送至您的「终端」请注意查收。')
@@ -131,31 +136,30 @@ class TelegramRestrictedMediaDownloader(Bot):
             await callback_query.message.delete()
             await self.help(client, callback_query.message)
 
-    async def __extract_link_content(self, msg_link) -> Tuple[str, int, list]:
+    async def __extract_link_content(self, link) -> Tuple[str, int, list]:
         comment_message = []
         is_comment = False
-        if '?single&comment' in msg_link:  # v1.1.0修复讨论组中附带?single时不下载的问题，
+        if '?single&comment' in link:  # v1.1.0修复讨论组中附带?single时不下载的问题，
             is_comment = True
-        if '?single' in msg_link:  # todo 如果只想下载组中的其一。
-            msg_link = msg_link.split('?single')[0]
-        if '?comment' in msg_link:  # 链接中包含?comment表示用户需要同时下载评论中的媒体。
-            msg_link = msg_link.split('?comment')[0]
+        if '?single' in link:  # todo 如果只想下载组中的其一。
+            link = link.split('?single')[0]
+        if '?comment' in link:  # 链接中包含?comment表示用户需要同时下载评论中的媒体。
+            link = link.split('?comment')[0]
             is_comment = True
-        msg_id = int(msg_link.split('/')[-1])
-        if 't.me/c/' in msg_link:
-            if 't.me/b/' in msg_link:
-                chat_name = str(msg_link.split('/')[-2])
+        message_id = int(link.split('/')[-1])
+        if 't.me/c/' in link:
+            if 't.me/b/' in link:
+                chat_id = str(link.split('/')[-2])
             else:
-                chat_name = int('-100' + str(msg_link.split('/')[-2]))  # 得到频道的id。
+                chat_id = int('-100' + str(link.split('/')[-2]))  # 得到频道的id。
         else:
-            chat_name = msg_link.split('/')[-2]  # 频道的名字。
+            chat_id = link.split('/')[-2]  # 频道的名字。
 
         if is_comment:
             # 如果用户需要同时下载媒体下面的评论,把评论中的所有信息放入列表一起返回。
-            async for comment in self.client.get_discussion_replies(chat_name, msg_id):
+            async for comment in self.client.get_discussion_replies(chat_id, message_id):
                 comment_message.append(comment)
-
-        return chat_name, msg_id, comment_message
+        return chat_id, message_id, comment_message
 
     @staticmethod
     async def __is_group(message) -> Tuple[bool or None, bool or None]:
@@ -166,34 +170,35 @@ class TelegramRestrictedMediaDownloader(Bot):
         except AttributeError:
             return None, None
 
-    def __listen_link_complete(self, msg_link, file_name) -> bool:
-        self.app.link_info.get(msg_link).get('file_name').add(file_name)
+    def __listen_link_complete(self, link, file_name) -> bool:
+        self.app.link_info.get(link).get('file_name').add(file_name)
         for i in self.app.link_info.items():
-            link: str = i[0]
+            compare_link: str = i[0]
             info: dict = i[1]
-            if link == msg_link:
+            if compare_link == link:
                 info['complete_num'] = len(info.get('file_name'))
-        all_num: int = self.app.link_info.get(msg_link).get('member_num')
-        complete_num: int = self.app.link_info.get(msg_link).get('complete_num')
+        all_num: int = self.app.link_info.get(link).get('member_num')
+        complete_num: int = self.app.link_info.get(link).get('complete_num')
         if all_num == complete_num:
-            console.log(f'{KeyWord.LINK}:"{msg_link}",'
+            console.log(f'{KeyWord.LINK}:"{link}",'
                         f'{KeyWord.STATUS}:{Status.SUCCESS}。')
-            self.app.complete_link.add(msg_link)
+            self.app.link_info.get(link)['error_msg'] = {}
+            self.app.complete_link.add(link)
             return True
         else:
             return False
 
-    async def __add_task(self, msg_link, message: pyrogram.types.Message or list, retry: dict) -> None:
+    async def __add_task(self, link, message: pyrogram.types.Message or list, retry: dict) -> None:
         retry_count = retry.get('count')
         retry_id = retry.get('id')
         if isinstance(message, list):
             for _message in message:
                 if retry_count != 0:
                     if _message.id == retry_id:
-                        await self.__add_task(msg_link, _message, retry)
+                        await self.__add_task(link, _message, retry)
                         break
                 else:
-                    await self.__add_task(msg_link, _message, retry)
+                    await self.__add_task(link, _message, retry)
         else:
             _task = None
             valid_dtype, is_document_type_valid = self.app.get_valid_dtype(message).values()
@@ -215,7 +220,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                                     f'{KeyWord.SIZE}:{format_file_size},'
                                     f'{KeyWord.TYPE}:{DownloadType.t(self.app.guess_file_type(file_name=file_name, status=DownloadStatus.skip)[0].text)},'
                                     f'{KeyWord.STATUS}:{Status.SKIP}。', style='#e6db74')
-                    self.__listen_link_complete(msg_link=msg_link, file_name=file_name)
+                    self.__listen_link_complete(link=link, file_name=file_name)
                 else:
                     console.log(f'{KeyWord.FILE}:"{file_name}",'
                                 f'{KeyWord.SIZE}:{format_file_size},'
@@ -234,7 +239,7 @@ class TelegramRestrictedMediaDownloader(Bot):
                     _task.add_done_callback(
                         partial(self.__complete_call, sever_file_size,
                                 temp_file_path,
-                                msg_link,
+                                link,
                                 file_name,
                                 retry_count,
                                 file_id,
@@ -244,7 +249,7 @@ class TelegramRestrictedMediaDownloader(Bot):
 
     def __complete_call(self, sever_file_size,
                         temp_file_path,
-                        msg_link, file_name,
+                        link, file_name,
                         retry_count, file_id,
                         format_file_size,
                         task_id, _future):
@@ -255,15 +260,14 @@ class TelegramRestrictedMediaDownloader(Bot):
                                           temp_file_path=temp_file_path,
                                           save_directory=self.app.save_directory,
                                           with_move=True):
-            self.app.link_info.get(msg_link)['error_msg'] = {}
-            self.__listen_link_complete(msg_link=msg_link, file_name=file_name)
+            self.__listen_link_complete(link=link, file_name=file_name)
             console.log(f'[当前任务数]:{self.app.current_task_num}。', justify='right')
         else:
             if retry_count < self.app.max_retry_count:
                 retry_count += 1
                 self.app.global_retry_task += 1
                 notice = f'[重新下载]:"{file_name}",[重试次数]:{retry_count}/{self.app.max_retry_count}。'
-                self.queue.put_nowait((msg_link, {'id': file_id, 'count': retry_count}, notice))
+                self.queue.put_nowait((link, {'id': file_id, 'count': retry_count}, notice))
             else:
                 _error = f'(达到最大重试次数:{self.app.max_retry_count}次)。'
                 console.log(f'{KeyWord.FILE}:"{file_name}",'
@@ -271,105 +275,105 @@ class TelegramRestrictedMediaDownloader(Bot):
                             f'{KeyWord.TYPE}:{DownloadType.t(self.app.guess_file_type(file_name=file_name, status=DownloadStatus.failure)[0].text)},'
                             f'{KeyWord.STATUS}:{Status.FAILURE}'
                             f'{_error}')
-                self.app.link_info.get(msg_link).get('error_msg')[file_name] = _error.replace('。', '')
-                self.bot_task_link.discard(msg_link)
+                self.app.link_info.get(link).get('error_msg')[file_name] = _error.replace('。', '')
+                self.bot_task_link.discard(link)
         self.app.progress.remove_task(task_id=task_id)
 
     async def __create_download_task(self,
-                                     msg_link: str,
+                                     link: str,
                                      retry: dict or None = None) -> bool:
         retry = retry if retry else {'id': -1, 'count': 0}
-        self.app.link_info[msg_link] = {'link_type': None,
-                                        'member_num': 0,
-                                        'complete_num': 0,
-                                        'file_name': set(),
-                                        'error_msg': {}}
+        self.app.link_info[link] = {'link_type': None,
+                                    'member_num': 0,
+                                    'complete_num': 0,
+                                    'file_name': set(),
+                                    'error_msg': {}}
         try:
-            chat_name, msg_id, is_download_comment = await self.__extract_link_content(msg_link)
-            msg = await self.client.get_messages(chat_name, msg_id)  # 该消息的信息。
+            chat_id, message_id, comment_message = await self.__extract_link_content(link)
+            msg = await self.client.get_messages(chat_id=chat_id, message_ids=message_id)  # 该消息的信息。
             res, group = await self.__is_group(msg)
-            if res or is_download_comment:  # 组或评论区。
+            if res or comment_message:  # 组或评论区。
                 try:  # v1.1.2解决当group返回None时出现comment无法下载的问题。
-                    group.extend(is_download_comment) if is_download_comment else None
+                    group.extend(comment_message) if comment_message else None
                 except AttributeError:
-                    if is_download_comment and group is None:
+                    if comment_message and group is None:
                         group = []
-                        group.extend(is_download_comment)
-                link_type = LinkType.comment if is_download_comment else LinkType.group
-                self.app.link_info[msg_link] = {'link_type': link_type,
-                                                'member_num': len(group),
-                                                'complete_num': 0,
-                                                'file_name': set(),
-                                                'error_msg': {}}
+                        group.extend(comment_message)
+                link_type = LinkType.comment if comment_message else LinkType.group
+                self.app.link_info[link] = {'link_type': link_type,
+                                            'member_num': len(group),
+                                            'complete_num': 0,
+                                            'file_name': set(),
+                                            'error_msg': {}}
                 console.log(
-                    f'{KeyWord.CHANNEL}:"{chat_name}",'  # 频道名。
-                    f'{KeyWord.LINK}:"{msg_link}",'  # 链接。
+                    f'{KeyWord.CHANNEL}:"{chat_id}",'  # 频道名。
+                    f'{KeyWord.LINK}:"{link}",'  # 链接。
                     f'{KeyWord.LINK_TYPE}:{LinkType.t(link_type)}。')  # 链接类型。
-                await self.__add_task(msg_link, group, retry)
+                await self.__add_task(link, group, retry)
                 return True
             elif res is False and group is None:  # 单文件。
                 link_type = LinkType.single
-                self.app.link_info[msg_link] = {'link_type': link_type,
-                                                'member_num': 1,
-                                                'complete_num': 0,
-                                                'file_name': set(),
-                                                'error_msg': {}}
+                self.app.link_info[link] = {'link_type': link_type,
+                                            'member_num': 1,
+                                            'complete_num': 0,
+                                            'file_name': set(),
+                                            'error_msg': {}}
                 console.log(
-                    f'{KeyWord.CHANNEL}:"{chat_name}",'  # 频道名。
-                    f'{KeyWord.LINK}:"{msg_link}",'  # 链接。
+                    f'{KeyWord.CHANNEL}:"{chat_id}",'  # 频道名。
+                    f'{KeyWord.LINK}:"{link}",'  # 链接。
                     f'{KeyWord.LINK_TYPE}:{LinkType.t(link_type)}。')  # 链接类型。
-                await self.__add_task(msg_link, msg, retry)
+                await self.__add_task(link, msg, retry)
                 return True
             elif res is None and group is None:
                 error = '消息不存在,频道已解散或未在频道中'
-                self.app.link_info.get(msg_link)['error_msg'] = {'all_member': error}
+                self.app.link_info.get(link)['error_msg'] = {'all_member': error}
                 log.warning(
-                    f'{KeyWord.LINK}:"{msg_link}"{error},{Status.FAILURE}。')
+                    f'{KeyWord.LINK}:"{link}"{error},{Status.FAILURE}。')
                 return False
             elif res is None and group == 0:
                 error = '未收录到的错误'
-                self.app.link_info.get(msg_link)['error_msg'] = {'all_member': error}
-                log.error(f'{KeyWord.LINK}:"{msg_link}"{error},'
+                self.app.link_info.get(link)['error_msg'] = {'all_member': error}
+                log.error(f'{KeyWord.LINK}:"{link}"{error},'
                           f'{KeyWord.STATUS}:{Status.FAILURE}。')
                 return False
         except UnicodeEncodeError as e:
             error = '频道标题存在特殊字符,请移步终端下载'
-            self.app.link_info.get(msg_link)['error_msg'] = {'all_member': e}
-            log.error(f'{KeyWord.LINK}:"{msg_link}"{error},'
+            self.app.link_info.get(link)['error_msg'] = {'all_member': e}
+            log.error(f'{KeyWord.LINK}:"{link}"{error},'
                       f'{KeyWord.REASON}:"{e}",'
                       f'{KeyWord.STATUS}:{Status.FAILURE}。')
             return False
         except MsgIdInvalid as e:
-            self.app.link_info.get(msg_link)['error_msg'] = {'all_member': e}
-            log.error(f'{KeyWord.LINK}:"{msg_link}"消息不存在,可能已删除,'
+            self.app.link_info.get(link)['error_msg'] = {'all_member': e}
+            log.error(f'{KeyWord.LINK}:"{link}"消息不存在,可能已删除,'
                       f'{KeyWord.REASON}:"{e}",'
                       f'{KeyWord.STATUS}:{Status.FAILURE}。')
             return False
         except UsernameInvalid as e:
-            self.app.link_info.get(msg_link)['error_msg'] = {'all_member': e}
+            self.app.link_info.get(link)['error_msg'] = {'all_member': e}
             log.error(
-                f'{KeyWord.LINK}:"{msg_link}"频道用户名无效,该链接的频道用户名可能已更改或频道已解散,'
+                f'{KeyWord.LINK}:"{link}"频道用户名无效,该链接的频道用户名可能已更改或频道已解散,'
                 f'{KeyWord.REASON}:"{e}",'
                 f'{KeyWord.STATUS}:{Status.FAILURE}。')
             return False
         except ChannelInvalid as e:
-            self.app.link_info.get(msg_link)['error_msg'] = {'all_member': e}
+            self.app.link_info.get(link)['error_msg'] = {'all_member': e}
             log.error(
-                f'{KeyWord.LINK}:"{msg_link}"频道可能为私密频道,请让当前账号加入该频道后再重试,'
+                f'{KeyWord.LINK}:"{link}"频道可能为私密频道,请让当前账号加入该频道后再重试,'
                 f'{KeyWord.REASON}:"{e}",'
                 f'{KeyWord.STATUS}:{Status.FAILURE}。')
             return False
         except ChannelPrivate as e:
-            self.app.link_info.get(msg_link)['error_msg'] = {'all_member': e}
+            self.app.link_info.get(link)['error_msg'] = {'all_member': e}
             log.error(
-                f'{KeyWord.LINK}:"{msg_link}"频道可能为私密频道,当前账号可能已不在该频道,请让当前账号加入该频道后再重试,'
+                f'{KeyWord.LINK}:"{link}"频道可能为私密频道,当前账号可能已不在该频道,请让当前账号加入该频道后再重试,'
                 f'{KeyWord.REASON}:"{e}",'
                 f'{KeyWord.STATUS}:{Status.FAILURE}。')
             return False
         except Exception as e:
-            self.app.link_info.get(msg_link)['error_msg'] = {'all_member': e}
+            self.app.link_info.get(link)['error_msg'] = {'all_member': e}
             log.error(
-                f'{KeyWord.LINK}:"{msg_link}"未收录到的错误,'
+                f'{KeyWord.LINK}:"{link}"未收录到的错误,'
                 f'{KeyWord.REASON}:"{e}",'
                 f'{KeyWord.STATUS}:{Status.FAILURE}。')
             log.exception(e)
@@ -378,26 +382,26 @@ class TelegramRestrictedMediaDownloader(Bot):
     def __process_links(self, link: str or list) -> set or None:
         """将链接(文本格式或链接)处理成集合。"""
         start_content: str = 'https://t.me/'
-        msg_link_set: set = set()
+        links: set = set()
         if isinstance(link, str):
             if link.endswith('.txt') and os.path.isfile(link):
                 with open(file=link, mode='r', encoding='UTF-8') as _:
-                    links: list = [content.strip() for content in _.readlines()]
-                for link in links:
-                    if link.startswith(start_content):
-                        msg_link_set.add(link)
-                        self.bot_task_link.add(link)
+                    _links: list = [content.strip() for content in _.readlines()]
+                for i in _links:
+                    if i.startswith(start_content):
+                        links.add(i)
+                        self.bot_task_link.add(i)
                     else:
-                        log.warning(f'"{link}"是一个非法链接,{KeyWord.STATUS}:{Status.SKIP}。')
+                        log.warning(f'"{i}"是一个非法链接,{KeyWord.STATUS}:{Status.SKIP}。')
             elif link.startswith(start_content):
-                msg_link_set.add(link)
+                links.add(link)
         elif isinstance(link, list):
             for i in link:
                 res = self.__process_links(link=i)
                 if res is not None:
-                    msg_link_set.update(res)
-        if msg_link_set:
-            return msg_link_set
+                    links.update(res)
+        if links:
+            return links
         elif not self.app.bot_token:
             console.log('没有找到有效链接,程序已退出。')
             sys.exit(0)
@@ -429,15 +433,15 @@ class TelegramRestrictedMediaDownloader(Bot):
         txt_links = self.__process_links(link=self.app.links)
         # 将初始任务添加到队列中。
         if txt_links:
-            for link in txt_links:
-                await self.__create_download_task(msg_link=link)
+            for _link in txt_links:
+                await self.__create_download_task(link=_link)
 
         # 处理队列中的任务,与机器人事件。
         while not self.queue.empty() or self.is_bot_running:
             result = await self.queue.get()
             if isinstance(result, tuple):
-                msg_link, retry, notice = result
-                task = self.loop.create_task(self.__create_download_task(msg_link=msg_link, retry=retry))
+                link, retry, notice = result
+                task = self.loop.create_task(self.__create_download_task(link=link, retry=retry))
                 task.add_done_callback(partial(self.__retry_call, notice))
                 await task
             else:

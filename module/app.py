@@ -337,35 +337,39 @@ class Application:
                                      )
             media_table.print_meta()
 
-    def print_link_table(self) -> None:
+    def print_link_table(self) -> bool or str:
         """打印统计的下载链接信息的表格。"""
         try:
             data: list = []
-            for index, (msg_link, info) in enumerate(self.link_info.items(), start=1):
-                complete_num = int(info['complete_num'])
-                member_num = int(info['member_num'])
+            for index, (link, info) in enumerate(self.link_info.items(), start=1):
+                complete_num = int(info.get('complete_num'))
+                member_num = int(info.get('member_num'))
                 try:
                     rate = round(complete_num / member_num * 100, 2)
                 except ZeroDivisionError:
                     rate = 0
                 complete_rate = f'{complete_num}/{member_num}[{rate}%]'
-                file_names = '\n'.join(info['file_name'])
-                error_msg = info['error_msg']
+                file_names = '\n'.join(info.get('file_name'))
+                error_msg = info.get('error_msg')
                 if not error_msg:
                     error_info = ''
                 elif 'all_member' in error_msg:
-                    error_info = str(error_msg['all_member'])
+                    error_info = str(error_msg.get('all_member'))
                 else:
-                    error_info = '\n'.join([f"{fn}: {err}" for fn, err in error_msg.items()])
-                data.append([index, msg_link, file_names, complete_rate, error_info])
+                    error_info = '\n'.join([f'{fn}: {err}' for fn, err in error_msg.items()])
+                data.append([index, link, file_names, complete_rate, error_info])
             if data:
                 panel_table = PanelTable(title='下载链接统计',
                                          header=('编号', '链接', '文件名', '完成率', '错误信息'),
                                          data=data,
                                          show_lines=True)
                 panel_table.print_meta()
+                return True
+            else:
+                return False
         except Exception as e:
             log.error(f'打印下载链接统计表时出错,{KeyWord.REASON}:"{e}"')
+            return e
 
     def process_shutdown(self, second: int) -> None:
         """处理关机逻辑。"""
